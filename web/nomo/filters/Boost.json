@@ -1,0 +1,32 @@
+[
+	{
+		"name_chs":"休斯顿",
+		"name_cht":"休士頓",
+		"name_en":"Houston",
+		"filename":"Houston"
+	},
+	{
+		"name_chs":"曼哈顿",
+		"name_cht":"曼哈頓",
+		"name_en":"Manhattan",
+		"filename":"Manhattan"
+	},
+	{
+		"name_chs":"西雅图",
+		"name_cht":"西雅圖",
+		"name_en":"Seattle",
+		"filename":"Seattle"
+	},
+	{
+		"name_chs":"圣地亚哥",
+		"name_cht":"聖迭戈",
+		"name_en":"San Diego",
+		"filename":"SanDiego"
+	},
+	{
+		"name_chs":"檀香山",
+		"name_cht":"檀香山",
+		"name_en":"Honolulu",
+		"filename":"Honolulu"
+	}
+]

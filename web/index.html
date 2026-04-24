@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disposable Camera Editor</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="image-workspace" aria-label="Image editor">
+        <div class="empty-state" id="emptyState">
+          <p>Open a photo to start editing.</p>
+        </div>
+        <canvas id="processedCanvas"></canvas>
+      </section>
+
+      <aside class="toolbelt" aria-label="Editing controls">
+        <div class="brand-lockup">
+          <p class="eyebrow">Disposable Camera</p>
+          <h1>NOMO LUT Import</h1>
+          <p>Real preset path from the APK: encrypted `.dat` LUT, AES-CBC decrypt, BGR to RGB swizzle, GPU lookup shader.</p>
+        </div>
+
+        <label class="file-trigger">
+          Open photo
+          <input id="fileInput" type="file" accept="image/*" />
+        </label>
+
+        <label class="select-control">
+          NOMO filter
+          <select id="lookSelect" disabled></select>
+        </label>
+
+        <div class="sliders">
+          <label>
+            Filter intensity
+            <input id="intensitySlider" type="range" min="0" max="200" value="100" />
+            <span id="intensityValue">100%</span>
+          </label>
+        </div>
+
+        <section class="effects-panel" aria-label="APK backed effects">
+          <div class="effects-panel__header">
+            <h2>Effects</h2>
+            <p>Strict APK-backed post-LUT controls only.</p>
+          </div>
+          <div id="effectsRoot"></div>
+        </section>
+
+        <section class="effects-panel" aria-label="Imported simulation effects">
+          <div class="effects-panel__header">
+            <h2>Imported Effects</h2>
+            <p>Direct ports from other simulators, kept separate from the APK-backed stack.</p>
+          </div>
+          <div id="importedEffectsRoot"></div>
+        </section>
+
+        <p class="status-message" id="statusMessage">Loading renderer...</p>
+
+        <div class="actions">
+          <button id="resetButton" type="button" disabled>Reset</button>
+          <button id="toggleEditsButton" type="button" disabled aria-pressed="false">Show original</button>
+          <button id="downloadButton" type="button" disabled>Download image</button>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

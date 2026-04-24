@@ -1,0 +1,26 @@
+[
+	{
+		"name_chs":"切尔西",
+		"name_cht":"雀兒喜",
+		"name_en":"Chelsea",
+		"filename":"Chelsea"
+	},
+	{
+		"name_chs":"筑地",
+		"name_cht":"築地",
+		"name_en":"Tsukiji",
+		"filename":"Tsukiji"
+	},
+	{
+		"name_chs":"派克",
+		"name_cht":"派克",
+		"name_en":"Pike Pl.",
+		"filename":"PikePl"
+	},
+	{
+		"name_chs":"博盖利亚",
+		"name_cht":"波蓋利亞",
+		"name_en":"Boqueria",
+		"filename":"Boqueria"
+	}
+]

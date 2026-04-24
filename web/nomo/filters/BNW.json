@@ -1,0 +1,20 @@
+[
+	{
+		"name_chs":"新宿",
+		"name_cht":"新宿",
+		"name_en":"Shinjuku",
+		"filename":"Shinjuku"
+	},
+	{
+		"name_chs":"银座",
+		"name_cht":"銀座",
+		"name_en":"Ginza",
+		"filename":"Ginza"
+	},
+	{
+		"name_chs":"千代田",
+		"name_cht":"千代田",
+		"name_en":"Chiyoda",
+		"filename":"Chiyoda"
+	}
+]

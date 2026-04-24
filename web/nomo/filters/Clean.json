@@ -1,0 +1,26 @@
+[
+	{
+		"name_chs":"富士山",
+		"name_cht":"富士山",
+		"name_en":"Fujisan",
+		"filename":"Fujisan"
+	},
+	{
+		"name_chs":"珠穆朗玛",
+		"name_cht":"珠穆朗瑪",
+		"name_en":"Everest",
+		"filename":"Everest"
+	},
+	{
+		"name_chs":"落基山脉",
+		"name_cht":"洛磯山脈",
+		"name_en":"Rocky",
+		"filename":"Rocky"
+	},
+	{
+		"name_chs":"勃朗峰",
+		"name_cht":"勃朗峰",
+		"name_en":"Blanc",
+		"filename":"Blanc"
+	}
+]

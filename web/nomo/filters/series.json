@@ -1,0 +1,37 @@
+[
+	{
+		"name_chs":"胶片:彩色",
+		"name_cht":"菲林:彩色",
+		"name_en":"Film:Color",
+		"filename":"Clean",
+		"filter_id": 3
+	},
+	{
+		"name_chs":"美食",
+		"name_cht":"美食",
+		"name_en":"Food",
+		"filename":"Food",
+		"filter_id": 15
+	},
+	{
+		"name_chs":"电影调色",
+		"name_cht":"電影調色",
+		"name_en":"Blockbuster",
+		"filename":"Blockbuster",
+		"filter_id": 33
+	},
+	{
+		"name_chs":"黑白",
+		"name_cht":"黑白",
+		"name_en":"B&W",
+		"filename":"BNW",
+		"filter_id": 7
+	},
+	{
+		"name_chs":"增强",
+		"name_cht":"增強",
+		"name_en":"Boost",
+		"filename":"Boost",
+		"filter_id": 5
+	}
+]
