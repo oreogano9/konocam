@@ -34,6 +34,7 @@ const LUT_PIXEL_BYTES = LUT_WIDTH * LUT_HEIGHT * 3;
 const FILTER_SERIES_PATH = "./nomo/filters/series.json";
 const FILTERS_ROOT = "./nomo/filters";
 const LUTS_ROOT = "./nomo/dat";
+const OVERLAYS_ROOT = "./nomo/overlays";
 const SPEKTRA_PROFILE_PATH = "./spektrafilm/profiles/kodak_gold_200.json";
 const MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 900px)");
 const COLOR_MATRIX = new Float32Array([
@@ -44,6 +45,17 @@ const COLOR_MATRIX = new Float32Array([
 ]);
 
 const CUSTOM_KODAK_GROUP = "Kodak Inspired (Custom)";
+const NOMO_OVERLAY_PATHS = {
+  nomoGrain: "grains_iso_400_jpg_50.jpg",
+  vignette: "vignette_020_camera_jpg_70.jpg",
+  dust: ["dust01.jpg", "dust02.jpg", "dust03.jpg"],
+  lightLeak: [
+    "leak_020_g05_jpg_50_left.jpg",
+    "leak_035_g69_jpg_50_left.jpg",
+    "leak_040_g55_jpg_50_right.jpg",
+    "leak_060_g09_jpg_50_bottom.jpg",
+  ],
+};
 const CUSTOM_KODAK_FILTERS = [
   { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-funsaver-800", name: "Kodak FunSaver 800", custom: true, recipe: "funsaver800" },
   { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-gold-200", name: "Kodak Gold 200", custom: true, recipe: "gold200" },
@@ -75,6 +87,11 @@ const state = {
   beforeHoldActive: false,
   cameraStream: null,
   cameraActive: false,
+  nomoOverlayImages: null,
+  overlaySelections: {
+    dust: 0,
+    lightLeak: 0,
+  },
   effects: cloneEffectDefaults(),
   effectInputs: new Map(),
   importedEffects: {
@@ -299,6 +316,7 @@ async function initializeApp() {
   setStatus("Loading NOMO filter metadata...");
   state.aesKey = await crypto.subtle.importKey("raw", NOMO_AES_KEY, "AES-CBC", false, ["decrypt"]);
   state.spektraProfile = await loadSpektraProfile(SPEKTRA_PROFILE_PATH);
+  state.nomoOverlayImages = await loadNomoOverlayImages();
   state.filters = await loadFilterCatalog();
   populateFilterSelect(state.filters);
   state.selectedFilterFilename = "";
@@ -306,6 +324,15 @@ async function initializeApp() {
   updateEffectControlState();
   updateMobileCameraState();
   setStatus("Open a photo to start.");
+}
+
+async function loadNomoOverlayImages() {
+  return {
+    nomoGrain: await loadOverlayImage(`${OVERLAYS_ROOT}/${NOMO_OVERLAY_PATHS.nomoGrain}`),
+    vignette: await loadOverlayImage(`${OVERLAYS_ROOT}/${NOMO_OVERLAY_PATHS.vignette}`),
+    dust: await Promise.all(NOMO_OVERLAY_PATHS.dust.map((name) => loadOverlayImage(`${OVERLAYS_ROOT}/${name}`))),
+    lightLeak: await Promise.all(NOMO_OVERLAY_PATHS.lightLeak.map((name) => loadOverlayImage(`${OVERLAYS_ROOT}/${name}`))),
+  };
 }
 
 async function loadFilterCatalog() {
@@ -878,11 +905,7 @@ function renderImage() {
   } else {
     renderLookupStage();
     renderEffectsStage();
-    if (state.importedEffects.spektraGrain.enabled && state.spektraProfile) {
-      renderSpektraGrainStage();
-    } else {
-      renderBlit(state.effectsTarget.texture);
-    }
+    renderPostEffectsStage();
   }
 
   canvas.style.display = "block";
@@ -940,24 +963,32 @@ function renderEffectsStage() {
   gl.uniform1f(state.uniforms.effects.highlight, state.effects.highlight.value);
   gl.uniform1f(state.uniforms.effects.shadow, state.effects.shadow.value);
   gl.uniform1f(state.uniforms.effects.sharpen, state.effects.sharpen.value);
-  gl.uniform1f(state.uniforms.effects.vignette, state.effects.vignette.value);
+  gl.uniform1f(state.uniforms.effects.vignette, 0);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function renderSpektraGrainStage() {
+function renderPostEffectsStage() {
   const rgba = new Uint8Array(canvas.width * canvas.height * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, state.effectsTarget.framebuffer);
   gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
 
-  const grained = applySpektraGrainToRgba(
-    rgba,
-    canvas.width,
-    canvas.height,
-    state.spektraProfile,
-    { filmFormatMm: 35.0 },
-  );
+  let output = rgba;
 
-  uploadGrainTexture(grained);
+  if (hasNomoOverlayEffects()) {
+    output = compositeNomoOverlays(output);
+  }
+
+  if (state.importedEffects.spektraGrain.enabled && state.spektraProfile) {
+    output = applySpektraGrainToRgba(
+      output,
+      canvas.width,
+      canvas.height,
+      state.spektraProfile,
+      { filmFormatMm: 35.0 },
+    );
+  }
+
+  uploadGrainTexture(output);
   renderBlit(state.grainTexture);
 }
 
@@ -974,6 +1005,71 @@ function uploadGrainTexture(rgba) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+}
+
+function hasNomoOverlayEffects() {
+  return (
+    state.effects.nomoGrain?.value > 0 ||
+    state.effects.dust?.value > 0 ||
+    state.effects.lightLeak?.value > 0 ||
+    state.effects.vignette?.value > 0
+  );
+}
+
+function compositeNomoOverlays(rgba) {
+  const baseCanvas = createCompositeCanvas(rgba);
+  const context = baseCanvas.getContext("2d");
+
+  if (!context || !state.nomoOverlayImages) {
+    return rgba;
+  }
+
+  if (state.effects.nomoGrain.value > 0) {
+    drawOverlay(context, state.nomoOverlayImages.nomoGrain, state.effects.nomoGrain.value / 10, "overlay");
+  }
+
+  if (state.effects.dust.value > 0) {
+    const dustImage = state.nomoOverlayImages.dust[state.overlaySelections.dust % state.nomoOverlayImages.dust.length];
+    drawOverlay(context, dustImage, state.effects.dust.value / 10, "screen", { flipXY: true });
+  }
+
+  if (state.effects.lightLeak.value > 0) {
+    const leakImage = state.nomoOverlayImages.lightLeak[state.overlaySelections.lightLeak % state.nomoOverlayImages.lightLeak.length];
+    drawOverlay(context, leakImage, state.effects.lightLeak.value / 10, "screen");
+  }
+
+  if (state.effects.vignette.value > 0) {
+    drawOverlay(context, state.nomoOverlayImages.vignette, state.effects.vignette.value / 10, "multiply", { flipXY: true });
+  }
+
+  return new Uint8Array(context.getImageData(0, 0, baseCanvas.width, baseCanvas.height).data);
+}
+
+function createCompositeCanvas(rgba) {
+  const compositeCanvas = document.createElement("canvas");
+  compositeCanvas.width = canvas.width;
+  compositeCanvas.height = canvas.height;
+  const context = compositeCanvas.getContext("2d");
+  const imageData = context.createImageData(canvas.width, canvas.height);
+  imageData.data.set(rgba);
+  context.putImageData(imageData, 0, 0);
+  return compositeCanvas;
+}
+
+function drawOverlay(context, image, alpha, blendMode, options = {}) {
+  if (!image || alpha <= 0) {
+    return;
+  }
+
+  context.save();
+  context.globalAlpha = alpha;
+  context.globalCompositeOperation = blendMode;
+  if (options.flipXY) {
+    context.translate(context.canvas.width, context.canvas.height);
+    context.scale(-1, -1);
+  }
+  context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
+  context.restore();
 }
 
 function renderBlit(texture) {
@@ -997,6 +1093,7 @@ function resetControls() {
   intensitySlider.value = defaults.intensity;
   state.effects = cloneEffectDefaults();
   state.importedEffects.spektraGrain.enabled = SPEKTRA_GRAIN_EFFECT.defaultEnabled;
+  rerollOverlaySelections();
   syncIntensityControlState();
   updateEffectControlState();
   syncEffectInputs();
@@ -1097,6 +1194,10 @@ function formatEffectValue(effect, value) {
     return value ? "On" : "Off";
   }
 
+  if (Number.isInteger(effect.step)) {
+    return `${value > 0 ? "+" : ""}${Math.round(value)}`;
+  }
+
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
 }
 
@@ -1137,6 +1238,19 @@ async function fetchJson(path) {
     throw new Error(`Failed to load ${path}: ${response.status}`);
   }
   return response.json();
+}
+
+async function loadOverlayImage(path) {
+  const image = new Image();
+  image.decoding = "async";
+  image.src = path;
+  await image.decode();
+  return image;
+}
+
+function rerollOverlaySelections() {
+  state.overlaySelections.dust = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.dust.length);
+  state.overlaySelections.lightLeak = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.lightLeak.length);
 }
 
 function clamp01(value) {
