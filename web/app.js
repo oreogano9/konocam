@@ -418,20 +418,14 @@ function renderEffectControls() {
         input.value = String(state.effects[effect.id].value);
         input.dataset.effectId = effect.id;
         card.append(row, input);
-        const anchor = document.createElement("div");
-        anchor.className = "effect-card__anchor";
-        anchor.textContent = effect.apkAnchor;
-        card.append(anchor);
+        card.title = effect.apkAnchor;
         groupEl.append(card);
         state.effectInputs.set(effect.id, { input, value });
         continue;
       }
 
       card.append(row);
-      const anchor = document.createElement("div");
-      anchor.className = "effect-card__anchor";
-      anchor.textContent = effect.apkAnchor;
-      card.append(anchor);
+      card.title = effect.apkAnchor;
       groupEl.append(card);
     }
 
@@ -479,10 +473,7 @@ function renderImportedEffectControls() {
   row.append(label, input);
   card.append(row);
 
-  const anchor = document.createElement("div");
-  anchor.className = "effect-card__anchor";
-  anchor.textContent = SPEKTRA_GRAIN_EFFECT.anchor;
-  card.append(anchor);
+  card.title = SPEKTRA_GRAIN_EFFECT.anchor;
 
   importedEffectsRoot.append(card);
   state.importedEffectInputs.set(SPEKTRA_GRAIN_EFFECT.id, { input });
