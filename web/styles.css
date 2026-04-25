@@ -13,6 +13,7 @@
 
 html,
 body {
+  height: 100%;
   margin: 0;
   min-height: 100%;
   background: #10100f;
@@ -55,7 +56,9 @@ button:disabled {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  height: 100svh;
   min-height: 100svh;
+  overflow: hidden;
 }
 
 .image-workspace {
@@ -63,6 +66,7 @@ button:disabled {
   background: #0f180d;
   display: grid;
   justify-items: center;
+  height: 100svh;
   min-height: 100svh;
   overflow: hidden;
   padding: clamp(1rem, 3vw, 3rem);
@@ -79,13 +83,24 @@ button:disabled {
 }
 
 #processedCanvas {
+  cursor: zoom-in;
   display: none;
   height: auto;
   max-height: 100%;
   max-width: 100%;
   position: relative;
+  transform-origin: center;
+  user-select: none;
   width: auto;
   z-index: 1;
+}
+
+#processedCanvas.is-zoomed {
+  cursor: grab;
+}
+
+#processedCanvas.is-panning {
+  cursor: grabbing;
 }
 
 .app-shell > *,
@@ -432,11 +447,19 @@ h1 {
 }
 
 @media (max-width: 900px) {
+  html,
+  body {
+    height: auto;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .image-workspace {
+    height: auto;
     min-height: 56svh;
     padding: 0.75rem;
   }

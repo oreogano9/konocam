@@ -105,6 +105,14 @@ const state = {
   },
   spektraProfile: null,
   importedEffectInputs: new Map(),
+  canvasView: {
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    lastX: 0,
+    lastY: 0,
+  },
 };
 
 const defaults = {
@@ -737,6 +745,7 @@ async function startCamera() {
     state.cameraActive = true;
     cameraPreview.srcObject = stream;
     await cameraPreview.play();
+    resetCanvasView();
     cameraShell.hidden = false;
     canvas.style.display = "block";
     emptyState.style.display = "none";
@@ -902,6 +911,7 @@ async function applyLoadedImage(image, sourceName = "nomo-edit") {
   state.sourceName = sourceName.replace(/\.[^/.]+$/, "") || "nomo-edit";
   state.stillSourceName = state.sourceName;
   uploadSourceTexture(image);
+  resetCanvasView();
   await ensureLutTexture(lookSelect.value);
   renderImage();
   setStatus(`${state.filterMap.get(lookSelect.value)?.name ?? lookSelect.value} loaded.`);
@@ -955,6 +965,7 @@ function updateCanvasDisplaySize() {
   canvas.style.height = `${canvas.height}px`;
   canvas.style.maxWidth = `${displayWidth}px`;
   canvas.style.maxHeight = `${displayHeight}px`;
+  updateCanvasViewTransform();
 }
 
 function uploadSourceTexture(image) {
@@ -1334,6 +1345,79 @@ function toggleEditsVisibility() {
 
   setEditsVisibility(state.showingOriginal);
   renderImage();
+}
+
+function resetCanvasView() {
+  state.canvasView.zoom = 1;
+  state.canvasView.panX = 0;
+  state.canvasView.panY = 0;
+  state.canvasView.isPanning = false;
+  updateCanvasViewTransform();
+}
+
+function updateCanvasViewTransform() {
+  const { zoom, panX, panY, isPanning } = state.canvasView;
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  canvas.classList.toggle("is-zoomed", zoom > 1.01);
+  canvas.classList.toggle("is-panning", isPanning);
+}
+
+function handleWorkspaceWheel(event) {
+  if (isMobileView() || !state.source || canvas.style.display === "none") {
+    return;
+  }
+
+  event.preventDefault();
+  const direction = event.deltaY < 0 ? 1 : -1;
+  const nextZoom = Math.min(6, Math.max(1, state.canvasView.zoom * (direction > 0 ? 1.12 : 0.88)));
+
+  if (nextZoom <= 1.01) {
+    state.canvasView.zoom = 1;
+    state.canvasView.panX = 0;
+    state.canvasView.panY = 0;
+  } else {
+    state.canvasView.zoom = nextZoom;
+  }
+
+  updateCanvasViewTransform();
+}
+
+function startCanvasPan(event) {
+  if (isMobileView() || event.button !== 0 || state.canvasView.zoom <= 1.01) {
+    return;
+  }
+
+  event.preventDefault();
+  state.canvasView.isPanning = true;
+  state.canvasView.lastX = event.clientX;
+  state.canvasView.lastY = event.clientY;
+  canvas.setPointerCapture(event.pointerId);
+  updateCanvasViewTransform();
+}
+
+function moveCanvasPan(event) {
+  if (!state.canvasView.isPanning) {
+    return;
+  }
+
+  event.preventDefault();
+  state.canvasView.panX += event.clientX - state.canvasView.lastX;
+  state.canvasView.panY += event.clientY - state.canvasView.lastY;
+  state.canvasView.lastX = event.clientX;
+  state.canvasView.lastY = event.clientY;
+  updateCanvasViewTransform();
+}
+
+function stopCanvasPan(event) {
+  if (!state.canvasView.isPanning) {
+    return;
+  }
+
+  state.canvasView.isPanning = false;
+  if (canvas.hasPointerCapture(event.pointerId)) {
+    canvas.releasePointerCapture(event.pointerId);
+  }
+  updateCanvasViewTransform();
 }
 
 async function selectFilter(filename) {
@@ -1733,3 +1817,9 @@ toggleEditsButton.addEventListener("click", toggleEditsVisibility);
 downloadButton.addEventListener("click", downloadImage);
 window.addEventListener("resize", updateCanvasDisplaySize);
 window.addEventListener("pagehide", stopCamera);
+workspace.addEventListener("wheel", handleWorkspaceWheel, { passive: false });
+canvas.addEventListener("pointerdown", startCanvasPan);
+canvas.addEventListener("pointermove", moveCanvasPan);
+canvas.addEventListener("pointerup", stopCanvasPan);
+canvas.addEventListener("pointercancel", stopCanvasPan);
+canvas.addEventListener("dblclick", resetCanvasView);
