@@ -106,8 +106,9 @@ button:disabled {
   display: none;
   inset: 0;
   justify-content: center;
+  pointer-events: none;
   position: absolute;
-  z-index: 2;
+  z-index: 3;
 }
 
 .camera-shell[hidden] {
@@ -119,16 +120,16 @@ button:disabled {
 }
 
 #cameraPreview {
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
+  display: none;
 }
 
 .camera-shell__hud {
   align-items: end;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.48));
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.58));
   bottom: 0;
   display: flex;
+  gap: 0.8rem;
+  justify-content: space-between;
   left: 0;
   padding: 1rem;
   pointer-events: none;
@@ -142,6 +143,31 @@ button:disabled {
   font-weight: 800;
   margin: 0;
   text-transform: uppercase;
+}
+
+.camera-filter-control {
+  color: #fff8eb;
+  display: grid;
+  font-size: 0.72rem;
+  font-weight: 900;
+  gap: 0.35rem;
+  letter-spacing: 0.12em;
+  min-width: min(58vw, 280px);
+  pointer-events: auto;
+  text-transform: uppercase;
+}
+
+.camera-filter-control select {
+  background: rgba(18, 20, 17, 0.9);
+  border: 1px solid rgba(255, 248, 235, 0.32);
+  border-radius: 999px;
+  color: #fff8eb;
+  font: inherit;
+  letter-spacing: 0.02em;
+  min-width: 0;
+  padding: 0.62rem 0.85rem;
+  text-transform: none;
+  width: 100%;
 }
 
 .empty-state {

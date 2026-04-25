@@ -1,0 +1,476 @@
+[
+  {
+    "name_en": "135_B",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Blanc"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+2"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+1"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+5"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+2",
+        "ValueMax": "+2"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+5"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+4"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+3"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+1"
+      },
+      {
+        "Type": "Date",
+        "Value": "10"
+      }
+    ]
+  },
+  {
+    "name_en": "INS_W",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Kinkaku"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+5"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+2"
+      },
+      {
+        "Type": "Saturation",
+        "Value": "-2"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+7"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+2",
+        "ValueMax": "+4"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+8"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+5"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+5"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+7"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+4"
+      }
+    ]
+  },
+  {
+    "name_en": "135_M",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "U400"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+4"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "0",
+        "ValueMax": "+2"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+3"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+1"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+3"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+2"
+      },
+      {
+        "Type": "Date",
+        "Value": "10"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+2"
+      }
+    ]
+  },
+  {
+    "name_en": "INS_2",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "PX680"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+5"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+1"
+      },
+      {
+        "Type": "Saturation",
+        "Value": "0"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+7"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+3",
+        "ValueMax": "+5"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+6"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+4"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+7"
+      },
+      {
+        "Type": "Fade",
+        "ValueMin": "+1",
+        "ValueMax": "+3"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+6"
+      }
+    ]
+  },
+  {
+    "name_en": "135_GR",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "TriX400"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+7"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+1",
+        "ValueMax": "+2"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+1"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+2"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+2"
+      },
+      {
+        "Type": "Fade",
+        "ValueMin": "+1",
+        "ValueMax": "+1"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+2"
+      }
+    ]
+  },
+  {
+    "name_en": "InstaX",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Fujisan"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+5"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+4"
+      },
+      {
+        "Type": "Saturation",
+        "Value": "-2"
+      },
+      {
+        "Type": "WhiteBalance",
+        "Value": "-2"
+      },
+      {
+        "Type": "Tint",
+        "Value": "+2"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+7"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+3",
+        "ValueMax": "+5"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+7"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+4"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+10"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+4"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+10"
+      }
+    ]
+  },
+  {
+    "name_en": "Fisheye",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Everest"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+2"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+1"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+5"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+2",
+        "ValueMax": "+2"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+5"
+      },
+      {
+        "Type": "Sharpen",
+        "Value": "+3"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+4"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+4"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+1"
+      },
+      {
+        "Type": "Date",
+        "Value": "10"
+      }
+    ]
+  },
+  {
+    "name_en": "Kodak",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Hanover"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+3"
+      },
+      {
+        "Type": "Saturation",
+        "Value": "+1"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+7"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+1",
+        "ValueMax": "+3"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+5"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+5"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+2"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+5"
+      }
+    ]
+  },
+  {
+    "name_en": "Kodak",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "Sequoia"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+5"
+      },
+      {
+        "Type": "Contrast",
+        "Value": "+1"
+      },
+      {
+        "Type": "Sharpen",
+        "Value": "+2"
+      },
+      {
+        "Type": "Saturation",
+        "Value": "+1"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+8"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "+1",
+        "ValueMax": "+3"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+5"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+4"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+3"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+2"
+      }
+    ]
+  },
+  {
+    "name_en": "t3",
+    "specifics": [
+      {
+        "Type": "Preset",
+        "Mode": "P100"
+      },
+      {
+        "Type": "Exposure",
+        "Value": "+2"
+      },
+      {
+        "Type": "Grains",
+        "Value": "+4"
+      },
+      {
+        "Type": "Dust",
+        "ValueMin": "0",
+        "ValueMax": "+2"
+      },
+      {
+        "Type": "Vignette",
+        "Value": "+4"
+      },
+      {
+        "Type": "Prism",
+        "Value": "+1"
+      },
+      {
+        "Type": "Fade",
+        "Value": "+1"
+      },
+      {
+        "Type": "HighlightsSave",
+        "Value": "+2"
+      },
+      {
+        "Type": "Date",
+        "Value": "10"
+      },
+      {
+        "Type": "Tilt",
+        "Value": "+2"
+      }
+    ]
+  }
+]

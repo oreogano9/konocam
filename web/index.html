@@ -16,7 +16,11 @@
         <div class="camera-shell" id="cameraShell" hidden>
           <video id="cameraPreview" autoplay playsinline muted></video>
           <div class="camera-shell__hud">
-            <p id="cameraPresetLabel">Ready to capture with the selected preset.</p>
+            <label class="camera-filter-control">
+              <span>Filter</span>
+              <select id="cameraLookSelect" disabled></select>
+            </label>
+            <p id="cameraPresetLabel">Live filtered preview.</p>
           </div>
         </div>
         <canvas id="processedCanvas"></canvas>
@@ -50,7 +54,7 @@
         <section class="mobile-camera-panel" aria-label="Mobile camera capture">
           <div class="effects-panel__header">
             <h2>Mobile Capture</h2>
-            <p>Visible on mobile only. Captures a photo and applies the currently selected preset.</p>
+            <p>Visible on mobile only. Shows the selected preset live before capture.</p>
           </div>
           <div class="mobile-camera-panel__actions">
             <button id="startCameraButton" type="button" disabled>Open camera</button>

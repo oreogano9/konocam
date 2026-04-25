@@ -7,6 +7,7 @@ const emptyState = document.querySelector("#emptyState");
 const cameraShell = document.querySelector("#cameraShell");
 const cameraPreview = document.querySelector("#cameraPreview");
 const cameraPresetLabel = document.querySelector("#cameraPresetLabel");
+const cameraLookSelect = document.querySelector("#cameraLookSelect");
 const fileInput = document.querySelector("#fileInput");
 const lookSelect = document.querySelector("#lookSelect");
 const intensitySlider = document.querySelector("#intensitySlider");
@@ -35,6 +36,7 @@ const FILTER_SERIES_PATH = "./nomo/filters/series.json";
 const FILTERS_ROOT = "./nomo/filters";
 const LUTS_ROOT = "./nomo/dat";
 const OVERLAYS_ROOT = "./nomo/overlays";
+const SPECIFIC_COMBINATIONS_PATH = "./nomo/SpecificCombinations.json";
 const SPEKTRA_PROFILE_PATH = "./spektrafilm/profiles/kodak_gold_200.json";
 const MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 900px)");
 const COLOR_MATRIX = new Float32Array([
@@ -71,6 +73,8 @@ const CUSTOM_KODAK_FILTERS = [
 
 const state = {
   source: null,
+  stillImage: null,
+  stillSourceName: "nomo-edit",
   sourceName: "nomo-edit",
   sourceTexture: null,
   lutTexture: null,
@@ -81,12 +85,14 @@ const state = {
   showingOriginal: false,
   filters: [],
   filterMap: new Map(),
+  filterEffectDefaults: new Map(),
   selectedFilterFilename: "",
   aesKey: null,
   geometry: null,
   beforeHoldActive: false,
   cameraStream: null,
   cameraActive: false,
+  cameraAnimationFrame: 0,
   nomoOverlayImages: null,
   overlaySelections: {
     dust: 0,
@@ -319,6 +325,8 @@ async function initializeApp() {
   state.nomoOverlayImages = await loadNomoOverlayImages();
   state.filters = await loadFilterCatalog();
   populateFilterSelect(state.filters);
+  state.filterEffectDefaults = await loadFilterEffectDefaults(state.filters);
+  applyFilterEffectDefaults(lookSelect.value);
   state.selectedFilterFilename = "";
   syncIntensityControlState();
   updateEffectControlState();
@@ -368,7 +376,9 @@ async function loadFilterCatalog() {
 
 function populateFilterSelect(filters) {
   lookSelect.innerHTML = "";
+  cameraLookSelect.innerHTML = "";
   const groups = new Map();
+  const cameraGroups = new Map();
 
   for (const filter of filters) {
     if (!groups.has(filter.group)) {
@@ -376,15 +386,106 @@ function populateFilterSelect(filters) {
       optgroup.label = filter.group;
       groups.set(filter.group, optgroup);
       lookSelect.append(optgroup);
+
+      const cameraOptgroup = document.createElement("optgroup");
+      cameraOptgroup.label = filter.group;
+      cameraGroups.set(filter.group, cameraOptgroup);
+      cameraLookSelect.append(cameraOptgroup);
     }
 
     const option = document.createElement("option");
     option.value = filter.filename;
     option.textContent = filter.name;
     groups.get(filter.group).append(option);
+
+    const cameraOption = option.cloneNode(true);
+    cameraGroups.get(filter.group).append(cameraOption);
   }
 
   lookSelect.disabled = filters.length === 0;
+  cameraLookSelect.disabled = filters.length === 0;
+}
+
+async function loadFilterEffectDefaults(filters) {
+  const combinations = await fetchJson(SPECIFIC_COMBINATIONS_PATH);
+  const defaultsByFilter = new Map();
+  const filtersByMode = new Map();
+
+  for (const filter of filters) {
+    filtersByMode.set(filter.filename, filter);
+    filtersByMode.set(filter.name, filter);
+  }
+
+  for (const combination of combinations) {
+    const specifics = combination.specifics ?? combination.Specifics ?? [];
+    const preset = specifics.find((specific) => specific.Type === "Preset");
+    const filter = preset?.Mode ? filtersByMode.get(preset.Mode) : null;
+
+    if (!filter || filter.custom) {
+      continue;
+    }
+
+    const defaultsForFilter = {};
+    for (const specific of specifics) {
+      const mapped = mapApkSpecificToEffectDefault(specific);
+      if (!mapped) {
+        continue;
+      }
+      defaultsForFilter[mapped.id] = mapped.value;
+    }
+
+    if (Object.keys(defaultsForFilter).length) {
+      defaultsByFilter.set(filter.filename, defaultsForFilter);
+    }
+  }
+
+  return defaultsByFilter;
+}
+
+function mapApkSpecificToEffectDefault(specific) {
+  switch (specific.Type) {
+    case "Grains":
+      return { id: "nomoGrain", value: readApkSpecificValue(specific) };
+    case "Dust":
+      return { id: "dust", value: readApkSpecificValue(specific) };
+    case "Vignette":
+      return { id: "vignette", value: readApkSpecificValue(specific) };
+    default:
+      return null;
+  }
+}
+
+function readApkSpecificValue(specific) {
+  if (specific.Value !== undefined) {
+    return clampEffectScale(parseApkNumber(specific.Value));
+  }
+
+  const min = parseApkNumber(specific.ValueMin);
+  const max = parseApkNumber(specific.ValueMax);
+  if (!Number.isFinite(min) && !Number.isFinite(max)) {
+    return 0;
+  }
+
+  if (!Number.isFinite(min)) {
+    return clampEffectScale(max);
+  }
+
+  if (!Number.isFinite(max) || min === max) {
+    return clampEffectScale(min);
+  }
+
+  return clampEffectScale(Math.round(min + Math.random() * (max - min)));
+}
+
+function parseApkNumber(value) {
+  if (value === undefined || value === null) {
+    return Number.NaN;
+  }
+  return Number(String(value).replace("+", ""));
+}
+
+function clampEffectScale(value) {
+  return Math.min(10, Math.max(0, value));
 }
 
 function renderEffectControls() {
@@ -607,8 +708,10 @@ function updateMobileCameraState() {
   startCameraButton.disabled = !canOpen;
   capturePhotoButton.disabled = !mobile || !state.cameraActive;
   stopCameraButton.disabled = !mobile || !state.cameraActive;
+  cameraLookSelect.disabled = !mobile || lookSelect.disabled;
+  cameraLookSelect.value = lookSelect.value;
   cameraPresetLabel.textContent = state.cameraActive
-    ? `Capture with ${state.filterMap.get(lookSelect.value)?.name ?? "selected preset"}`
+    ? `Live preview: ${state.filterMap.get(lookSelect.value)?.name ?? "selected preset"}`
     : "Ready to capture with the selected preset.";
 }
 
@@ -633,11 +736,13 @@ async function startCamera() {
     state.cameraStream = stream;
     state.cameraActive = true;
     cameraPreview.srcObject = stream;
+    await cameraPreview.play();
     cameraShell.hidden = false;
-    canvas.style.display = "none";
+    canvas.style.display = "block";
     emptyState.style.display = "none";
     updateMobileCameraState();
-    setStatus("Camera ready. Capture applies the selected preset.");
+    startLiveCameraRender();
+    setStatus("Camera ready. Live preview uses the selected preset.");
   } catch (error) {
     console.error(error);
     setStatus("Unable to open the camera.");
@@ -646,6 +751,8 @@ async function startCamera() {
 }
 
 function stopCamera() {
+  stopLiveCameraRender();
+
   if (state.cameraStream) {
     for (const track of state.cameraStream.getTracks()) {
       track.stop();
@@ -656,12 +763,70 @@ function stopCamera() {
   state.cameraActive = false;
   cameraPreview.srcObject = null;
   cameraShell.hidden = true;
+  if (state.source === cameraPreview) {
+    if (state.stillImage) {
+      state.source = state.stillImage;
+      state.sourceName = state.stillSourceName;
+      state.sourceResolution = {
+        width: state.stillImage.naturalWidth,
+        height: state.stillImage.naturalHeight,
+      };
+      uploadSourceTexture(state.stillImage);
+    } else {
+      state.source = null;
+    }
+  }
   updateMobileCameraState();
 
   if (state.source) {
     renderImage();
   } else {
     emptyState.style.display = "flex";
+  }
+}
+
+function startLiveCameraRender() {
+  stopLiveCameraRender();
+  state.cameraAnimationFrame = window.requestAnimationFrame(renderLiveCameraFrame);
+}
+
+function stopLiveCameraRender() {
+  if (state.cameraAnimationFrame) {
+    window.cancelAnimationFrame(state.cameraAnimationFrame);
+    state.cameraAnimationFrame = 0;
+  }
+}
+
+async function renderLiveCameraFrame() {
+  state.cameraAnimationFrame = 0;
+
+  if (!state.cameraActive) {
+    return;
+  }
+
+  if (cameraPreview.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && cameraPreview.videoWidth && cameraPreview.videoHeight) {
+    try {
+      await ensureLutTexture(lookSelect.value);
+      if (!state.cameraActive) {
+        return;
+      }
+      state.source = cameraPreview;
+      state.sourceName = "mobile-live-preview";
+      state.sourceResolution = {
+        width: cameraPreview.videoWidth,
+        height: cameraPreview.videoHeight,
+      };
+      fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, 1280);
+      uploadSourceTexturePixels(cameraPreview);
+      renderImage();
+    } catch (error) {
+      console.error(error);
+      setStatus("Failed to render live camera preview.");
+    }
+  }
+
+  if (state.cameraActive) {
+    state.cameraAnimationFrame = window.requestAnimationFrame(renderLiveCameraFrame);
   }
 }
 
@@ -706,29 +871,36 @@ async function loadBlob(blob, sourceName = "nomo-edit") {
   const image = new Image();
   const url = URL.createObjectURL(blob);
 
-  image.onload = async () => {
-    try {
-      await applyLoadedImage(image, sourceName);
-    } catch (error) {
-      console.error(error);
-      setStatus("Failed to process the photo.");
-    } finally {
+  return new Promise((resolve, reject) => {
+    image.onload = async () => {
+      try {
+        await applyLoadedImage(image, sourceName);
+        resolve();
+      } catch (error) {
+        console.error(error);
+        setStatus("Failed to process the photo.");
+        reject(error);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    image.onerror = () => {
       URL.revokeObjectURL(url);
-    }
-  };
+      setStatus("Failed to decode the photo.");
+      reject(new Error("Failed to decode the photo."));
+    };
 
-  image.onerror = () => {
-    URL.revokeObjectURL(url);
-    setStatus("Failed to decode the photo.");
-  };
-
-  image.src = url;
+    image.src = url;
+  });
 }
 
 async function applyLoadedImage(image, sourceName = "nomo-edit") {
   state.source = image;
+  state.stillImage = image;
   state.sourceResolution = { width: image.naturalWidth, height: image.naturalHeight };
   state.sourceName = sourceName.replace(/\.[^/.]+$/, "") || "nomo-edit";
+  state.stillSourceName = state.sourceName;
   uploadSourceTexture(image);
   await ensureLutTexture(lookSelect.value);
   renderImage();
@@ -736,10 +908,20 @@ async function applyLoadedImage(image, sourceName = "nomo-edit") {
 }
 
 function fitCanvasToImage(image) {
-  const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-  const scale = Math.min(1, 2200 / longestSide);
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  fitCanvasToSize(image.naturalWidth, image.naturalHeight, 2200);
+}
+
+function fitCanvasToSize(width, height, maxSide) {
+  const longestSide = Math.max(width, height);
+  const scale = Math.min(1, maxSide / longestSide);
+  const nextWidth = Math.max(1, Math.round(width * scale));
+  const nextHeight = Math.max(1, Math.round(height * scale));
+  if (canvas.width === nextWidth && canvas.height === nextHeight) {
+    return;
+  }
+
+  canvas.width = nextWidth;
+  canvas.height = nextHeight;
   updateCanvasDisplaySize();
   ensureLookupTarget(canvas.width, canvas.height);
   ensureEffectsTarget(canvas.width, canvas.height);
@@ -777,9 +959,16 @@ function updateCanvasDisplaySize() {
 
 function uploadSourceTexture(image) {
   fitCanvasToImage(image);
+  uploadSourceTexturePixels(image);
+}
 
+function uploadSourceTexturePixels(source) {
   if (state.sourceTexture) {
-    gl.deleteTexture(state.sourceTexture);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, state.sourceTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    return;
   }
 
   state.sourceTexture = gl.createTexture();
@@ -790,7 +979,7 @@ function uploadSourceTexture(image) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
 }
 
 async function ensureLutTexture(filename) {
@@ -1091,15 +1280,33 @@ function resetControls() {
   }
 
   intensitySlider.value = defaults.intensity;
-  state.effects = cloneEffectDefaults();
+  applyFilterEffectDefaults(lookSelect.value);
   state.importedEffects.spektraGrain.enabled = SPEKTRA_GRAIN_EFFECT.defaultEnabled;
-  rerollOverlaySelections();
   syncIntensityControlState();
   updateEffectControlState();
   syncEffectInputs();
   syncImportedEffectInputs();
   setEditsVisibility(true);
   renderImage();
+}
+
+function applyFilterEffectDefaults(filename) {
+  state.effects = cloneEffectDefaults();
+  const filterDefaults = state.filterEffectDefaults.get(filename);
+
+  if (filterDefaults) {
+    for (const [effectId, value] of Object.entries(filterDefaults)) {
+      const effect = getEffectById(effectId);
+      if (!effect || !state.effects[effectId]) {
+        continue;
+      }
+
+      state.effects[effectId].value = value;
+      state.effects[effectId].enabled = value !== effect.defaultValue;
+    }
+  }
+
+  rerollOverlaySelections();
 }
 
 function downloadImage() {
@@ -1127,6 +1334,32 @@ function toggleEditsVisibility() {
 
   setEditsVisibility(state.showingOriginal);
   renderImage();
+}
+
+async function selectFilter(filename) {
+  lookSelect.value = filename;
+  cameraLookSelect.value = filename;
+  intensitySlider.value = defaults.intensity;
+  applyFilterEffectDefaults(filename);
+  syncIntensityControlState();
+  updateEffectControlState();
+  syncEffectInputs();
+  updateMobileCameraState();
+
+  if (!state.source && !state.cameraActive) {
+    return;
+  }
+
+  await ensureLutTexture(filename);
+  renderImage();
+  setStatus(`${state.filterMap.get(filename)?.name ?? filename} loaded.`);
+}
+
+function handleFilterSelection(filename) {
+  selectFilter(filename).catch((error) => {
+    console.error(error);
+    setStatus("Failed to load the selected filter.");
+  });
 }
 
 function isTextInputFocused() {
@@ -1216,6 +1449,7 @@ function setStatus(message) {
 function disableControls(message) {
   fileInput.disabled = true;
   lookSelect.disabled = true;
+  cameraLookSelect.disabled = true;
   intensitySlider.disabled = true;
   startCameraButton.disabled = true;
   capturePhotoButton.disabled = true;
@@ -1423,20 +1657,11 @@ capturePhotoButton.addEventListener("click", () => {
 stopCameraButton.addEventListener("click", stopCamera);
 
 lookSelect.addEventListener("change", async () => {
-  syncIntensityControlState();
-  updateMobileCameraState();
-  if (!state.source) {
-    return;
-  }
+  handleFilterSelection(lookSelect.value);
+});
 
-  try {
-    await ensureLutTexture(lookSelect.value);
-    renderImage();
-    setStatus(`${state.filterMap.get(lookSelect.value)?.name ?? lookSelect.value} loaded.`);
-  } catch (error) {
-    console.error(error);
-    setStatus("Failed to load the selected filter.");
-  }
+cameraLookSelect.addEventListener("change", async () => {
+  handleFilterSelection(cameraLookSelect.value);
 });
 
 intensitySlider.addEventListener("input", () => {
@@ -1466,21 +1691,7 @@ window.addEventListener("keydown", async (event) => {
   }
 
   event.preventDefault();
-  lookSelect.value = options[nextIndex].value;
-  syncIntensityControlState();
-
-  if (!state.source) {
-    return;
-  }
-
-  try {
-    await ensureLutTexture(lookSelect.value);
-    renderImage();
-    setStatus(`${state.filterMap.get(lookSelect.value)?.name ?? lookSelect.value} loaded.`);
-  } catch (error) {
-    console.error(error);
-    setStatus("Failed to load the selected filter.");
-  }
+  handleFilterSelection(options[nextIndex].value);
 });
 
 window.addEventListener("keydown", (event) => {
