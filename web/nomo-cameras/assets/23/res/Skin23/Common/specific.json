@@ -1,0 +1,16 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "iCam"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "noise",
+          "Ignore": true
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

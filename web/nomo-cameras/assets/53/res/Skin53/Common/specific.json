@@ -1,0 +1,14 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.5,
+  "ScaleAutoRotate": true,
+  "Filters": [
+      "Barrel:v1=0.015,v2=0.01",
+      "Lut:v=10",
+      "Grains:v=5,name=1600-ISO-GRAINSNAP-color",
+      "Vignette:v=4~6",
+      "Prism:v=1",
+      "Tilt:v=2"
+  ]
+}

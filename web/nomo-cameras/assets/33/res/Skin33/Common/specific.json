@@ -1,0 +1,29 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "Happiness"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+6"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+3",
+          "ValueMax": "+7",
+          "ImageNames": ["dust-010","dust-020","dust-030"]
+     },
+     {
+          "Type": "Prism",
+          "Value": "+3"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

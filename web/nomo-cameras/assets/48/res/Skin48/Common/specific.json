@@ -1,0 +1,15 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.5,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "Prism:v=2",
+    "Vignette:v=6,corp=1",
+    "Grains:v=3,name=grain-800-inapp",
+    "Dust:v=2~4,name=dust-010|dust-020|dust-030",
+    "Lut:v=10,name=lut",
+    "Blend:v=1.0,mode=normal,fillmode=fill,name=frame-010|frame-020|frame-030|frame-040,autorotate=1,randomfill=0,mirrorrandom=1,replace=0",
+    "Justify:v=5~10"
+  ]
+}

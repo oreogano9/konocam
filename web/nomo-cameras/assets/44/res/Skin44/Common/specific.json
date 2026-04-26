@@ -1,0 +1,12 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.5,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "Bokeh:",
+    "Vignette:v=4",
+    "Grains:v=3",
+    "Lut:v=10,name=lut"
+  ]
+}

@@ -1,0 +1,28 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "Pen"
+     },
+     {
+          "Type": "Fade",
+          "Value": "+1"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+3"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": ["dust-010","dust-020","dust-030"]
+     }
+]

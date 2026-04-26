@@ -1,0 +1,35 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "TOY F"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": ["dust-010","dust-020","dust-030"]
+     },
+     {
+          "Type": "Leak",
+          "ValueMin": "+2",
+          "ValueMax": "+5",
+          "ImageNames": ["leak-010","leak-020","leak-030","leak-040","leak-050","leak-060"]
+     },
+     {
+          "Type": "Prism",
+          "Value": "+4"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

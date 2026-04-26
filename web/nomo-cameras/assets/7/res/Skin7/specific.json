@@ -1,0 +1,22 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135_Ti"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+4"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Fade",
+          "Value": "+1"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+1"
+     }
+]

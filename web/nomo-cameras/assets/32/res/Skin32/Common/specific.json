@@ -1,0 +1,25 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "503CW"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP"
+     },
+     {
+         "Type": "Vignette",
+         "Value": "+3"
+     },
+     {
+         "Type": "Tilt",
+         "Value": "+1"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+0.5",
+          "ValueMax": "+2",
+          "Ignore": true
+     }
+]

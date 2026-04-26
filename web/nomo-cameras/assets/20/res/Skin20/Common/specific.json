@@ -1,0 +1,19 @@
+[
+    {
+        "Type": "Tilt",
+        "Value": "+2"
+    },
+    {
+        "Type": "Vignette",
+        "Value": "+5"
+    },
+    {
+        "Type": "Grains",
+        "Value": "+4",
+		"Ignore": true
+    },
+    {
+        "Type": "Fade",
+        "Value": "+2"
+    }
+]

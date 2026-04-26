@@ -1,0 +1,22 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "67",
+          "Order": true
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+6",
+          "ImageNames": ["dust-010","dust-020","dust-030-2"]
+     },
+     {
+          "Type": "Grains",
+          "Value": "+4",
+          "ImageName": "grain-1A"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+4"
+     }
+]

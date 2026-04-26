@@ -1,0 +1,14 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "BOOTH1"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     }
+]

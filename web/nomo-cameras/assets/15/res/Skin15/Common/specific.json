@@ -1,0 +1,27 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "TOY IR"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+7"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+3"
+     },
+     {
+          "Type": "HighlightsSave",
+          "Value": "+3"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

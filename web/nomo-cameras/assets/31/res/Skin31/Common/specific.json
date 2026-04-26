@@ -1,0 +1,18 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "Dual"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+4"
+     },
+     {
+         "Type": "Grains",
+         "Value": "+3"
+     },
+     {
+         "Type": "Tilt",
+         "Value": "+1"
+     }
+]

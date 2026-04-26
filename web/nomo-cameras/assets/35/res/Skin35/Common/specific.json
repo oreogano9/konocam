@@ -1,0 +1,23 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "FR2"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+2",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+3"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

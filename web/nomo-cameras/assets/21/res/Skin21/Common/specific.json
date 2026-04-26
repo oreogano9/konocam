@@ -1,0 +1,15 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "XWIDE"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+3"
+     }
+  
+]

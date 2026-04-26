@@ -1,0 +1,22 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135Zoom"
+     },
+     {
+         "Type": "Vignette",
+         "Value": "+5"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+4"
+     },
+     {
+         "Type": "Prism",
+         "Value": "+1"
+     },
+]

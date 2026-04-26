@@ -1,0 +1,27 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "INS SF"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+4"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+8"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+5"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+3"
+     }
+]

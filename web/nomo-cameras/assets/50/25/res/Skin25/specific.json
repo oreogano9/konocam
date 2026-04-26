@@ -1,0 +1,21 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.33333,
+  "ScaleAutoRotate": false,
+  "Filters": [
+    "Grains:v=2,name=1600-ISO-GRAINSNAP-color",
+    "Vignette:v=3",
+    "Lut:v=10,name=faddon-lut",
+    "Prism:v=1",
+    "Tilt:v=1",
+    "Date:mode=screen,tilt=20,alignment=rb,h=0.05162790698,r=0.159379845,b=0.07162790698",
+    "Frame:v=10,name=mcdonald-photo,region=4032|235|230|3024|175|175",
+    "RotateBack:",
+    "Blend:only=H,mode=normal,name=faddon-box,region=4032|125|3575|3024|2525|72",
+    "Blend:only=V,mode=normal,name=faddon-box,region=3024|74|2650|4032|3592|140",
+    "Txt:only=H,mode=normal,alignment=lb,h=0.01818783069,l=0.115327381,b=0.03045502646",
+    "Txt:only=V,mode=normal,alignment=lb,h=0.01364087302,l=0.135327381,b=0.04045502646"
+  ],
+  "MCD": "NOMO CAM wishes you a bright new year!"
+}

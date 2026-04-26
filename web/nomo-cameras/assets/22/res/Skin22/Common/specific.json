@@ -1,0 +1,26 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135 M3"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7",
+          "ImageNames": ["800-ISO-contrast"]
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+0",
+          "ValueMax": "+3"
+     },
+     {
+          "Type": "Mixture",
+          "ValueMin": "+980",
+          "ValueMax": "+1020",
+          "ImageNames": ["frame"]
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     }
+]

@@ -1,0 +1,13 @@
+{
+  "LayoutBeforeProcess": "H",
+  "RotateBackAfterProcess": true,
+  "Scale": 1.3333333,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "Barrel:v1=0.06,v2=0.0",
+    "Anamorphic:v1=0.06,v2=0.0,v3=0.8",
+    "Grains:v=2",
+    "Vignette:v=2",
+    "Lut:v=10,name=lut"
+  ]
+}

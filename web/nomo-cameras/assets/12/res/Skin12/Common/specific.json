@@ -1,0 +1,18 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135_T3"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+3"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+3"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+1"
+     }
+]

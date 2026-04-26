@@ -1,0 +1,23 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "kodak"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+8",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+5"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

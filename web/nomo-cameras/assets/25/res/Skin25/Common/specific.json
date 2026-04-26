@@ -1,0 +1,12 @@
+[
+    {
+        "Type": "Vignette",
+        "Value": "+5"
+    },
+    {
+        "Type": "Grains",
+        "Value": "+3",
+        "ImageName": "1600-ISO-GRAINSNAP",
+		"Ignore": true
+    }
+]

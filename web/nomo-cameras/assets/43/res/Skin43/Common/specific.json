@@ -1,0 +1,12 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.5,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "Grains:v=4",
+    "Vignette:v=4",
+    "Dust:v=1~4,name=dust-010|dust-020|dust-030",
+    "Lut:v=10,name=lut"
+  ]
+}

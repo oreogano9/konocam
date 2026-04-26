@@ -1,0 +1,4132 @@
+[
+  {
+    "id": 0,
+    "name": "135 B",
+    "filename": "camera-0",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/0/res/Skin0/specific.json",
+    "lutPath": "assets/0/res/Skin0/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_B"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_B\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Exposure",
+        "params": {
+          "Type": "Exposure",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Exposure\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Contrast",
+        "params": {
+          "Type": "Contrast",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Contrast\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+2\", \"ValueMin\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Date",
+        "params": {
+          "Type": "Date",
+          "Value": "10"
+        },
+        "value": 10.0,
+        "raw": "{\"Type\": \"Date\", \"Value\": \"10\"}"
+      }
+    ],
+    "defaults": {
+      "exposure": 2.0,
+      "contrast": 1.0,
+      "nomoGrain": 5.0,
+      "dust": 2.0,
+      "vignette": 5.0,
+      "prism": 4.0,
+      "fade": 3.0,
+      "highlight": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 1,
+    "name": "INS W",
+    "filename": "camera-1",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/1/res/Skin1/specific.json",
+    "lutPath": "assets/1/res/Skin1/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "INS_W"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"INS_W\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Exposure",
+        "params": {
+          "Type": "Exposure",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Exposure\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Contrast",
+        "params": {
+          "Type": "Contrast",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Contrast\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Saturation",
+        "params": {
+          "Type": "Saturation",
+          "Value": "-2"
+        },
+        "value": -2.0,
+        "raw": "{\"Type\": \"Saturation\", \"Value\": \"-2\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+4"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+4\", \"ValueMin\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+8"
+        },
+        "value": 8.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+8\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+4\"}"
+      }
+    ],
+    "defaults": {
+      "exposure": 5.0,
+      "contrast": 2.0,
+      "saturation": -2.0,
+      "nomoGrain": 7.0,
+      "dust": 3.0,
+      "vignette": 8.0,
+      "prism": 5.0,
+      "fade": 5.0,
+      "highlight": 7.0,
+      "tilt": 4.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 2,
+    "name": "135 M",
+    "filename": "camera-2",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/2/res/Skin2/specific.json",
+    "lutPath": "assets/2/res/Skin2/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_M"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_M\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "0",
+          "ValueMax": "+2"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+2\", \"ValueMin\": \"0\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Date",
+        "params": {
+          "Type": "Date",
+          "Value": "10"
+        },
+        "value": 10.0,
+        "raw": "{\"Type\": \"Date\", \"Value\": \"10\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "dust": 1.0,
+      "vignette": 3.0,
+      "prism": 1.0,
+      "fade": 3.0,
+      "highlight": 2.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 3,
+    "name": "INS 2",
+    "filename": "camera-3",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/3/res/Skin3/specific.json",
+    "lutPath": "assets/3/res/Skin3/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "INS_2"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"INS_2\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Exposure",
+        "params": {
+          "Type": "Exposure",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Exposure\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Contrast",
+        "params": {
+          "Type": "Contrast",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Contrast\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Saturation",
+        "params": {
+          "Type": "Saturation",
+          "Value": "0"
+        },
+        "value": 0.0,
+        "raw": "{\"Type\": \"Saturation\", \"Value\": \"0\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+3",
+          "ValueMax": "+5"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+5\", \"ValueMin\": \"+3\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+6"
+        },
+        "value": 6.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+6\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "ValueMin": "+1",
+          "ValueMax": "+3"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Fade\", \"ValueMax\": \"+3\", \"ValueMin\": \"+1\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+6"
+        },
+        "value": 6.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+6\"}"
+      }
+    ],
+    "defaults": {
+      "exposure": 5.0,
+      "contrast": 1.0,
+      "saturation": 0.0,
+      "nomoGrain": 7.0,
+      "dust": 4.0,
+      "vignette": 6.0,
+      "tilt": 4.0,
+      "prism": 7.0,
+      "fade": 2.0,
+      "highlight": 6.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 4,
+    "name": "135 GR",
+    "filename": "camera-4",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/4/res/Skin4/specific.json",
+    "lutPath": "assets/4/res/Skin4/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_GR"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_GR\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+1",
+          "ValueMax": "+2"
+        },
+        "value": 1.5,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+2\", \"ValueMin\": \"+1\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "ValueMin": "+1",
+          "ValueMax": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Fade\", \"ValueMax\": \"+1\", \"ValueMin\": \"+1\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 7.0,
+      "dust": 1.5,
+      "vignette": 1.0,
+      "tilt": 2.0,
+      "prism": 2.0,
+      "fade": 1.0,
+      "highlight": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 5,
+    "name": "FISHEYE",
+    "filename": "camera-5",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/5/res/Skin5/specific.json",
+    "lutPath": "assets/5/res/Skin5/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "INS_2"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"INS_2\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "fade": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 6,
+    "name": "TOY K",
+    "filename": "camera-6",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/6/res/Skin6/specific.json",
+    "lutPath": "assets/6/res/Skin6/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "kodak"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"kodak\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+8",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 8.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+8\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 8.0,
+      "vignette": 5.0,
+      "prism": 5.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/6/res/Skin6/1600-ISO-GRAINSNAP-color.png"
+      ]
+    }
+  },
+  {
+    "id": 7,
+    "name": "135 Ti",
+    "filename": "camera-7",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/7/res/Skin7/specific.json",
+    "lutPath": "assets/7/res/Skin7/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_Ti"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_Ti\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "vignette": 5.0,
+      "fade": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 8,
+    "name": "135 SP",
+    "filename": "camera-8",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/8/res/Skin8/specific.json",
+    "lutPath": "assets/8/res/Skin8/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135 SP"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135 SP\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ]
+        },
+        "value": 7.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+10\", \"ValueMin\": \"+4\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7",
+          "ImageName": "grains"
+        },
+        "value": 7.0,
+        "raw": "{\"ImageName\": \"grains\", \"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "dust": 7.0,
+      "vignette": 3.0,
+      "nomoGrain": 7.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/8/res/Skin8/BlendImages/grains.png"
+      ],
+      "dust": [
+        "assets/8/res/Skin8/BlendImages/dust-010.png",
+        "assets/8/res/Skin8/BlendImages/dust-020.png",
+        "assets/8/res/Skin8/BlendImages/dust-030.png"
+      ]
+    }
+  },
+  {
+    "id": 9,
+    "name": "TOY F",
+    "filename": "camera-9",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/9/res/Skin9/specific.json",
+    "lutPath": "assets/9/res/Skin9/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "TOY F"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"TOY F\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 5.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ]
+        },
+        "value": 7.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+10\", \"ValueMin\": \"+4\"}"
+      },
+      {
+        "type": "Leak",
+        "params": {
+          "Type": "Leak",
+          "ValueMin": "+2",
+          "ValueMax": "+5",
+          "ImageNames": [
+            "leak-010",
+            "leak-020",
+            "leak-030",
+            "leak-040",
+            "leak-050",
+            "leak-060"
+          ]
+        },
+        "value": 3.5,
+        "raw": "{\"ImageNames\": [\"leak-010\", \"leak-020\", \"leak-030\", \"leak-040\", \"leak-050\", \"leak-060\"], \"Type\": \"Leak\", \"ValueMax\": \"+5\", \"ValueMin\": \"+2\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "vignette": 5.0,
+      "dust": 7.0,
+      "lightLeak": 3.5,
+      "prism": 4.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/9/res/Skin9/BlendImages/1600-ISO-GRAINSNAP-color.png"
+      ],
+      "dust": [
+        "assets/9/res/Skin9/BlendImages/dust-010.png",
+        "assets/9/res/Skin9/BlendImages/dust-020.png",
+        "assets/9/res/Skin9/BlendImages/dust-030.png"
+      ],
+      "leak": [
+        "assets/9/res/Skin9/BlendImages/leak-010.png",
+        "assets/9/res/Skin9/BlendImages/leak-020.png",
+        "assets/9/res/Skin9/BlendImages/leak-030.png",
+        "assets/9/res/Skin9/BlendImages/leak-040.png",
+        "assets/9/res/Skin9/BlendImages/leak-050.png",
+        "assets/9/res/Skin9/BlendImages/leak-060.png"
+      ]
+    }
+  },
+  {
+    "id": 10,
+    "name": "135 LUNE",
+    "filename": "camera-10",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/10/res/Skin10/specific.json",
+    "lutPath": "assets/10/res/Skin10/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135 LUNE"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135 LUNE\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+10",
+          "ImageName": "1600-ISO-GRAINSNAP",
+          "Ignore": true
+        },
+        "value": 10.0,
+        "raw": "{\"Ignore\": true, \"ImageName\": \"1600-ISO-GRAINSNAP\", \"Type\": \"Grains\", \"Value\": \"+10\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Sky",
+        "params": {
+          "Type": "Sky",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Sky\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 10.0,
+      "vignette": 7.0,
+      "prism": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/10/res/Skin10/BlendImages/1600-ISO-GRAINSNAP.png"
+      ]
+    }
+  },
+  {
+    "id": 11,
+    "name": "135 PANO",
+    "filename": "camera-11",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/11/res/Skin11/Common/specific.json",
+    "lutPath": "assets/11/res/Skin11/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135 PANO"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135 PANO\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5",
+          "ImageName": "vignette"
+        },
+        "value": 5.0,
+        "raw": "{\"ImageName\": \"vignette\", \"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ]
+        },
+        "value": 7.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+10\", \"ValueMin\": \"+4\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+4\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "vignette": 5.0,
+      "dust": 7.0,
+      "tilt": 2.0,
+      "prism": 4.0
+    },
+    "overlayAssets": {
+      "dust": [
+        "assets/11/res/Skin11/Common/dust-010.png",
+        "assets/11/res/Skin11/Common/dust-020.png",
+        "assets/11/res/Skin11/Common/dust-030.png"
+      ],
+      "vignette": [
+        "assets/11/res/Skin11/SpecificSource/vignette.png"
+      ]
+    }
+  },
+  {
+    "id": 12,
+    "name": "135 T3",
+    "filename": "camera-12",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/12/res/Skin12/Common/specific.json",
+    "lutPath": "assets/12/res/Skin12/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_T3"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_T3\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "vignette": 3.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 13,
+    "name": "CAM BOY",
+    "filename": "camera-13",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/13/res/Skin13/Common/specific.json",
+    "lutPath": "assets/13/res/Skin13/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Gameboy"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Gameboy\", \"Type\": \"Name\"}"
+      }
+    ],
+    "defaults": {},
+    "overlayAssets": {}
+  },
+  {
+    "id": 14,
+    "name": "TOY X",
+    "filename": "camera-14",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/14/res/Skin14/Common/specific.json",
+    "lutPath": "assets/14/res/Skin14/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "TOY X"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"TOY X\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 5.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "vignette": 5.0,
+      "prism": 3.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/14/res/Skin14/1600-ISO-GRAINSNAP-color.png"
+      ]
+    }
+  },
+  {
+    "id": 15,
+    "name": "TOY IR",
+    "filename": "camera-15",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/15/res/Skin15/Common/specific.json",
+    "lutPath": "assets/15/res/Skin15/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "TOY IR"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"TOY IR\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 5.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "vignette": 7.0,
+      "prism": 3.0,
+      "highlight": 3.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/15/res/Skin15/1600-ISO-GRAINSNAP-color.png"
+      ]
+    }
+  },
+  {
+    "id": 16,
+    "name": "120 SG",
+    "filename": "camera-16",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/16/res/Skin16/Common/specific.json",
+    "lutPath": "assets/16/res/Skin16/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "120_SG"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"120_SG\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "tilt": 2.0,
+      "prism": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 17,
+    "name": "BOOTH",
+    "filename": "camera-17",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/17/res/Skin17/Common/specific.json",
+    "lutPath": "assets/17/res/Skin17/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "BOOTH1"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"BOOTH1\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "vignette": 5.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 18,
+    "name": "EATS",
+    "filename": "camera-18",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/18/res/Skin18/Common/specific.json",
+    "lutPath": "assets/18/res/Skin18/Common/lut-1.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "EATS"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"EATS\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 3.0,
+      "nomoGrain": 3.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 19,
+    "name": "WETZLAR",
+    "filename": "camera-19",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/19/res/Skin19/Common/specific.json",
+    "lutPath": "assets/19/res/Skin19/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "INS SF"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"INS SF\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+4"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+4\", \"ValueMin\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+8"
+        },
+        "value": 8.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+8\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 7.0,
+      "dust": 3.0,
+      "vignette": 8.0,
+      "prism": 5.0,
+      "tilt": 3.0
+    },
+    "overlayAssets": {
+      "dust": [
+        "assets/19/res/Skin19/settings-display-dust.png"
+      ]
+    }
+  },
+  {
+    "id": 20,
+    "name": "Swirly",
+    "filename": "camera-20",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/20/res/Skin20/Common/specific.json",
+    "lutPath": "assets/20/res/Skin20/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4",
+          "Ignore": true
+        },
+        "value": 4.0,
+        "raw": "{\"Ignore\": true, \"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "tilt": 2.0,
+      "vignette": 5.0,
+      "nomoGrain": 4.0,
+      "fade": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 21,
+    "name": "XWide",
+    "filename": "camera-21",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/21/res/Skin21/Common/specific.json",
+    "lutPath": "assets/21/res/Skin21/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "XWIDE"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"XWIDE\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 5.0,
+      "nomoGrain": 3.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 22,
+    "name": "135 M3",
+    "filename": "camera-22",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/22/res/Skin22/Common/specific.json",
+    "lutPath": "assets/22/res/Skin22/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135 M3"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135 M3\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7",
+          "ImageNames": [
+            "800-ISO-contrast"
+          ]
+        },
+        "value": 7.0,
+        "raw": "{\"ImageNames\": [\"800-ISO-contrast\"], \"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+0",
+          "ValueMax": "+3"
+        },
+        "value": 1.5,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+3\", \"ValueMin\": \"+0\"}"
+      },
+      {
+        "type": "Mixture",
+        "params": {
+          "Type": "Mixture",
+          "ValueMin": "+980",
+          "ValueMax": "+1020",
+          "ImageNames": [
+            "frame"
+          ]
+        },
+        "value": 1000.0,
+        "raw": "{\"ImageNames\": [\"frame\"], \"Type\": \"Mixture\", \"ValueMax\": \"+1020\", \"ValueMin\": \"+980\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 7.0,
+      "dust": 1.5,
+      "vignette": 5.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/22/res/Skin22/800-ISO-contrast.jpg"
+      ],
+      "frame": [
+        "assets/22/res/Skin22/frame.png"
+      ]
+    }
+  },
+  {
+    "id": 23,
+    "name": "2007",
+    "filename": "camera-23",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/23/res/Skin23/Common/specific.json",
+    "lutPath": "assets/23/res/Skin23/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "iCam"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"iCam\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+5",
+          "ImageName": "noise",
+          "Ignore": true
+        },
+        "value": 5.0,
+        "raw": "{\"Ignore\": true, \"ImageName\": \"noise\", \"Type\": \"Grains\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/23/res/Skin23/Blend/noise.png"
+      ]
+    }
+  },
+  {
+    "id": 24,
+    "name": "ACTION",
+    "filename": "camera-24",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/24/res/Skin24/Common/specific.json",
+    "lutPath": "assets/24/res/Skin24/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "BOOTH2"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"BOOTH2\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1",
+          "Ignore": true
+        },
+        "value": 1.0,
+        "raw": "{\"Ignore\": true, \"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3",
+          "Ignore": true
+        },
+        "value": 3.0,
+        "raw": "{\"Ignore\": true, \"Type\": \"Grains\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 7.0,
+      "prism": 2.0,
+      "tilt": 1.0,
+      "nomoGrain": 3.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 25,
+    "name": "ROMA",
+    "filename": "camera-25",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/25/res/Skin25/Common/specific.json",
+    "lutPath": "assets/25/res/Skin25/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP",
+          "Ignore": true
+        },
+        "value": 3.0,
+        "raw": "{\"Ignore\": true, \"ImageName\": \"1600-ISO-GRAINSNAP\", \"Type\": \"Grains\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 5.0,
+      "nomoGrain": 3.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/25/res/Skin25/Filters/1600-ISO-GRAINSNAP.jpg"
+      ]
+    }
+  },
+  {
+    "id": 26,
+    "name": "Rainbow",
+    "filename": "camera-26",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/26/res/Skin26/Common/specific.json",
+    "lutPath": "assets/26/res/Skin26/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Rainbow"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Rainbow\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP",
+          "Ignore": true
+        },
+        "value": 3.0,
+        "raw": "{\"Ignore\": true, \"ImageName\": \"1600-ISO-GRAINSNAP\", \"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ],
+          "Ignore": true
+        },
+        "value": 7.0,
+        "raw": "{\"Ignore\": true, \"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+10\", \"ValueMin\": \"+4\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "dust": 7.0,
+      "vignette": 3.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/26/res/Skin26/Filters/1600-ISO-GRAINSNAP.jpg"
+      ],
+      "dust": [
+        "assets/26/res/Skin26/Filters/dust-010.png",
+        "assets/26/res/Skin26/Filters/dust-020.png",
+        "assets/26/res/Skin26/Filters/dust-030.png"
+      ]
+    }
+  },
+  {
+    "id": 27,
+    "name": "Pen",
+    "filename": "camera-27",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/27/res/Skin27/Common/specific.json",
+    "lutPath": "assets/27/res/Skin27/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Pen"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Pen\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+7"
+        },
+        "value": 7.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+7\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ]
+        },
+        "value": 7.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+10\", \"ValueMin\": \"+4\"}"
+      }
+    ],
+    "defaults": {
+      "fade": 1.0,
+      "prism": 3.0,
+      "tilt": 2.0,
+      "nomoGrain": 7.0,
+      "dust": 7.0
+    },
+    "overlayAssets": {
+      "dust": [
+        "assets/27/res/Skin27/Filters/dust-010.png",
+        "assets/27/res/Skin27/Filters/dust-020.png",
+        "assets/27/res/Skin27/Filters/dust-030.png"
+      ]
+    }
+  },
+  {
+    "id": 28,
+    "name": "135 Zoom",
+    "filename": "camera-28",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/28/res/Skin28/Common/specific.json",
+    "lutPath": "assets/28/res/Skin28/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135Zoom"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135Zoom\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 5.0,
+      "tilt": 2.0,
+      "nomoGrain": 4.0,
+      "prism": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 29,
+    "name": "MOON",
+    "filename": "camera-29",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/29/res/Skin29/Common/specific.json",
+    "lutPath": "assets/29/res/Skin29/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Moon"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Moon\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 2.0,
+      "nomoGrain": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 30,
+    "name": "VID 8",
+    "filename": "camera-30",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/30/res/Skin30/Common/specific.json",
+    "lutPath": "assets/2/res/Skin2/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135_M"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135_M\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "0",
+          "ValueMax": "+2"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Dust\", \"ValueMax\": \"+2\", \"ValueMin\": \"0\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "HighlightsSave",
+        "params": {
+          "Type": "HighlightsSave",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"HighlightsSave\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Date",
+        "params": {
+          "Type": "Date",
+          "Value": "10"
+        },
+        "value": 10.0,
+        "raw": "{\"Type\": \"Date\", \"Value\": \"10\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "dust": 1.0,
+      "vignette": 3.0,
+      "prism": 1.0,
+      "fade": 3.0,
+      "highlight": 2.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 31,
+    "name": "DUAL",
+    "filename": "camera-31",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/31/res/Skin31/Common/specific.json",
+    "lutPath": "assets/31/res/Skin31/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Dual"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Dual\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "vignette": 4.0,
+      "nomoGrain": 3.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 32,
+    "name": "503CW",
+    "filename": "camera-32",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/32/res/Skin32/Common/specific.json",
+    "lutPath": "assets/32/res/Skin32/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "503CW"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"503CW\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP"
+        },
+        "value": 3.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP\", \"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+0.5",
+          "ValueMax": "+2",
+          "Ignore": true
+        },
+        "value": 1.25,
+        "raw": "{\"Ignore\": true, \"Type\": \"Dust\", \"ValueMax\": \"+2\", \"ValueMin\": \"+0.5\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "vignette": 3.0,
+      "tilt": 1.0,
+      "dust": 1.25
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/32/res/Skin32/Filters/1600-ISO-GRAINSNAP.png"
+      ]
+    }
+  },
+  {
+    "id": 33,
+    "name": "Happiness",
+    "filename": "camera-33",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/33/res/Skin33/Common/specific.json",
+    "lutPath": "assets/33/res/Skin33/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Happiness"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Happiness\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 3.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+6"
+        },
+        "value": 6.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+6\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+3",
+          "ValueMax": "+7",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030"
+          ]
+        },
+        "value": 5.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030\"], \"Type\": \"Dust\", \"ValueMax\": \"+7\", \"ValueMin\": \"+3\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "vignette": 6.0,
+      "dust": 5.0,
+      "prism": 3.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/33/res/Skin33/Filters/1600-ISO-GRAINSNAP-color.png"
+      ],
+      "dust": [
+        "assets/33/res/Skin33/Filters/dust-010.png",
+        "assets/33/res/Skin33/Filters/dust-020.png",
+        "assets/33/res/Skin33/Filters/dust-030.png"
+      ]
+    }
+  },
+  {
+    "id": 34,
+    "name": "WATCH",
+    "filename": "camera-34",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/34/res/Skin34/Common/specific.json",
+    "lutPath": "assets/34/res/Skin34/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Hublot"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Hublot\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Fade",
+        "params": {
+          "Type": "Fade",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Fade\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "fade": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 35,
+    "name": "#FR2",
+    "filename": "camera-35",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/35/res/Skin35/Common/specific.json",
+    "lutPath": "assets/35/res/Skin35/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "FR2"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"FR2\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+2",
+          "ImageName": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 2.0,
+        "raw": "{\"ImageName\": \"1600-ISO-GRAINSNAP-color\", \"Type\": \"Grains\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+5"
+        },
+        "value": 5.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+5\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 2.0,
+      "vignette": 5.0,
+      "prism": 3.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/35/res/Skin35/1600-ISO-GRAINSNAP-color.png"
+      ]
+    }
+  },
+  {
+    "id": 36,
+    "name": "135 M6",
+    "filename": "camera-36",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/36/res/Skin36/Common/specific.json",
+    "lutPath": "assets/36/res/Skin36/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "135 M6"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"135 M6\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+2\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 2.0,
+      "vignette": 3.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 37,
+    "name": "minilux",
+    "filename": "camera-37",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/37/res/Skin37/Common/specific.json",
+    "lutPath": "assets/37/res/Skin37/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "minilux"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"minilux\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+1"
+        },
+        "value": 1.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+1\"}"
+      },
+      {
+        "type": "Sharpen",
+        "params": {
+          "Type": "Sharpen",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Sharpen\", \"Value\": \"+3\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 3.0,
+      "vignette": 4.0,
+      "tilt": 1.0,
+      "sharpen": 3.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 38,
+    "name": "135 A",
+    "filename": "camera-38",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/38/res/Skin38/Common/specific.json",
+    "lutPath": "assets/38/res/Skin38/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "1A"
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"1A\", \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4",
+          "ImageName": "grain-1A"
+        },
+        "value": 4.0,
+        "raw": "{\"ImageName\": \"grain-1A\", \"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+6",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030-2"
+          ]
+        },
+        "value": 4.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030-2\"], \"Type\": \"Dust\", \"ValueMax\": \"+6\", \"ValueMin\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "vignette": 4.0,
+      "prism": 3.0,
+      "dust": 4.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/38/res/Skin38/SpecificSource/grain-1A.jpeg"
+      ],
+      "dust": [
+        "assets/38/res/Skin38/SpecificSource/dust-010.png",
+        "assets/38/res/Skin38/SpecificSource/dust-020.png",
+        "assets/38/res/Skin38/SpecificSource/dust-030-2.jpg"
+      ]
+    }
+  },
+  {
+    "id": 39,
+    "name": "67",
+    "filename": "camera-39",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/39/res/Skin39/Common/specific.json",
+    "lutPath": "assets/39/res/Skin39/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "67",
+          "Order": true
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"67\", \"Order\": true, \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+6",
+          "ImageNames": [
+            "dust-010",
+            "dust-020",
+            "dust-030-2"
+          ]
+        },
+        "value": 4.0,
+        "raw": "{\"ImageNames\": [\"dust-010\", \"dust-020\", \"dust-030-2\"], \"Type\": \"Dust\", \"ValueMax\": \"+6\", \"ValueMin\": \"+2\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+4",
+          "ImageName": "grain-1A"
+        },
+        "value": 4.0,
+        "raw": "{\"ImageName\": \"grain-1A\", \"Type\": \"Grains\", \"Value\": \"+4\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+4"
+        },
+        "value": 4.0,
+        "raw": "{\"Type\": \"Vignette\", \"Value\": \"+4\"}"
+      }
+    ],
+    "defaults": {
+      "dust": 4.0,
+      "nomoGrain": 4.0,
+      "vignette": 4.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/39/res/Skin39/SpecificSource/grain-1A.jpeg"
+      ],
+      "dust": [
+        "assets/39/res/Skin39/SpecificSource/dust-010.png",
+        "assets/39/res/Skin39/SpecificSource/dust-020.png",
+        "assets/39/res/Skin39/SpecificSource/dust-030-2.jpg"
+      ]
+    }
+  },
+  {
+    "id": 40,
+    "name": "1234",
+    "filename": "camera-40",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/40/res/Skin40/Common/specific.json",
+    "lutPath": "assets/40/res/Skin40/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "1234",
+          "Order": true
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"1234\", \"Order\": true, \"Type\": \"Name\"}"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "Type": "Tilt",
+          "Value": "+0"
+        },
+        "value": 0.0,
+        "raw": "{\"Type\": \"Tilt\", \"Value\": \"+0\"}"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "Type": "Vignette",
+          "Value": "+10",
+          "ImageName": "vignette-1234"
+        },
+        "value": 10.0,
+        "raw": "{\"ImageName\": \"vignette-1234\", \"Type\": \"Vignette\", \"Value\": \"+10\"}"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "Type": "Prism",
+          "Value": "+3"
+        },
+        "value": 3.0,
+        "raw": "{\"Type\": \"Prism\", \"Value\": \"+3\"}"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "Type": "Grains",
+          "Value": "+2"
+        },
+        "value": 2.0,
+        "raw": "{\"Type\": \"Grains\", \"Value\": \"+2\"}"
+      }
+    ],
+    "defaults": {
+      "tilt": 0.0,
+      "vignette": 10.0,
+      "prism": 3.0,
+      "nomoGrain": 2.0
+    },
+    "overlayAssets": {
+      "vignette": [
+        "assets/40/res/Skin40/vignette-1234.jpg"
+      ]
+    }
+  },
+  {
+    "id": 41,
+    "name": "LF",
+    "filename": "camera-41",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/41/res/Skin41/Common/specific.json",
+    "lutPath": "assets/41/res/Skin41/Common/lut.dat",
+    "layout": null,
+    "scale": null,
+    "rotateBackAfterProcess": null,
+    "filters": [
+      {
+        "type": "Name",
+        "params": {
+          "Type": "Name",
+          "Mode": "Glass",
+          "Order": true
+        },
+        "value": null,
+        "raw": "{\"Mode\": \"Glass\", \"Order\": true, \"Type\": \"Name\"}"
+      }
+    ],
+    "defaults": {},
+    "overlayAssets": {}
+  },
+  {
+    "id": 42,
+    "name": "INS A",
+    "filename": "camera-42",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/42/res/Skin42/filters/specific.json",
+    "lutPath": "assets/42/res/Skin42/filters/lut.dat",
+    "layout": "V",
+    "scale": 0.75,
+    "rotateBackAfterProcess": true,
+    "filters": [
+      {
+        "type": "DoubleTilt",
+        "params": {
+          "v1": "3",
+          "v2": "30",
+          "light2": "0.65"
+        },
+        "value": 16.5,
+        "raw": "DoubleTilt:v1=3,v2=30,light2=0.65"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "7",
+          "name": "vignette-020-camera-jpg-dark"
+        },
+        "value": 7.0,
+        "raw": "Vignette:v=7,name=vignette-020-camera-jpg-dark"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "v": "3"
+        },
+        "value": 3.0,
+        "raw": "Prism:v=3"
+      },
+      {
+        "type": "Fisheye",
+        "params": {
+          "v": "3",
+          "zoom": "1.3"
+        },
+        "value": 3.0,
+        "raw": "Fisheye:v=3,zoom=1.3"
+      },
+      {
+        "type": "Color",
+        "params": {
+          "v": "10",
+          "blue": "6a6f9e",
+          "cyan": "4e7780",
+          "yellow": "7f8053",
+          "red": "80605d"
+        },
+        "value": 10.0,
+        "raw": "Color:v=10,blue=6a6f9e,cyan=4e7780,yellow=7f8053,red=80605d"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "5"
+        },
+        "value": 5.0,
+        "raw": "Grains:v=5"
+      },
+      {
+        "type": "Water",
+        "params": {
+          "v": "10",
+          "name": "water020|water030|water040"
+        },
+        "value": 10.0,
+        "raw": "Water:v=10,name=water020|water030|water040"
+      },
+      {
+        "type": "Frame",
+        "params": {
+          "v": "10",
+          "name": "blend",
+          "region": "1344|139|147|2016|208|405"
+        },
+        "value": 10.0,
+        "raw": "Frame:v=10,name=blend,region=1344|139|147|2016|208|405"
+      }
+    ],
+    "defaults": {
+      "vignette": 7.0,
+      "prism": 3.0,
+      "nomoGrain": 5.0
+    },
+    "overlayAssets": {
+      "vignette": [
+        "assets/42/res/Skin42/filters/vignette-020-camera-jpg-dark.jpg"
+      ],
+      "frame": [
+        "assets/42/res/Skin42/filters/blend.png"
+      ],
+      "water": [
+        "assets/42/res/Skin42/filters/water020.jpg",
+        "assets/42/res/Skin42/filters/water030.jpg",
+        "assets/42/res/Skin42/filters/water040.jpg"
+      ]
+    }
+  },
+  {
+    "id": 43,
+    "name": "135 TC",
+    "filename": "camera-43",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/43/res/Skin43/Common/specific.json",
+    "lutPath": "assets/43/res/Skin43/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.5,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Grains",
+        "params": {
+          "v": "4"
+        },
+        "value": 4.0,
+        "raw": "Grains:v=4"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "4"
+        },
+        "value": 4.0,
+        "raw": "Vignette:v=4"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "v": "1~4",
+          "name": "dust-010|dust-020|dust-030"
+        },
+        "value": null,
+        "raw": "Dust:v=1~4,name=dust-010|dust-020|dust-030"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 4.0,
+      "vignette": 4.0
+    },
+    "overlayAssets": {
+      "dust": [
+        "assets/43/res/Skin43/Common/dust-010.png",
+        "assets/43/res/Skin43/Common/dust-020.png",
+        "assets/43/res/Skin43/Common/dust-030.png"
+      ]
+    }
+  },
+  {
+    "id": 44,
+    "name": "Swirly 2",
+    "filename": "camera-44",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/44/res/Skin44/Common/specific.json",
+    "lutPath": "assets/44/res/Skin44/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.5,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Bokeh",
+        "params": {},
+        "value": null,
+        "raw": "Bokeh:"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "4"
+        },
+        "value": 4.0,
+        "raw": "Vignette:v=4"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "3"
+        },
+        "value": 3.0,
+        "raw": "Grains:v=3"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      }
+    ],
+    "defaults": {
+      "vignette": 4.0,
+      "nomoGrain": 3.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 45,
+    "name": "2.35",
+    "filename": "camera-45",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/45/res/Skin45/Common/specific.json",
+    "lutPath": "assets/45/res/Skin45/Common/lut.dat",
+    "layout": "H",
+    "scale": 1.3333333,
+    "rotateBackAfterProcess": true,
+    "filters": [
+      {
+        "type": "Barrel",
+        "params": {
+          "v1": "0.06",
+          "v2": "0.0"
+        },
+        "value": 0.03,
+        "raw": "Barrel:v1=0.06,v2=0.0"
+      },
+      {
+        "type": "Anamorphic",
+        "params": {
+          "v1": "0.06",
+          "v2": "0.0",
+          "v3": "0.8"
+        },
+        "value": 0.03,
+        "raw": "Anamorphic:v1=0.06,v2=0.0,v3=0.8"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "2"
+        },
+        "value": 2.0,
+        "raw": "Grains:v=2"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "2"
+        },
+        "value": 2.0,
+        "raw": "Vignette:v=2"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 2.0,
+      "vignette": 2.0
+    },
+    "overlayAssets": {}
+  },
+  {
+    "id": 46,
+    "name": "INS 70",
+    "filename": "camera-46",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/46/res/Skin46/Common/specific.json",
+    "lutPath": "assets/46/res/Skin46/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "DoubleBlur",
+        "params": {
+          "v1": "5",
+          "v2": "20",
+          "v2a": "0.7"
+        },
+        "value": 12.5,
+        "raw": "DoubleBlur:v1=5,v2=20,v2a=0.7"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "name": "process-010-vignette",
+          "v": "10"
+        },
+        "value": 10.0,
+        "raw": "Vignette:name=process-010-vignette,v=10"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      },
+      {
+        "type": "Water",
+        "params": {
+          "v": "10",
+          "name": "process-020-water"
+        },
+        "value": 10.0,
+        "raw": "Water:v=10,name=process-020-water"
+      },
+      {
+        "type": "Frame",
+        "params": {
+          "v": "10",
+          "name": "film-for-photo",
+          "region": "2138|155|152|2585|163|541"
+        },
+        "value": 10.0,
+        "raw": "Frame:v=10,name=film-for-photo,region=2138|155|152|2585|163|541"
+      }
+    ],
+    "defaults": {
+      "vignette": 10.0
+    },
+    "overlayAssets": {
+      "vignette": [
+        "assets/46/res/Skin46/Common/process-010-vignette.png"
+      ],
+      "frame": [
+        "assets/46/res/Skin46/Common/film-for-photo.png"
+      ],
+      "water": [
+        "assets/46/res/Skin46/Common/process-020-water.png"
+      ]
+    }
+  },
+  {
+    "id": 47,
+    "name": "Lonesome",
+    "filename": "camera-47",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/47/res/Skin47/Common/specific.json",
+    "lutPath": "assets/47/res/Skin47/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.333333,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Justify",
+        "params": {
+          "v": "0"
+        },
+        "value": 0.0,
+        "raw": "Justify:v=0"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "20"
+        },
+        "value": 20.0,
+        "raw": "Tilt:v=20"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "mode": "normal",
+          "name": "tv-image-transparent"
+        },
+        "value": null,
+        "raw": "Blend:mode=normal,name=tv-image-transparent"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "mode": "multiply",
+          "name": "tv-image-noise",
+          "v": "0.6",
+          "fillmode": "tiled"
+        },
+        "value": 0.6,
+        "raw": "Blend:mode=multiply,name=tv-image-noise,v=0.6,fillmode=tiled"
+      },
+      {
+        "type": "Justify",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Justify:v=1"
+      },
+      {
+        "type": "Lightning3",
+        "params": {},
+        "value": null,
+        "raw": "Lightning3:"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "mode": "srcover",
+          "name": "tv-background",
+          "replace": "1"
+        },
+        "value": null,
+        "raw": "Blend:mode=srcover,name=tv-background,replace=1"
+      }
+    ],
+    "defaults": {
+      "tilt": 20.0
+    },
+    "overlayAssets": {
+      "blend": [
+        "assets/47/res/Skin47/SpecificSource/tv-image-transparent.png",
+        "assets/47/res/Skin47/SpecificSource/tv-image-noise.png",
+        "assets/47/res/Skin47/SpecificSource/tv-background.jpg"
+      ]
+    }
+  },
+  {
+    "id": 48,
+    "name": "135 P",
+    "filename": "camera-48",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/48/res/Skin48/Common/specific.json",
+    "lutPath": "assets/48/res/Skin48/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.5,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Prism",
+        "params": {
+          "v": "2"
+        },
+        "value": 2.0,
+        "raw": "Prism:v=2"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "6",
+          "corp": "1"
+        },
+        "value": 6.0,
+        "raw": "Vignette:v=6,corp=1"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "3",
+          "name": "grain-800-inapp"
+        },
+        "value": 3.0,
+        "raw": "Grains:v=3,name=grain-800-inapp"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "v": "2~4",
+          "name": "dust-010|dust-020|dust-030"
+        },
+        "value": null,
+        "raw": "Dust:v=2~4,name=dust-010|dust-020|dust-030"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "v": "1.0",
+          "mode": "normal",
+          "fillmode": "fill",
+          "name": "frame-010|frame-020|frame-030|frame-040",
+          "autorotate": "1",
+          "randomfill": "0",
+          "mirrorrandom": "1",
+          "replace": "0"
+        },
+        "value": 1.0,
+        "raw": "Blend:v=1.0,mode=normal,fillmode=fill,name=frame-010|frame-020|frame-030|frame-040,autorotate=1,randomfill=0,mirrorrandom=1,replace=0"
+      },
+      {
+        "type": "Justify",
+        "params": {
+          "v": "5~10"
+        },
+        "value": null,
+        "raw": "Justify:v=5~10"
+      }
+    ],
+    "defaults": {
+      "prism": 2.0,
+      "vignette": 6.0,
+      "nomoGrain": 3.0
+    },
+    "overlayAssets": {
+      "dust": [
+        "assets/48/res/Skin48/Common/dust-010.png",
+        "assets/48/res/Skin48/Common/dust-020.png",
+        "assets/48/res/Skin48/Common/dust-030.png"
+      ],
+      "blend": [
+        "assets/48/res/Skin48/Common/frame-010.png",
+        "assets/48/res/Skin48/Common/frame-020.png",
+        "assets/48/res/Skin48/Common/frame-030.png",
+        "assets/48/res/Skin48/Common/frame-040.png"
+      ]
+    }
+  },
+  {
+    "id": 49,
+    "name": "McDonald’s",
+    "filename": "camera-49",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/49/1/res/Skin1/specific.json",
+    "lutPath": "assets/49/1/res/Skin1/lut.dat",
+    "layout": "HL",
+    "scale": 1.33333,
+    "rotateBackAfterProcess": true,
+    "filters": [
+      {
+        "type": "Grains",
+        "params": {
+          "v": "2",
+          "name": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 2.0,
+        "raw": "Grains:v=2,name=1600-ISO-GRAINSNAP-color"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "3"
+        },
+        "value": 3.0,
+        "raw": "Vignette:v=3"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "faddon-lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=faddon-lut"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Prism:v=1"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Tilt:v=1"
+      },
+      {
+        "type": "Date",
+        "params": {
+          "mode": "screen",
+          "tilt": "20",
+          "alignment": "rb",
+          "h": "0.05162790698",
+          "r": "0.159379845",
+          "b": "0.07162790698"
+        },
+        "value": null,
+        "raw": "Date:mode=screen,tilt=20,alignment=rb,h=0.05162790698,r=0.159379845,b=0.07162790698"
+      },
+      {
+        "type": "Frame",
+        "params": {
+          "v": "10",
+          "name": "mcdonald-photo",
+          "region": "4032|235|230|3024|175|175"
+        },
+        "value": 10.0,
+        "raw": "Frame:v=10,name=mcdonald-photo,region=4032|235|230|3024|175|175"
+      },
+      {
+        "type": "RotateBack",
+        "params": {},
+        "value": null,
+        "raw": "RotateBack:"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "only": "H",
+          "mode": "normal",
+          "name": "faddon-box",
+          "region": "4032|140|3592|3024|2650|74"
+        },
+        "value": null,
+        "raw": "Blend:only=H,mode=normal,name=faddon-box,region=4032|140|3592|3024|2650|74"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "only": "V",
+          "mode": "normal",
+          "name": "faddon-box",
+          "region": "3024|74|2650|4032|3592|140"
+        },
+        "value": null,
+        "raw": "Blend:only=V,mode=normal,name=faddon-box,region=3024|74|2650|4032|3592|140"
+      },
+      {
+        "type": "Txt",
+        "params": {
+          "only": "H",
+          "mode": "normal",
+          "alignment": "lb",
+          "h": "0.01818783069",
+          "l": "0.115327381",
+          "b": "0.03045502646"
+        },
+        "value": null,
+        "raw": "Txt:only=H,mode=normal,alignment=lb,h=0.01818783069,l=0.115327381,b=0.03045502646"
+      },
+      {
+        "type": "Txt",
+        "params": {
+          "only": "V",
+          "mode": "normal",
+          "alignment": "lb",
+          "h": "0.01364087302",
+          "l": "0.135327381",
+          "b": "0.04045502646"
+        },
+        "value": null,
+        "raw": "Txt:only=V,mode=normal,alignment=lb,h=0.01364087302,l=0.135327381,b=0.04045502646"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 2.0,
+      "vignette": 3.0,
+      "prism": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/49/res/Skin49/Common/1600-ISO-GRAINSNAP-color.png"
+      ],
+      "frame": [
+        "assets/49/res/Skin49/Common/mcdonald-photo.png"
+      ]
+    }
+  },
+  {
+    "id": 50,
+    "name": "Lunar Rabbits",
+    "filename": "camera-50",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/50/25/res/Skin25/specific.json",
+    "lutPath": "assets/50/25/res/Skin25/lut.dat",
+    "layout": "Auto",
+    "scale": 1.33333,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Grains",
+        "params": {
+          "v": "2",
+          "name": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 2.0,
+        "raw": "Grains:v=2,name=1600-ISO-GRAINSNAP-color"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "3"
+        },
+        "value": 3.0,
+        "raw": "Vignette:v=3"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "faddon-lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=faddon-lut"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Prism:v=1"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Tilt:v=1"
+      },
+      {
+        "type": "Date",
+        "params": {
+          "mode": "screen",
+          "tilt": "20",
+          "alignment": "rb",
+          "h": "0.05162790698",
+          "r": "0.159379845",
+          "b": "0.07162790698"
+        },
+        "value": null,
+        "raw": "Date:mode=screen,tilt=20,alignment=rb,h=0.05162790698,r=0.159379845,b=0.07162790698"
+      },
+      {
+        "type": "Frame",
+        "params": {
+          "v": "10",
+          "name": "mcdonald-photo",
+          "region": "4032|235|230|3024|175|175"
+        },
+        "value": 10.0,
+        "raw": "Frame:v=10,name=mcdonald-photo,region=4032|235|230|3024|175|175"
+      },
+      {
+        "type": "RotateBack",
+        "params": {},
+        "value": null,
+        "raw": "RotateBack:"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "only": "H",
+          "mode": "normal",
+          "name": "faddon-box",
+          "region": "4032|125|3575|3024|2525|72"
+        },
+        "value": null,
+        "raw": "Blend:only=H,mode=normal,name=faddon-box,region=4032|125|3575|3024|2525|72"
+      },
+      {
+        "type": "Blend",
+        "params": {
+          "only": "V",
+          "mode": "normal",
+          "name": "faddon-box",
+          "region": "3024|74|2650|4032|3592|140"
+        },
+        "value": null,
+        "raw": "Blend:only=V,mode=normal,name=faddon-box,region=3024|74|2650|4032|3592|140"
+      },
+      {
+        "type": "Txt",
+        "params": {
+          "only": "H",
+          "mode": "normal",
+          "alignment": "lb",
+          "h": "0.01818783069",
+          "l": "0.115327381",
+          "b": "0.03045502646"
+        },
+        "value": null,
+        "raw": "Txt:only=H,mode=normal,alignment=lb,h=0.01818783069,l=0.115327381,b=0.03045502646"
+      },
+      {
+        "type": "Txt",
+        "params": {
+          "only": "V",
+          "mode": "normal",
+          "alignment": "lb",
+          "h": "0.01364087302",
+          "l": "0.135327381",
+          "b": "0.04045502646"
+        },
+        "value": null,
+        "raw": "Txt:only=V,mode=normal,alignment=lb,h=0.01364087302,l=0.135327381,b=0.04045502646"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 2.0,
+      "vignette": 3.0,
+      "prism": 1.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/50/res/Skin50/Common/1600-ISO-GRAINSNAP-color.png"
+      ],
+      "frame": [
+        "assets/50/res/Skin50/Common/mcdonald-photo.png"
+      ]
+    }
+  },
+  {
+    "id": 51,
+    "name": "620 B",
+    "filename": "camera-51",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/51/res/Skin51/Common/specific.json",
+    "lutPath": "assets/51/res/Skin51/Common/lut.dat",
+    "layout": "V",
+    "scale": 1.5,
+    "rotateBackAfterProcess": true,
+    "filters": [
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10",
+          "name": "lut"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10,name=lut"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "4"
+        },
+        "value": 4.0,
+        "raw": "Vignette:v=4"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "10",
+          "name": "1600-ISO-GRAINSNAP"
+        },
+        "value": 10.0,
+        "raw": "Grains:v=10,name=1600-ISO-GRAINSNAP"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "v": "2"
+        },
+        "value": 2.0,
+        "raw": "Prism:v=2"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "10"
+        },
+        "value": 10.0,
+        "raw": "Tilt:v=10"
+      },
+      {
+        "type": "Blur",
+        "params": {
+          "v": "20"
+        },
+        "value": 20.0,
+        "raw": "Blur:v=20"
+      },
+      {
+        "type": "Dust",
+        "params": {
+          "v": "5~8",
+          "name": "dust-010|dust-020|dust-030"
+        },
+        "value": null,
+        "raw": "Dust:v=5~8,name=dust-010|dust-020|dust-030"
+      },
+      {
+        "type": "Frame",
+        "params": {
+          "v": "10",
+          "name": "frame-010|frame-020|frame-030|frame-040|frame-050|frame-060",
+          "region": "2000|101|110|2956|87|264"
+        },
+        "value": 10.0,
+        "raw": "Frame:v=10,name=frame-010|frame-020|frame-030|frame-040|frame-050|frame-060,region=2000|101|110|2956|87|264"
+      }
+    ],
+    "defaults": {
+      "vignette": 4.0,
+      "nomoGrain": 10.0,
+      "prism": 2.0,
+      "tilt": 10.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/51/res/Skin51/Common/1600-ISO-GRAINSNAP.jpeg"
+      ],
+      "dust": [
+        "assets/51/res/Skin51/Common/dust-010.jpeg",
+        "assets/51/res/Skin51/Common/dust-020.jpeg",
+        "assets/51/res/Skin51/Common/dust-030.jpg"
+      ],
+      "frame": [
+        "assets/51/res/Skin51/Common/frame-010.png",
+        "assets/51/res/Skin51/Common/frame-020.png",
+        "assets/51/res/Skin51/Common/frame-030.png",
+        "assets/51/res/Skin51/Common/frame-040.png",
+        "assets/51/res/Skin51/Common/frame-050.png",
+        "assets/51/res/Skin51/Common/frame-060.png"
+      ]
+    }
+  },
+  {
+    "id": 52,
+    "name": "120 M7",
+    "filename": "camera-52",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/52/res/Skin52/Common/specific.json",
+    "lutPath": "assets/52/res/Skin52/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.25,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Exposure",
+        "params": {
+          "v": "-2"
+        },
+        "value": -2.0,
+        "raw": "Exposure:v=-2"
+      },
+      {
+        "type": "HighlightSuppress",
+        "params": {
+          "v": "10"
+        },
+        "value": 10.0,
+        "raw": "HighlightSuppress:v=10"
+      },
+      {
+        "type": "AtmosphericHaze",
+        "params": {
+          "v": "5"
+        },
+        "value": 5.0,
+        "raw": "AtmosphericHaze:v=5"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "3",
+          "name": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 3.0,
+        "raw": "Grains:v=3,name=1600-ISO-GRAINSNAP-color"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "3"
+        },
+        "value": 3.0,
+        "raw": "Vignette:v=3"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Tilt:v=1"
+      }
+    ],
+    "defaults": {
+      "exposure": -2.0,
+      "highlight": 10.0,
+      "nomoGrain": 3.0,
+      "vignette": 3.0,
+      "tilt": 1.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/52/res/Skin52/Common/1600-ISO-GRAINSNAP-color.png"
+      ]
+    }
+  },
+  {
+    "id": 53,
+    "name": "Wide 17",
+    "filename": "camera-53",
+    "group": "NOMO Cameras",
+    "specificPath": "assets/53/res/Skin53/Common/specific.json",
+    "lutPath": "assets/53/res/Skin53/Common/lut.dat",
+    "layout": "Auto",
+    "scale": 1.5,
+    "rotateBackAfterProcess": false,
+    "filters": [
+      {
+        "type": "Barrel",
+        "params": {
+          "v1": "0.015",
+          "v2": "0.01"
+        },
+        "value": 0.0125,
+        "raw": "Barrel:v1=0.015,v2=0.01"
+      },
+      {
+        "type": "Lut",
+        "params": {
+          "v": "10"
+        },
+        "value": 10.0,
+        "raw": "Lut:v=10"
+      },
+      {
+        "type": "Grains",
+        "params": {
+          "v": "5",
+          "name": "1600-ISO-GRAINSNAP-color"
+        },
+        "value": 5.0,
+        "raw": "Grains:v=5,name=1600-ISO-GRAINSNAP-color"
+      },
+      {
+        "type": "Vignette",
+        "params": {
+          "v": "4~6"
+        },
+        "value": null,
+        "raw": "Vignette:v=4~6"
+      },
+      {
+        "type": "Prism",
+        "params": {
+          "v": "1"
+        },
+        "value": 1.0,
+        "raw": "Prism:v=1"
+      },
+      {
+        "type": "Tilt",
+        "params": {
+          "v": "2"
+        },
+        "value": 2.0,
+        "raw": "Tilt:v=2"
+      }
+    ],
+    "defaults": {
+      "nomoGrain": 5.0,
+      "prism": 1.0,
+      "tilt": 2.0
+    },
+    "overlayAssets": {
+      "grain": [
+        "assets/53/res/Skin53/Common/1600-ISO-GRAINSNAP-color.png"
+      ],
+      "vignette": [
+        "assets/53/res/Skin53/Common/vignette-full-portrait.jpg",
+        "assets/53/res/Skin53/Common/vignette-square.jpg",
+        "assets/53/res/Skin53/Common/vignette-full.jpg",
+        "assets/53/res/Skin53/Common/vignette-half-portrait.jpg",
+        "assets/53/res/Skin53/Common/vignette-half.jpg"
+      ]
+    }
+  }
+]

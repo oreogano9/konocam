@@ -1,0 +1,48 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "INS_2"
+     },
+     {
+          "Type": "Exposure",
+          "Value": "+5"
+     },
+     {
+          "Type": "Contrast",
+          "Value": "+1"
+     },
+     {
+          "Type": "Saturation",
+          "Value": "0"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+3",
+          "ValueMax": "+5"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+6"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+4"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+7"
+     },
+     {
+          "Type": "Fade",
+          "ValueMin": "+1",
+          "ValueMax": "+3"
+     },
+     {
+          "Type": "HighlightsSave",
+          "Value": "+6"
+     }
+]

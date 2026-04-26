@@ -1,0 +1,16 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.333333,
+  "ScaleAutoRotate": false,
+  "Filters": [
+    "Justify:v=0",
+    "Tilt:v=20",
+    "Blend:mode=normal,name=tv-image-transparent",
+    "Lut:v=10,name=lut",
+    "Blend:mode=multiply,name=tv-image-noise,v=0.6,fillmode=tiled",
+    "Justify:v=1",
+    "Lightning3:",
+    "Blend:mode=srcover,name=tv-background,replace=1"
+  ]
+}

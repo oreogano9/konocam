@@ -1,0 +1,17 @@
+{
+  "LayoutBeforeProcess": "V",
+  "RotateBackAfterProcess": true,
+  "Scale": 1.5,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "Lut:v=10,name=lut",
+    "Vignette:v=4",
+    "Grains:v=10,name=1600-ISO-GRAINSNAP",
+    "Prism:v=2",
+    "Tilt:v=10",
+    "Blur:v=20",
+    "Dust:v=5~8,name=dust-010|dust-020|dust-030",
+    "Frame:v=10,name=frame-010|frame-020|frame-030|frame-040|frame-050|frame-060,region=2000|101|110|2956|87|264"
+  ]
+}
+

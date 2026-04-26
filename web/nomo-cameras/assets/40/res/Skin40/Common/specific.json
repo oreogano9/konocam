@@ -1,0 +1,24 @@
+[
+    {
+        "Type": "Name",
+        "Mode": "1234",
+        "Order": true
+    },
+    {
+        "Type": "Tilt",
+        "Value": "+0"
+    },
+    {
+        "Type": "Vignette",
+        "Value": "+10",
+        "ImageName": "vignette-1234"
+    },
+    {
+        "Type": "Prism",
+        "Value": "+3"
+    },
+    {
+        "Type": "Grains",
+        "Value": "+2"
+    }
+]

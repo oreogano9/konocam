@@ -1,0 +1,28 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135 LUNE"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+10",
+          "ImageName": "1600-ISO-GRAINSNAP",
+          "Ignore": true
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+7"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+1"
+     },
+     {
+          "Type": "Sky",
+          "Value": "+4"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+1"
+     }
+]

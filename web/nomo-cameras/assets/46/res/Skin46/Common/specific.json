@@ -1,0 +1,13 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1,
+  "ScaleAutoRotate": true,
+  "Filters": [
+    "DoubleBlur:v1=5,v2=20,v2a=0.7",
+    "Vignette:name=process-010-vignette,v=10",
+    "Lut:v=10,name=lut",
+    "Water:v=10,name=process-020-water",
+    "Frame:v=10,name=film-for-photo,region=2138|155|152|2585|163|541"
+  ]
+}

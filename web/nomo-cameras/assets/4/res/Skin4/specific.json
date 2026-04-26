@@ -1,0 +1,36 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135_GR"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+1",
+          "ValueMax": "+2"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+1"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+2"
+     },
+     {
+          "Type": "Fade",
+          "ValueMin": "+1",
+          "ValueMax": "+1"
+     },
+     {
+          "Type": "HighlightsSave",
+          "Value": "+2"
+     }
+]

@@ -1,0 +1,29 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135 PANO"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5",
+          "ImageName": "vignette"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": ["dust-010","dust-020","dust-030"]
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+4"
+     }
+]

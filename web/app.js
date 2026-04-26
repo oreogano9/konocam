@@ -49,11 +49,9 @@ const ZERO_IV = new Uint8Array(16);
 const LUT_WIDTH = 1024;
 const LUT_HEIGHT = 32;
 const LUT_PIXEL_BYTES = LUT_WIDTH * LUT_HEIGHT * 3;
-const FILTER_SERIES_PATH = "./nomo/filters/series.json";
-const FILTERS_ROOT = "./nomo/filters";
-const LUTS_ROOT = "./nomo/dat";
+const CAMERA_CATALOG_PATH = "./nomo-cameras/cameras.json";
+const CAMERA_ASSETS_ROOT = "./nomo-cameras";
 const OVERLAYS_ROOT = "./nomo/overlays";
-const SPECIFIC_COMBINATIONS_PATH = "./nomo/SpecificCombinations.json";
 const SPEKTRA_PROFILE_PATH = "./spektrafilm/profiles/kodak_gold_200.json";
 const MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 900px)");
 const GALLERY_DB_NAME = "analoguecam-gallery";
@@ -72,7 +70,6 @@ const COLOR_MATRIX = new Float32Array([
   0.0, 0.0, 0.0, 1.0,
 ]);
 
-const CUSTOM_KODAK_GROUP = "Kodak Inspired (Custom)";
 const NOMO_OVERLAY_PATHS = {
   nomoGrain: "grains_iso_400_jpg_50.jpg",
   vignette: "vignette_020_camera_jpg_70.jpg",
@@ -84,19 +81,6 @@ const NOMO_OVERLAY_PATHS = {
     "leak_060_g09_jpg_50_bottom.jpg",
   ],
 };
-const CUSTOM_KODAK_FILTERS = [
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-funsaver-800", name: "Kodak FunSaver 800", custom: true, recipe: "funsaver800" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-gold-200", name: "Kodak Gold 200", custom: true, recipe: "gold200" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-ultramax-400", name: "Kodak UltraMax 400", custom: true, recipe: "ultramax400" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-colorplus-200", name: "Kodak ColorPlus 200", custom: true, recipe: "colorplus200" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-pro-image-100", name: "Kodak Pro Image 100", custom: true, recipe: "proimage100" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-portra-160", name: "Kodak Portra 160", custom: true, recipe: "portra160" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-portra-400", name: "Kodak Portra 400", custom: true, recipe: "portra400" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-portra-800", name: "Kodak Portra 800", custom: true, recipe: "portra800" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-ektar-100", name: "Kodak Ektar 100", custom: true, recipe: "ektar100" },
-  { group: CUSTOM_KODAK_GROUP, groupFilename: "custom-kodak", filterId: -1, filename: "custom-kodak-tri-x-400", name: "Kodak Tri-X 400", custom: true, recipe: "trix400" },
-];
-
 const state = {
   source: null,
   stillImage: null,
@@ -129,9 +113,13 @@ const state = {
   galleryObjectUrls: [],
   selectedGalleryItem: null,
   nomoOverlayImages: null,
+  cameraOverlayCache: new Map(),
+  currentCameraOverlayImages: null,
   overlaySelections: {
+    grain: 0,
     dust: 0,
     lightLeak: 0,
+    vignette: 0,
   },
   effects: cloneEffectDefaults(),
   effectInputs: new Map(),
@@ -397,26 +385,13 @@ async function initializeApp() {
 }
 
 function initializeDeferredAssets() {
-  loadFilterEffectDefaults(state.filters)
-    .then((defaultsByFilter) => {
-      state.filterEffectDefaults = defaultsByFilter;
-      applyFilterEffectDefaults(lookSelect.value);
-      syncEffectInputs();
-      updateEffectControlState();
-      renderImageAfterSettingsChange();
-    })
-    .catch((error) => {
-      console.error(error);
-    });
-
-  loadNomoOverlayImages()
-    .then((images) => {
-      state.nomoOverlayImages = images;
-      renderImageAfterSettingsChange();
-    })
-    .catch((error) => {
-      console.error(error);
-    });
+  state.filterEffectDefaults = loadFilterEffectDefaults(state.filters);
+  applyFilterEffectDefaults(lookSelect.value);
+  syncEffectInputs();
+  updateEffectControlState();
+  ensureCameraOverlayImages(lookSelect.value)
+    .then(() => renderImageAfterSettingsChange())
+    .catch((error) => console.error(error));
 
   loadSpektraProfile(SPEKTRA_PROFILE_PATH)
     .then((profile) => {
@@ -451,36 +426,40 @@ async function loadNomoOverlayImages() {
   return { nomoGrain, vignette, dust, lightLeak };
 }
 
-async function loadFilterCatalog() {
-  const series = await fetchJson(FILTER_SERIES_PATH);
-  const allFilters = [];
-  const familyEntries = await Promise.all(
-    series.map(async (family) => ({
-      family,
-      entries: await fetchJson(`${FILTERS_ROOT}/${family.filename}.json`),
-    })),
+async function ensureCameraOverlayImages(filename) {
+  const filter = state.filterMap.get(filename);
+  if (!filter) {
+    state.currentCameraOverlayImages = null;
+    return null;
+  }
+
+  if (state.cameraOverlayCache.has(filename)) {
+    state.currentCameraOverlayImages = state.cameraOverlayCache.get(filename);
+    return state.currentCameraOverlayImages;
+  }
+
+  const overlayAssets = filter.overlayAssets ?? {};
+  const loaded = {};
+  await Promise.all(
+    Object.entries(overlayAssets).map(async ([kind, paths]) => {
+      loaded[kind] = await Promise.all(paths.map((path) => loadOverlayImage(`${CAMERA_ASSETS_ROOT}/${path}`)));
+    }),
   );
 
-  for (const { family, entries } of familyEntries) {
-    for (const entry of entries) {
-      allFilters.push({
-        group: family.name_en,
-        groupFilename: family.filename,
-        filterId: family.filter_id,
-        filename: entry.filename,
-        name: entry.name_en,
-        nameChs: entry.name_chs,
-        nameCht: entry.name_cht,
-      });
-    }
-  }
+  state.cameraOverlayCache.set(filename, loaded);
+  state.currentCameraOverlayImages = loaded;
+  return loaded;
+}
+
+async function loadFilterCatalog() {
+  const allFilters = (await fetchJson(CAMERA_CATALOG_PATH)).map((camera) => ({
+    ...camera,
+    group: camera.group ?? "NOMO Cameras",
+    groupFilename: "downloaded-nomo-cameras",
+    name: camera.name ?? `Camera ${camera.id}`,
+  }));
 
   for (const filter of allFilters) {
-    state.filterMap.set(filter.filename, filter);
-  }
-
-  for (const filter of CUSTOM_KODAK_FILTERS) {
-    allFilters.push(filter);
     state.filterMap.set(filter.filename, filter);
   }
 
@@ -519,40 +498,39 @@ function populateFilterSelect(filters) {
   cameraLookSelect.disabled = filters.length === 0;
 }
 
-async function loadFilterEffectDefaults(filters) {
-  const combinations = await fetchJson(SPECIFIC_COMBINATIONS_PATH);
+function loadFilterEffectDefaults(filters) {
   const defaultsByFilter = new Map();
-  const filtersByMode = new Map();
 
   for (const filter of filters) {
-    filtersByMode.set(filter.filename, filter);
-    filtersByMode.set(filter.name, filter);
-  }
-
-  for (const combination of combinations) {
-    const specifics = combination.specifics ?? combination.Specifics ?? [];
-    const preset = specifics.find((specific) => specific.Type === "Preset");
-    const filter = preset?.Mode ? filtersByMode.get(preset.Mode) : null;
-
-    if (!filter || filter.custom) {
-      continue;
-    }
-
     const defaultsForFilter = {};
-    for (const specific of specifics) {
-      const mapped = mapApkSpecificToEffectDefault(specific);
-      if (!mapped) {
-        continue;
-      }
-      defaultsForFilter[mapped.id] = mapped.value;
+    for (const [effectId, value] of Object.entries(filter.defaults ?? {})) {
+      defaultsForFilter[effectId] = normalizeCameraEffectDefault(effectId, value);
     }
-
     if (Object.keys(defaultsForFilter).length) {
       defaultsByFilter.set(filter.filename, defaultsForFilter);
     }
   }
 
   return defaultsByFilter;
+}
+
+function normalizeCameraEffectDefault(effectId, value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  const effect = getEffectById(effectId);
+  if (!effect) {
+    return numeric;
+  }
+
+  let normalized = numeric;
+  if (effect.max <= 1 && Math.abs(numeric) > 1) {
+    normalized = numeric / 10;
+  }
+
+  return Math.min(effect.max, Math.max(effect.min ?? 0, normalized));
 }
 
 function mapApkSpecificToEffectDefault(specific) {
@@ -1046,6 +1024,7 @@ async function renderLiveCameraFrame() {
   if (cameraPreview.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && cameraPreview.videoWidth && cameraPreview.videoHeight) {
     try {
       await ensureLutTexture(lookSelect.value);
+      await ensureCameraOverlayImages(lookSelect.value);
       if (!state.cameraActive) {
         return;
       }
@@ -1114,6 +1093,7 @@ async function saveCurrentCameraFrame() {
   };
   fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, Math.max(cameraPreview.videoWidth, cameraPreview.videoHeight));
   uploadSourceTexturePixels(cameraPreview);
+  await ensureCameraOverlayImages(lookSelect.value);
   renderImage({ includeSpektraGrain: true });
 
   const selected = state.filterMap.get(lookSelect.value);
@@ -1342,6 +1322,7 @@ async function applyLoadedImage(image, sourceName = "nomo-edit") {
   uploadSourceTexture(image);
   resetCanvasView();
   await ensureLutTexture(lookSelect.value);
+  await ensureCameraOverlayImages(lookSelect.value);
   renderImage();
   setStatus(`${state.filterMap.get(lookSelect.value)?.name ?? lookSelect.value} loaded.`);
 }
@@ -1435,7 +1416,11 @@ async function ensureLutTexture(filename) {
     rgbBytes = generateCustomLut(filter.recipe);
   } else {
     setStatus(`Decrypting ${filter?.name ?? filename}...`);
-    const response = await fetch(`${LUTS_ROOT}/${filename}.dat`);
+    const lutPath = filter?.lutPath ? `${CAMERA_ASSETS_ROOT}/${filter.lutPath}` : null;
+    if (!lutPath) {
+      throw new Error(`Camera ${filename} does not define a LUT asset.`);
+    }
+    const response = await fetch(lutPath);
     if (!response.ok) {
       throw new Error(`Failed to load LUT ${filename}: ${response.status}`);
     }
@@ -1641,41 +1626,109 @@ function uploadGrainTexture(rgba) {
 }
 
 function hasNomoOverlayEffects() {
+  const filter = state.filterMap.get(lookSelect.value);
+  const cameraOverlayAssets = filter?.overlayAssets ?? {};
   return (
     state.effects.nomoGrain?.value > 0 ||
     state.effects.dust?.value > 0 ||
     state.effects.lightLeak?.value > 0 ||
-    state.effects.vignette?.value > 0
+    state.effects.vignette?.value > 0 ||
+    Boolean(cameraOverlayAssets.frame?.length || cameraOverlayAssets.blend?.length || cameraOverlayAssets.water?.length)
   );
 }
 
 function compositeNomoOverlays(rgba) {
   const baseCanvas = createCompositeCanvas(rgba);
   const context = baseCanvas.getContext("2d");
+  const cameraOverlays = state.currentCameraOverlayImages;
 
-  if (!context || !state.nomoOverlayImages) {
+  if (!context) {
     return rgba;
   }
 
   if (state.effects.nomoGrain.value > 0) {
-    drawOverlay(context, state.nomoOverlayImages.nomoGrain, state.effects.nomoGrain.value / 10, "overlay");
+    const grainImage = pickOverlayImage(cameraOverlays?.grain, state.overlaySelections.grain);
+    drawOverlay(context, grainImage ?? state.nomoOverlayImages?.nomoGrain, state.effects.nomoGrain.value / 10, "overlay");
   }
 
   if (state.effects.dust.value > 0) {
-    const dustImage = state.nomoOverlayImages.dust[state.overlaySelections.dust % state.nomoOverlayImages.dust.length];
+    const dustImage = pickOverlayImage(cameraOverlays?.dust ?? state.nomoOverlayImages?.dust, state.overlaySelections.dust);
     drawOverlay(context, dustImage, state.effects.dust.value / 10, "screen", { flipXY: true });
   }
 
   if (state.effects.lightLeak.value > 0) {
-    const leakImage = state.nomoOverlayImages.lightLeak[state.overlaySelections.lightLeak % state.nomoOverlayImages.lightLeak.length];
+    const leakImage = pickOverlayImage(cameraOverlays?.leak ?? state.nomoOverlayImages?.lightLeak, state.overlaySelections.lightLeak);
     drawOverlay(context, leakImage, state.effects.lightLeak.value / 10, "screen");
   }
 
   if (state.effects.vignette.value > 0) {
-    drawOverlay(context, state.nomoOverlayImages.vignette, state.effects.vignette.value / 10, "multiply", { flipXY: true });
+    const vignetteImage = pickOverlayImage(cameraOverlays?.vignette, state.overlaySelections.vignette);
+    drawOverlay(context, vignetteImage ?? state.nomoOverlayImages?.vignette, state.effects.vignette.value / 10, "multiply", { flipXY: true });
   }
 
+  compositeCameraStackOverlays(context, cameraOverlays);
+
   return new Uint8Array(context.getImageData(0, 0, baseCanvas.width, baseCanvas.height).data);
+}
+
+function compositeCameraStackOverlays(context, cameraOverlays) {
+  const filter = state.filterMap.get(lookSelect.value);
+  if (!filter || !cameraOverlays) {
+    return;
+  }
+
+  for (const effect of filter.filters ?? []) {
+    const type = String(effect.type ?? "").toLowerCase();
+    if (type === "frame") {
+      drawOverlayList(context, cameraOverlays.frame, effect, "source-over");
+    } else if (type === "blend") {
+      drawOverlayList(context, cameraOverlays.blend, effect, blendModeFromCameraEffect(effect));
+    } else if (type === "water") {
+      drawOverlayList(context, cameraOverlays.water, effect, "screen");
+    }
+  }
+}
+
+function drawOverlayList(context, images, effect, blendMode) {
+  if (!images?.length) {
+    return;
+  }
+
+  const value = Number(effect.value ?? effect.params?.v ?? 10);
+  const alpha = Number.isFinite(value) ? Math.min(1, Math.max(0, value / 10)) : 1;
+  const image = pickOverlayImage(images, stableOverlayIndex(effect.raw, images.length));
+  drawOverlay(context, image, alpha, blendMode, {
+    tiled: effect.params?.fillmode === "tiled",
+  });
+}
+
+function pickOverlayImage(images, index = 0) {
+  if (!images?.length) {
+    return null;
+  }
+  return images[Math.abs(index) % images.length];
+}
+
+function stableOverlayIndex(value, length) {
+  if (!length) {
+    return 0;
+  }
+  let hash = 0;
+  for (const char of String(value)) {
+    hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  }
+  return Math.abs(hash) % length;
+}
+
+function blendModeFromCameraEffect(effect) {
+  const mode = String(effect.params?.mode ?? "normal").toLowerCase();
+  if (mode === "multiply") {
+    return "multiply";
+  }
+  if (mode === "screen") {
+    return "screen";
+  }
+  return "source-over";
 }
 
 function createCompositeCanvas(rgba) {
@@ -1701,7 +1754,15 @@ function drawOverlay(context, image, alpha, blendMode, options = {}) {
     context.translate(context.canvas.width, context.canvas.height);
     context.scale(-1, -1);
   }
-  context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
+  if (options.tiled) {
+    const pattern = context.createPattern(image, "repeat");
+    if (pattern) {
+      context.fillStyle = pattern;
+      context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+    }
+  } else {
+    context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
+  }
   context.restore();
 }
 
@@ -2006,6 +2067,7 @@ async function selectFilter(filename) {
   }
 
   await ensureLutTexture(filename);
+  await ensureCameraOverlayImages(filename);
   renderImageAfterSettingsChange();
   setStatus(`${state.filterMap.get(filename)?.name ?? filename} loaded.`);
 }
@@ -2149,8 +2211,10 @@ async function loadOverlayImage(path) {
 }
 
 function rerollOverlaySelections() {
+  state.overlaySelections.grain = Math.floor(Math.random() * 997);
   state.overlaySelections.dust = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.dust.length);
   state.overlaySelections.lightLeak = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.lightLeak.length);
+  state.overlaySelections.vignette = Math.floor(Math.random() * 997);
 }
 
 function clamp01(value) {

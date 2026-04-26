@@ -1,0 +1,15 @@
+{
+  "LayoutBeforeProcess": "Auto",
+  "RotateBackAfterProcess": false,
+  "Scale": 1.25,
+  "ScaleAutoRotate": true,
+  "Filters": [
+      "Exposure:v=-2",
+      "HighlightSuppress:v=10",
+      "AtmosphericHaze:v=5",
+      "Lut:v=10",
+      "Grains:v=3,name=1600-ISO-GRAINSNAP-color",
+      "Vignette:v=3",
+      "Tilt:v=1"
+  ]
+}

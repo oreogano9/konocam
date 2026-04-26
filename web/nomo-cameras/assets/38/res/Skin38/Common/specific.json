@@ -1,0 +1,25 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "1A"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+4",
+          "ImageName": "grain-1A"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+4"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+3"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+6",
+          "ImageNames": ["dust-010","dust-020","dust-030-2"]
+     }
+]

@@ -1,0 +1,25 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135 SP"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+4",
+          "ValueMax": "+10",
+          "ImageNames": ["dust-010","dust-020","dust-030"]
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+3"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+7",
+          "ImageName": "grains"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]

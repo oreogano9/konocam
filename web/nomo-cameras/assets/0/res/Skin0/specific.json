@@ -1,0 +1,43 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135_B"
+     },
+     {
+          "Type": "Exposure",
+          "Value": "+2"
+     },
+     {
+          "Type": "Contrast",
+          "Value": "+1"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+5"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "+2",
+          "ValueMax": "+2"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+5"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+4"
+     },
+     {
+          "Type": "Fade",
+          "Value": "+3"
+     },
+     {
+          "Type": "HighlightsSave",
+          "Value": "+1"
+     },
+     {
+          "Type": "Date",
+          "Value": "10"
+     }
+]

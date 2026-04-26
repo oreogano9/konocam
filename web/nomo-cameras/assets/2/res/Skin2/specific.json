@@ -1,0 +1,39 @@
+[
+     {
+          "Type": "Name",
+          "Mode": "135_M"
+     },
+     {
+          "Type": "Grains",
+          "Value": "+4"
+     },
+     {
+          "Type": "Dust",
+          "ValueMin": "0",
+          "ValueMax": "+2"
+     },
+     {
+          "Type": "Vignette",
+          "Value": "+3"
+     },
+     {
+          "Type": "Prism",
+          "Value": "+1"
+     },
+     {
+          "Type": "Fade",
+          "Value": "+3"
+     },
+     {
+          "Type": "HighlightsSave",
+          "Value": "+2"
+     },
+     {
+          "Type": "Date",
+          "Value": "10"
+     },
+     {
+          "Type": "Tilt",
+          "Value": "+2"
+     }
+]
