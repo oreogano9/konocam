@@ -104,9 +104,13 @@ const state = {
   effects: cloneEffectDefaults(),
   effectInputs: new Map(),
   importedEffects: {
-    spektraGrain: { enabled: SPEKTRA_GRAIN_EFFECT.defaultEnabled },
+    spektraGrain: {
+      enabled: SPEKTRA_GRAIN_EFFECT.defaultEnabled,
+      preset: SPEKTRA_GRAIN_EFFECT.defaultPreset,
+    },
   },
   spektraProfile: null,
+  spektraRenderTimer: 0,
   importedEffectInputs: new Map(),
   canvasView: {
     zoom: 1,
@@ -597,7 +601,7 @@ function renderEffectControls() {
       }
 
       updateEffectControlState();
-      renderImage();
+      renderImageAfterSettingsChange();
     });
   }
 }
@@ -622,16 +626,34 @@ function renderImportedEffectControls() {
   input.checked = state.importedEffects.spektraGrain.enabled;
 
   row.append(label, input);
-  card.append(row);
+
+  const presetSelect = document.createElement("select");
+  presetSelect.className = "imported-effect-select";
+  presetSelect.disabled = !state.importedEffects.spektraGrain.enabled;
+  for (const preset of SPEKTRA_GRAIN_EFFECT.presets) {
+    const option = document.createElement("option");
+    option.value = preset;
+    option.textContent = preset;
+    presetSelect.append(option);
+  }
+  presetSelect.value = state.importedEffects.spektraGrain.preset;
+
+  card.append(row, presetSelect);
 
   card.title = SPEKTRA_GRAIN_EFFECT.anchor;
 
   importedEffectsRoot.append(card);
-  state.importedEffectInputs.set(SPEKTRA_GRAIN_EFFECT.id, { input });
+  state.importedEffectInputs.set(SPEKTRA_GRAIN_EFFECT.id, { input, presetSelect });
 
   input.addEventListener("input", () => {
     state.importedEffects.spektraGrain.enabled = input.checked;
-    renderImage();
+    presetSelect.disabled = !input.checked;
+    renderImageAfterSettingsChange();
+  });
+
+  presetSelect.addEventListener("input", () => {
+    state.importedEffects.spektraGrain.preset = presetSelect.value;
+    renderImageAfterSettingsChange();
   });
 }
 
@@ -914,8 +936,14 @@ async function saveCurrentCameraFrame() {
     navigator.vibrate(35);
   }
 
+  stopLiveCameraRender();
+  renderImage({ includeSpektraGrain: true });
+
   const selected = state.filterMap.get(lookSelect.value);
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (state.cameraActive) {
+    startLiveCameraRender();
+  }
   if (!blob) {
     setStatus("Failed to save the camera frame.");
     return;
@@ -1171,7 +1199,7 @@ function ensureRenderTarget(target, width, height) {
   return { width, height, texture, framebuffer };
 }
 
-function renderImage() {
+function renderImage(options = {}) {
   if (!state.source || !state.sourceTexture || !gl || !state.geometry) {
     return;
   }
@@ -1185,7 +1213,7 @@ function renderImage() {
   } else {
     renderLookupStage();
     renderEffectsStage();
-    renderPostEffectsStage();
+    renderPostEffectsStage(options);
   }
 
   canvas.style.display = "block";
@@ -1247,7 +1275,7 @@ function renderEffectsStage() {
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function renderPostEffectsStage() {
+function renderPostEffectsStage(options = {}) {
   const rgba = new Uint8Array(canvas.width * canvas.height * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, state.effectsTarget.framebuffer);
   gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
@@ -1258,13 +1286,17 @@ function renderPostEffectsStage() {
     output = compositeNomoOverlays(output);
   }
 
-  if (state.importedEffects.spektraGrain.enabled && state.spektraProfile) {
+  const includeSpektraGrain = options.includeSpektraGrain ?? !state.cameraActive;
+  if (includeSpektraGrain && state.importedEffects.spektraGrain.enabled && state.spektraProfile) {
     output = applySpektraGrainToRgba(
       output,
       canvas.width,
       canvas.height,
       state.spektraProfile,
-      { filmFormatMm: 35.0 },
+      {
+        filmFormatMm: 35.0,
+        preset: state.importedEffects.spektraGrain.preset,
+      },
     );
   }
 
@@ -1373,12 +1405,13 @@ function resetControls() {
   intensitySlider.value = defaults.intensity;
   applyFilterEffectDefaults(lookSelect.value);
   state.importedEffects.spektraGrain.enabled = SPEKTRA_GRAIN_EFFECT.defaultEnabled;
+  state.importedEffects.spektraGrain.preset = SPEKTRA_GRAIN_EFFECT.defaultPreset;
   syncIntensityControlState();
   updateEffectControlState();
   syncEffectInputs();
   syncImportedEffectInputs();
   setEditsVisibility(true);
-  renderImage();
+  renderImageAfterSettingsChange();
 }
 
 function applyFilterEffectDefaults(filename) {
@@ -1405,6 +1438,7 @@ function downloadImage() {
     return;
   }
 
+  renderImage({ includeSpektraGrain: true });
   const selected = state.filterMap.get(lookSelect.value);
   const link = document.createElement("a");
   link.href = canvas.toDataURL("image/jpeg", 0.92);
@@ -1425,6 +1459,19 @@ function toggleEditsVisibility() {
 
   setEditsVisibility(state.showingOriginal);
   renderImage();
+}
+
+function renderImageAfterSettingsChange() {
+  window.clearTimeout(state.spektraRenderTimer);
+  renderImage({ includeSpektraGrain: false });
+
+  if (!state.importedEffects.spektraGrain.enabled || state.cameraActive) {
+    return;
+  }
+
+  state.spektraRenderTimer = window.setTimeout(() => {
+    renderImage({ includeSpektraGrain: true });
+  }, 650);
 }
 
 function resetCanvasView() {
@@ -1515,7 +1562,7 @@ async function selectFilter(filename) {
   }
 
   await ensureLutTexture(filename);
-  renderImage();
+  renderImageAfterSettingsChange();
   setStatus(`${state.filterMap.get(filename)?.name ?? filename} loaded.`);
 }
 
@@ -1584,6 +1631,8 @@ function syncImportedEffectInputs() {
     return;
   }
   refs.input.checked = state.importedEffects.spektraGrain.enabled;
+  refs.presetSelect.value = state.importedEffects.spektraGrain.preset;
+  refs.presetSelect.disabled = !state.importedEffects.spektraGrain.enabled;
 }
 
 function formatEffectValue(effect, value) {
@@ -1837,7 +1886,7 @@ cameraLookSelect.addEventListener("change", async () => {
 
 intensitySlider.addEventListener("input", () => {
   updateIntensityLabel();
-  renderImage();
+  renderImageAfterSettingsChange();
 });
 
 window.addEventListener("keydown", async (event) => {

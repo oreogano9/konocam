@@ -3,21 +3,30 @@ const EPSILON = 1e-10;
 export const SPEKTRA_GRAIN_EFFECT = {
   id: "spektraGrain",
   label: "Spektra Grain",
-  kind: "toggle",
   defaultEnabled: false,
+  defaultPreset: "Medium",
+  presets: ["Very Low", "Low", "Medium", "Strong", "Extreme"],
   anchor: "import:Spektrafilm/src/spektrafilm/model/grain.py|profile:kodak_gold_200|defaults:runtime.params_schema.GrainParams",
 };
 
-const DEFAULT_GRAIN = {
+const SPEKTRA_GRAIN_BASE = {
   sublayersActive: true,
-  agxParticleAreaUm2: 0.2,
-  agxParticleScale: [0.8, 1.0, 2.0],
-  agxParticleScaleLayers: [2.5, 1.0, 0.5],
+  agxParticleAreaUm2: 0.05,
+  agxParticleScale: [0.55, 0.7, 1.1],
+  agxParticleScaleLayers: [1.5, 0.8, 0.4],
   densityMin: [0.07, 0.08, 0.12],
-  uniformity: [0.97, 0.97, 0.99],
-  blur: 0.65,
-  blurDyeCloudsUm: 1.0,
-  microStructure: [0.2, 30.0],
+  uniformity: [0.99, 0.99, 0.995],
+  blur: 0.8,
+  blurDyeCloudsUm: 0.6,
+  microStructure: [0.08, 20.0],
+};
+
+const SPEKTRA_GRAIN_PRESETS = {
+  "Very Low": { agxParticleAreaUm2: 0.05, blur: 0.8 },
+  Low: { agxParticleAreaUm2: 2.5375, blur: 0.975 },
+  Medium: { agxParticleAreaUm2: 5.025, blur: 1.15 },
+  Strong: { agxParticleAreaUm2: 7.5125, blur: 1.325 },
+  Extreme: { agxParticleAreaUm2: 10.0, blur: 1.5 },
 };
 
 export async function loadSpektraProfile(path) {
@@ -50,6 +59,7 @@ export async function loadSpektraProfile(path) {
 
 export function applySpektraGrainToRgba(rgba, width, height, profile, options = {}) {
   const filmFormatMm = options.filmFormatMm ?? 35.0;
+  const grain = getSpektraGrainPreset(options.preset ?? SPEKTRA_GRAIN_EFFECT.defaultPreset);
   const pixelSizeUm = (filmFormatMm * 1000) / Math.max(width, height);
   const linearRgb = rgbaToLinearRgb(rgba);
   const logRaw = linearRgbToLogRaw(linearRgb);
@@ -61,6 +71,7 @@ export function applySpektraGrainToRgba(rgba, width, height, profile, options = 
     width,
     height,
     pixelSizeUm,
+    grain,
   );
 
   const output = new Uint8Array(rgba.length);
@@ -78,7 +89,16 @@ export function applySpektraGrainToRgba(rgba, width, height, profile, options = 
   return output;
 }
 
-function applyGrainToDensityLayers(densityLayers, densityMaxLayers, width, height, pixelSizeUm) {
+function getSpektraGrainPreset(presetName) {
+  const preset = SPEKTRA_GRAIN_PRESETS[presetName] ?? SPEKTRA_GRAIN_PRESETS[SPEKTRA_GRAIN_EFFECT.defaultPreset];
+  return {
+    ...SPEKTRA_GRAIN_BASE,
+    agxParticleAreaUm2: preset.agxParticleAreaUm2,
+    blur: preset.blur,
+  };
+}
+
+function applyGrainToDensityLayers(densityLayers, densityMaxLayers, width, height, pixelSizeUm, grain) {
   const densityMaxTotal = [0, 0, 0];
   for (let channel = 0; channel < 3; channel += 1) {
     for (let layer = 0; layer < 3; layer += 1) {
@@ -96,12 +116,12 @@ function applyGrainToDensityLayers(densityLayers, densityMaxLayers, width, heigh
     for (let channel = 0; channel < 3; channel += 1) {
       const fraction = densityMaxLayers[layer][channel] / Math.max(densityMaxTotal[channel], EPSILON);
       densityMaxFractions[layer][channel] = fraction;
-      densityMinLayers[layer][channel] = fraction * DEFAULT_GRAIN.densityMin[channel];
+      densityMinLayers[layer][channel] = fraction * grain.densityMin[channel];
       adjustedDensityMaxLayers[layer][channel] = densityMaxLayers[layer][channel] + densityMinLayers[layer][channel];
       const particleAreaLayer =
-        DEFAULT_GRAIN.agxParticleAreaUm2 *
-        DEFAULT_GRAIN.agxParticleScale[channel] *
-        DEFAULT_GRAIN.agxParticleScaleLayers[layer];
+        grain.agxParticleAreaUm2 *
+        grain.agxParticleScale[channel] *
+        grain.agxParticleScaleLayers[layer];
       nParticlesPerPixel[layer][channel] = (pixelAreaUm2 * fraction) / Math.max(particleAreaLayer, EPSILON);
     }
   }
@@ -121,9 +141,9 @@ function applyGrainToDensityLayers(densityLayers, densityMaxLayers, width, heigh
         height,
         adjustedDensityMaxLayers[layer][channel],
         nParticlesPerPixel[layer][channel],
-        DEFAULT_GRAIN.uniformity[channel],
+        grain.uniformity[channel],
         channel + layer * 10,
-        DEFAULT_GRAIN.blurDyeCloudsUm,
+        grain.blurDyeCloudsUm,
       );
 
       for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
@@ -132,19 +152,19 @@ function applyGrainToDensityLayers(densityLayers, densityMaxLayers, width, heigh
     }
   }
 
-  addMicroStructure(out, width, height, pixelSizeUm, DEFAULT_GRAIN.microStructure);
+  addMicroStructure(out, width, height, pixelSizeUm, grain.microStructure);
 
   for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
     const offset = pixelIndex * 3;
-    out[offset] -= DEFAULT_GRAIN.densityMin[0];
-    out[offset + 1] -= DEFAULT_GRAIN.densityMin[1];
-    out[offset + 2] -= DEFAULT_GRAIN.densityMin[2];
+    out[offset] -= grain.densityMin[0];
+    out[offset + 1] -= grain.densityMin[1];
+    out[offset + 2] -= grain.densityMin[2];
   }
 
-  if (DEFAULT_GRAIN.blur > 0) {
+  if (grain.blur > 0) {
     for (let channel = 0; channel < 3; channel += 1) {
       const plane = extractPlane(out, width, height, channel);
-      const blurred = gaussianBlurPlane(plane, width, height, DEFAULT_GRAIN.blur);
+      const blurred = gaussianBlurPlane(plane, width, height, grain.blur);
       writePlane(out, blurred, width, height, channel);
     }
   }

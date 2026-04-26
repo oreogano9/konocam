@@ -460,6 +460,17 @@ h1 {
   width: 100%;
 }
 
+.imported-effect-select {
+  background: #f2eadb;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  color: #111;
+  min-height: 40px;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  width: 100%;
+}
+
 .toggle-switch {
   appearance: none;
   background: rgba(255, 255, 255, 0.16);
