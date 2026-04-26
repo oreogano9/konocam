@@ -905,6 +905,33 @@ async function captureCameraFrame() {
   stopCamera();
 }
 
+async function saveCurrentCameraFrame() {
+  if (!state.cameraActive || !state.source || canvas.style.display === "none") {
+    return;
+  }
+
+  if (navigator.vibrate) {
+    navigator.vibrate(35);
+  }
+
+  const selected = state.filterMap.get(lookSelect.value);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (!blob) {
+    setStatus("Failed to save the camera frame.");
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.jpg`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus("Saved current camera frame.");
+}
+
 function loadFile(file) {
   if (!file || !gl) {
     return;
@@ -1773,7 +1800,8 @@ function generateCustomLut(recipeName) {
 fileInput.addEventListener("change", (event) => loadFile(event.target.files[0]));
 startCameraButton.addEventListener("click", startCamera);
 function handleCameraCaptureClick() {
-  captureCameraFrame().catch((error) => {
+  const captureTask = state.cameraActive ? saveCurrentCameraFrame() : captureCameraFrame();
+  captureTask.catch((error) => {
     console.error(error);
     setStatus("Failed to capture the camera frame.");
   });
