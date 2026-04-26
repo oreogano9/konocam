@@ -6,6 +6,7 @@ const workspace = document.querySelector(".image-workspace");
 const emptyState = document.querySelector("#emptyState");
 const cameraShell = document.querySelector("#cameraShell");
 const cameraPreview = document.querySelector("#cameraPreview");
+const cameraPreviewSlot = document.querySelector("#cameraPreviewSlot");
 const cameraPresetLabel = document.querySelector("#cameraPresetLabel");
 const cameraLookSelect = document.querySelector("#cameraLookSelect");
 const fileInput = document.querySelector("#fileInput");
@@ -14,6 +15,15 @@ const intensitySlider = document.querySelector("#intensitySlider");
 const intensityValue = document.querySelector("#intensityValue");
 const effectsRoot = document.querySelector("#effectsRoot");
 const importedEffectsRoot = document.querySelector("#importedEffectsRoot");
+const mobileGallery = document.querySelector("#mobileGallery");
+const galleryGrid = document.querySelector("#galleryGrid");
+const galleryEmpty = document.querySelector("#galleryEmpty");
+const galleryCameraButton = document.querySelector("#galleryCameraButton");
+const gallerySettingsButton = document.querySelector("#gallerySettingsButton");
+const galleryViewer = document.querySelector("#galleryViewer");
+const galleryViewerImage = document.querySelector("#galleryViewerImage");
+const gallerySaveButton = document.querySelector("#gallerySaveButton");
+const galleryCloseButton = document.querySelector("#galleryCloseButton");
 const startCameraButton = document.querySelector("#startCameraButton");
 const capturePhotoButton = document.querySelector("#capturePhotoButton");
 const cameraCaptureButton = document.querySelector("#cameraCaptureButton");
@@ -41,6 +51,9 @@ const OVERLAYS_ROOT = "./nomo/overlays";
 const SPECIFIC_COMBINATIONS_PATH = "./nomo/SpecificCombinations.json";
 const SPEKTRA_PROFILE_PATH = "./spektrafilm/profiles/kodak_gold_200.json";
 const MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 900px)");
+const GALLERY_DB_NAME = "analoguecam-gallery";
+const GALLERY_DB_VERSION = 1;
+const GALLERY_STORE_NAME = "shots";
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
   0.24, 0.68, 0.08, 0.0,
@@ -96,6 +109,11 @@ const state = {
   cameraActive: false,
   cameraAnimationFrame: 0,
   cameraAutostartAttempted: false,
+  mobileSettingsOpen: false,
+  galleryDb: null,
+  galleryItems: [],
+  galleryObjectUrls: [],
+  selectedGalleryItem: null,
   nomoOverlayImages: null,
   overlaySelections: {
     dust: 0,
@@ -348,6 +366,9 @@ async function initializeApp() {
   setStatus("Loading NOMO filter metadata...");
   state.aesKey = await crypto.subtle.importKey("raw", NOMO_AES_KEY, "AES-CBC", false, ["decrypt"]);
   state.spektraProfile = await loadSpektraProfile(SPEKTRA_PROFILE_PATH);
+  state.galleryDb = await openGalleryDb();
+  state.galleryItems = await loadGalleryItems();
+  renderGallery();
   state.nomoOverlayImages = await loadNomoOverlayImages();
   state.filters = await loadFilterCatalog();
   populateFilterSelect(state.filters);
@@ -764,6 +785,8 @@ function updateMobileCameraState() {
     ? `Live preview: ${state.filterMap.get(lookSelect.value)?.name ?? "selected preset"}`
     : "Ready to capture with the selected preset.";
   document.body.classList.toggle("camera-mode-active", mobile && state.cameraActive);
+  document.body.classList.toggle("mobile-gallery-active", mobile && !state.cameraActive && !state.mobileSettingsOpen);
+  document.body.classList.toggle("mobile-settings-active", mobile && !state.cameraActive && state.mobileSettingsOpen);
 }
 
 function queueMobileCameraAutostart() {
@@ -794,6 +817,7 @@ async function startCamera() {
   }
 
   try {
+    state.mobileSettingsOpen = false;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "environment" },
@@ -804,6 +828,7 @@ async function startCamera() {
     state.cameraStream = stream;
     state.cameraActive = true;
     cameraPreview.srcObject = stream;
+    cameraPreviewSlot.append(canvas);
     await cameraPreview.play();
     resetCanvasView();
     cameraShell.hidden = false;
@@ -819,7 +844,7 @@ async function startCamera() {
   }
 }
 
-function stopCamera() {
+function stopCamera(options = {}) {
   stopLiveCameraRender();
 
   if (state.cameraStream) {
@@ -830,8 +855,10 @@ function stopCamera() {
 
   state.cameraStream = null;
   state.cameraActive = false;
+  state.mobileSettingsOpen = Boolean(options.settings);
   cameraPreview.srcObject = null;
   cameraShell.hidden = true;
+  workspace.append(canvas);
   if (state.source === cameraPreview) {
     if (state.stillImage) {
       state.source = state.stillImage;
@@ -950,29 +977,144 @@ async function saveCurrentCameraFrame() {
   }
 
   const filename = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.jpg`;
-  const file = new File([blob], filename, { type: "image/jpeg" });
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "Analoguecam photo" });
-      setStatus("Opened save/share sheet for current camera frame.");
-    } catch (error) {
-      if (error?.name !== "AbortError") {
-        console.error(error);
-        setStatus("Failed to open the save/share sheet.");
-      }
+  const item = await saveGalleryBlob(blob, filename);
+  state.galleryItems.unshift(item);
+  renderGallery();
+  setStatus("Saved current camera frame to local gallery.");
+}
+
+function openGalleryDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      resolve(null);
+      return;
     }
+
+    const request = indexedDB.open(GALLERY_DB_NAME, GALLERY_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(GALLERY_STORE_NAME)) {
+        db.createObjectStore(GALLERY_STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function galleryStore(mode) {
+  if (!state.galleryDb) {
+    return null;
+  }
+  return state.galleryDb.transaction(GALLERY_STORE_NAME, mode).objectStore(GALLERY_STORE_NAME);
+}
+
+function loadGalleryItems() {
+  return new Promise((resolve) => {
+    const store = galleryStore("readonly");
+    if (!store) {
+      resolve([]);
+      return;
+    }
+
+    const request = store.getAll();
+    request.onsuccess = () => {
+      resolve(request.result.sort((a, b) => b.createdAt - a.createdAt));
+    };
+    request.onerror = () => resolve([]);
+  });
+}
+
+function saveGalleryBlob(blob, filename) {
+  return new Promise((resolve, reject) => {
+    const item = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      filename,
+      blob,
+      createdAt: Date.now(),
+    };
+    const store = galleryStore("readwrite");
+    if (!store) {
+      reject(new Error("Local gallery storage is unavailable."));
+      return;
+    }
+
+    const request = store.put(item);
+    request.onsuccess = () => resolve(item);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function renderGallery() {
+  for (const url of state.galleryObjectUrls) {
+    URL.revokeObjectURL(url);
+  }
+  state.galleryObjectUrls = [];
+  galleryGrid.innerHTML = "";
+  galleryEmpty.hidden = state.galleryItems.length > 0;
+
+  for (const item of state.galleryItems) {
+    const url = URL.createObjectURL(item.blob);
+    state.galleryObjectUrls.push(url);
+
+    const card = document.createElement("article");
+    card.className = "mobile-gallery__item";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.addEventListener("click", () => openGalleryItem(item, url));
+
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = "Local analogue shot";
+
+    const meta = document.createElement("div");
+    meta.className = "mobile-gallery__meta";
+    meta.textContent = new Date(item.createdAt).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    button.append(image);
+    card.append(button, meta);
+    galleryGrid.append(card);
+  }
+}
+
+function openGalleryItem(item, url) {
+  state.selectedGalleryItem = item;
+  galleryViewerImage.src = url;
+  galleryViewer.hidden = false;
+}
+
+function closeGalleryItem() {
+  state.selectedGalleryItem = null;
+  galleryViewer.hidden = true;
+  galleryViewerImage.removeAttribute("src");
+}
+
+async function saveSelectedGalleryItem() {
+  const item = state.selectedGalleryItem;
+  if (!item) {
     return;
   }
 
-  const url = URL.createObjectURL(blob);
+  const file = new File([item.blob], item.filename, { type: "image/jpeg" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: "Analoguecam photo" });
+    return;
+  }
+
+  const url = URL.createObjectURL(item.blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = filename;
+  link.download = item.filename;
   document.body.append(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  setStatus("Saved current camera frame.");
 }
 
 function loadFile(file) {
@@ -1669,6 +1811,10 @@ function disableControls(message) {
   cameraCaptureButton.disabled = true;
   stopCameraButton.disabled = true;
   cameraSettingsButton.disabled = true;
+  galleryCameraButton.disabled = true;
+  gallerySettingsButton.disabled = true;
+  gallerySaveButton.disabled = true;
+  galleryCloseButton.disabled = true;
   resetButton.disabled = true;
   toggleEditsButton.disabled = true;
   downloadButton.disabled = true;
@@ -1874,7 +2020,21 @@ function handleCameraCaptureClick() {
 capturePhotoButton.addEventListener("click", handleCameraCaptureClick);
 cameraCaptureButton.addEventListener("click", handleCameraCaptureClick);
 stopCameraButton.addEventListener("click", stopCamera);
-cameraSettingsButton.addEventListener("click", stopCamera);
+cameraSettingsButton.addEventListener("click", () => stopCamera({ settings: true }));
+galleryCameraButton.addEventListener("click", startCamera);
+gallerySettingsButton.addEventListener("click", () => {
+  state.mobileSettingsOpen = true;
+  updateMobileCameraState();
+});
+galleryCloseButton.addEventListener("click", closeGalleryItem);
+gallerySaveButton.addEventListener("click", () => {
+  saveSelectedGalleryItem().catch((error) => {
+    if (error?.name !== "AbortError") {
+      console.error(error);
+      setStatus("Failed to save selected gallery image.");
+    }
+  });
+});
 
 lookSelect.addEventListener("change", async () => {
   handleFilterSelection(lookSelect.value);

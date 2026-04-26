@@ -16,6 +16,7 @@
         <div class="camera-shell" id="cameraShell" hidden>
           <video id="cameraPreview" autoplay playsinline muted></video>
           <div class="camera-device-frame">
+            <div class="camera-preview-slot" id="cameraPreviewSlot"></div>
             <img src="./assets/kodak-funsaver-camera-overlay.png" alt="" aria-hidden="true" />
             <button class="camera-body-shutter" id="cameraCaptureButton" type="button" aria-label="Take photo"></button>
           </div>
@@ -31,6 +32,28 @@
           </div>
         </div>
         <canvas id="processedCanvas"></canvas>
+      </section>
+
+      <section class="mobile-gallery" id="mobileGallery" aria-label="Local photo gallery">
+        <div class="mobile-gallery__header">
+          <div>
+            <p class="eyebrow">Local Gallery</p>
+            <h1>Shots</h1>
+          </div>
+          <div class="mobile-gallery__actions">
+            <button id="galleryCameraButton" type="button">Camera</button>
+            <button id="gallerySettingsButton" type="button">Settings</button>
+          </div>
+        </div>
+        <p class="mobile-gallery__empty" id="galleryEmpty">No local shots yet.</p>
+        <div class="mobile-gallery__grid" id="galleryGrid"></div>
+        <div class="gallery-viewer" id="galleryViewer" hidden>
+          <img id="galleryViewerImage" alt="Selected local shot" />
+          <div class="gallery-viewer__actions">
+            <button id="gallerySaveButton" type="button">Save</button>
+            <button id="galleryCloseButton" type="button">Close</button>
+          </div>
+        </div>
       </section>
 
       <aside class="toolbelt" aria-label="Editing controls">
