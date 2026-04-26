@@ -150,6 +150,7 @@ const state = {
     axis: null,
     distance: 0,
     suppressNextListClick: false,
+    startedInCameraList: false,
   },
   cameraListOpen: false,
 };
@@ -2104,9 +2105,10 @@ function beginCameraSwipe(clientX, clientY, pointerId, target, captureTarget) {
   state.cameraSwipe.startY = clientY;
   state.cameraSwipe.axis = null;
   state.cameraSwipe.distance = 0;
+  state.cameraSwipe.startedInCameraList = target instanceof Element && Boolean(target.closest(".camera-list-drawer"));
   workspace.style.transition = "none";
 
-  if (captureTarget?.setPointerCapture && typeof pointerId === "number") {
+  if (!state.cameraSwipe.startedInCameraList && captureTarget?.setPointerCapture && typeof pointerId === "number") {
     captureTarget.setPointerCapture(pointerId);
   }
 
@@ -2123,6 +2125,10 @@ function moveCameraSwipe(clientX, clientY, pointerId, event) {
 
   if (!state.cameraSwipe.axis && Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 10) {
     state.cameraSwipe.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "horizontal" : "vertical";
+    if (state.cameraSwipe.axis === "vertical" && state.cameraListOpen) {
+      cancelCameraSwipe(pointerId, event.currentTarget);
+      return;
+    }
     if (state.cameraSwipe.axis === "vertical") {
       setCameraGalleryPeek(true);
     }
@@ -2151,6 +2157,20 @@ function moveCameraSwipe(clientX, clientY, pointerId, event) {
   workspace.style.transform = `translateY(${-eased}px)`;
 }
 
+function cancelCameraSwipe(pointerId, captureTarget) {
+  state.cameraSwipe.active = false;
+  state.cameraSwipe.pointerId = null;
+  state.cameraSwipe.axis = null;
+  state.cameraSwipe.distance = 0;
+  state.cameraSwipe.startedInCameraList = false;
+  workspace.style.transition = "";
+  workspace.style.transform = "";
+  setCameraGalleryPeek(false);
+  if (captureTarget?.hasPointerCapture?.(pointerId)) {
+    captureTarget.releasePointerCapture(pointerId);
+  }
+}
+
 function endCameraSwipe(pointerId, captureTarget) {
   if (!state.cameraSwipe.active || pointerId !== state.cameraSwipe.pointerId) {
     return;
@@ -2163,6 +2183,7 @@ function endCameraSwipe(pointerId, captureTarget) {
   state.cameraSwipe.active = false;
   state.cameraSwipe.pointerId = null;
   state.cameraSwipe.axis = null;
+  state.cameraSwipe.startedInCameraList = false;
   if (captureTarget?.hasPointerCapture?.(pointerId)) {
     captureTarget.releasePointerCapture(pointerId);
   }

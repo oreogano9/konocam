@@ -905,8 +905,10 @@ h1 {
   .camera-list {
     display: grid;
     gap: 0.35rem;
+    overscroll-behavior: contain;
     overflow: auto;
     padding: 0 0.75rem;
+    -webkit-overflow-scrolling: touch;
   }
 
   .camera-list__item {
