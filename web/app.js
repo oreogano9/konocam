@@ -1852,24 +1852,47 @@ function stopCanvasPan(event) {
 }
 
 function handleCameraSwipeStart(event) {
-  if (!state.cameraActive || !isMobileView() || event.target.closest("button, select, input, label")) {
+  if (!beginCameraSwipe(event.clientY, event.pointerId, event.target, event.currentTarget)) {
     return;
   }
-
-  state.cameraSwipe.active = true;
-  state.cameraSwipe.pointerId = event.pointerId;
-  state.cameraSwipe.startY = event.clientY;
-  state.cameraSwipe.distance = 0;
-  workspace.style.transition = "none";
-  cameraShell.setPointerCapture(event.pointerId);
 }
 
 function handleCameraSwipeMove(event) {
-  if (!state.cameraSwipe.active || event.pointerId !== state.cameraSwipe.pointerId) {
+  moveCameraSwipe(event.clientY, event.pointerId, event);
+}
+
+function handleCameraSwipeEnd(event) {
+  endCameraSwipe(event.pointerId, event.currentTarget);
+}
+
+function isCameraSwipeBlockedTarget(target) {
+  return target instanceof Element && Boolean(target.closest("button, select, input, label"));
+}
+
+function beginCameraSwipe(clientY, pointerId, target, captureTarget) {
+  if (state.cameraSwipe.active || !state.cameraActive || !isMobileView() || isCameraSwipeBlockedTarget(target)) {
+    return false;
+  }
+
+  state.cameraSwipe.active = true;
+  state.cameraSwipe.pointerId = pointerId;
+  state.cameraSwipe.startY = clientY;
+  state.cameraSwipe.distance = 0;
+  workspace.style.transition = "none";
+
+  if (captureTarget?.setPointerCapture && typeof pointerId === "number") {
+    captureTarget.setPointerCapture(pointerId);
+  }
+
+  return true;
+}
+
+function moveCameraSwipe(clientY, pointerId, event) {
+  if (!state.cameraSwipe.active || pointerId !== state.cameraSwipe.pointerId) {
     return;
   }
 
-  const distance = Math.max(0, state.cameraSwipe.startY - event.clientY);
+  const distance = Math.max(0, state.cameraSwipe.startY - clientY);
   state.cameraSwipe.distance = distance;
   if (distance > 8) {
     event.preventDefault();
@@ -1879,16 +1902,16 @@ function handleCameraSwipeMove(event) {
   workspace.style.transform = `translateY(${-eased}px)`;
 }
 
-function handleCameraSwipeEnd(event) {
-  if (!state.cameraSwipe.active || event.pointerId !== state.cameraSwipe.pointerId) {
+function endCameraSwipe(pointerId, captureTarget) {
+  if (!state.cameraSwipe.active || pointerId !== state.cameraSwipe.pointerId) {
     return;
   }
 
   const shouldOpenGallery = state.cameraSwipe.distance > Math.min(140, window.innerHeight * 0.18);
   state.cameraSwipe.active = false;
   state.cameraSwipe.pointerId = null;
-  if (cameraShell.hasPointerCapture(event.pointerId)) {
-    cameraShell.releasePointerCapture(event.pointerId);
+  if (captureTarget?.hasPointerCapture?.(pointerId)) {
+    captureTarget.releasePointerCapture(pointerId);
   }
   workspace.style.transition = "transform 220ms ease";
 
@@ -1906,6 +1929,43 @@ function handleCameraSwipeEnd(event) {
   window.setTimeout(() => {
     workspace.style.transition = "";
   }, 220);
+}
+
+function firstTouch(event) {
+  return event.changedTouches[0] ?? event.touches[0] ?? null;
+}
+
+function findSwipeTouch(event) {
+  for (const touch of event.changedTouches) {
+    if (touch.identifier === state.cameraSwipe.pointerId) {
+      return touch;
+    }
+  }
+  return null;
+}
+
+function handleCameraSwipeTouchStart(event) {
+  const touch = firstTouch(event);
+  if (!touch) {
+    return;
+  }
+  beginCameraSwipe(touch.clientY, touch.identifier, event.target, null);
+}
+
+function handleCameraSwipeTouchMove(event) {
+  const touch = findSwipeTouch(event);
+  if (!touch) {
+    return;
+  }
+  moveCameraSwipe(touch.clientY, touch.identifier, event);
+}
+
+function handleCameraSwipeTouchEnd(event) {
+  const touch = findSwipeTouch(event);
+  if (!touch) {
+    return;
+  }
+  endCameraSwipe(touch.identifier, null);
 }
 
 async function selectFilter(filename) {
@@ -2346,6 +2406,16 @@ cameraShell.addEventListener("pointerdown", handleCameraSwipeStart);
 cameraShell.addEventListener("pointermove", handleCameraSwipeMove);
 cameraShell.addEventListener("pointerup", handleCameraSwipeEnd);
 cameraShell.addEventListener("pointercancel", handleCameraSwipeEnd);
+workspace.addEventListener("pointerdown", handleCameraSwipeStart);
+workspace.addEventListener("pointermove", handleCameraSwipeMove);
+workspace.addEventListener("pointerup", handleCameraSwipeEnd);
+workspace.addEventListener("pointercancel", handleCameraSwipeEnd);
+if (!window.PointerEvent) {
+  workspace.addEventListener("touchstart", handleCameraSwipeTouchStart, { passive: false });
+  workspace.addEventListener("touchmove", handleCameraSwipeTouchMove, { passive: false });
+  workspace.addEventListener("touchend", handleCameraSwipeTouchEnd);
+  workspace.addEventListener("touchcancel", handleCameraSwipeTouchEnd);
+}
 workspace.addEventListener("wheel", handleWorkspaceWheel, { passive: false });
 canvas.addEventListener("pointerdown", startCanvasPan);
 canvas.addEventListener("pointermove", moveCanvasPan);
