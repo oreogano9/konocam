@@ -62,6 +62,9 @@ const GALLERY_STORE_NAME = "shots";
 const CAMERA_PERMISSION_STORAGE_KEY = "analoguecam-camera-permission";
 const CAMERA_PERMISSION_GRANTED = "granted";
 const CAMERA_PERMISSION_DENIED = "denied";
+const CAMERA_PREVIEW_MAX_SIDE = 1280;
+const STILL_IMAGE_MAX_SIDE = 2200;
+const JPEG_EXPORT_QUALITY = 0.98;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
   0.24, 0.68, 0.08, 0.0,
@@ -947,6 +950,8 @@ async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "environment" },
+        width: { ideal: 4096 },
+        height: { ideal: 2160 },
       },
       audio: false,
     });
@@ -1046,7 +1051,7 @@ async function renderLiveCameraFrame() {
         width: cameraPreview.videoWidth,
         height: cameraPreview.videoHeight,
       };
-      fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, 1280);
+      fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, CAMERA_PREVIEW_MAX_SIDE);
       uploadSourceTexturePixels(cameraPreview);
       renderImage();
     } catch (error) {
@@ -1078,7 +1083,7 @@ async function captureCameraFrame() {
   }
 
   context.drawImage(cameraPreview, 0, 0, width, height);
-  const blob = await new Promise((resolve) => captureCanvas.toBlob(resolve, "image/jpeg", 0.92));
+  const blob = await new Promise((resolve) => captureCanvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
   if (!blob) {
     setStatus("Failed to capture the camera frame.");
     return;
@@ -1097,10 +1102,18 @@ async function saveCurrentCameraFrame() {
   flashCameraPreview();
 
   stopLiveCameraRender();
+  state.source = cameraPreview;
+  state.sourceName = "mobile-live-preview";
+  state.sourceResolution = {
+    width: cameraPreview.videoWidth,
+    height: cameraPreview.videoHeight,
+  };
+  fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, Math.max(cameraPreview.videoWidth, cameraPreview.videoHeight));
+  uploadSourceTexturePixels(cameraPreview);
   renderImage({ includeSpektraGrain: true });
 
   const selected = state.filterMap.get(lookSelect.value);
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
   if (state.cameraActive) {
     startLiveCameraRender();
   }
@@ -1330,7 +1343,7 @@ async function applyLoadedImage(image, sourceName = "nomo-edit") {
 }
 
 function fitCanvasToImage(image) {
-  fitCanvasToSize(image.naturalWidth, image.naturalHeight, 2200);
+  fitCanvasToSize(image.naturalWidth, image.naturalHeight, STILL_IMAGE_MAX_SIDE);
 }
 
 function fitCanvasToSize(width, height, maxSide) {
@@ -1745,7 +1758,7 @@ function downloadImage() {
   renderImage({ includeSpektraGrain: true });
   const selected = state.filterMap.get(lookSelect.value);
   const link = document.createElement("a");
-  link.href = canvas.toDataURL("image/jpeg", 0.92);
+  link.href = canvas.toDataURL("image/jpeg", JPEG_EXPORT_QUALITY);
   link.download = `${state.sourceName}-${selected?.filename ?? "nomo"}.jpg`;
   link.click();
 }
