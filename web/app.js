@@ -64,6 +64,7 @@ const CAMERA_PERMISSION_GRANTED = "granted";
 const CAMERA_PERMISSION_DENIED = "denied";
 const CAMERA_PREVIEW_MAX_SIDE = 1280;
 const STILL_IMAGE_MAX_SIDE = 2200;
+const MOBILE_SAVE_MAX_SIDE = 2200;
 const JPEG_EXPORT_QUALITY = 0.98;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
@@ -1236,11 +1237,12 @@ async function processNextCameraSave() {
     state.source = image;
     state.sourceName = "queued-camera-save";
     state.sourceResolution = { width: image.naturalWidth, height: image.naturalHeight };
-    fitCanvasToSize(image.naturalWidth, image.naturalHeight, Math.max(image.naturalWidth, image.naturalHeight));
-    uploadSourceTexturePixels(image);
+    const maxSide = getMobileSaveMaxSide(image);
+    fitCanvasToSize(image.naturalWidth, image.naturalHeight, maxSide);
+    uploadSourceTexturePixels(createScaledSourceCanvas(image, canvas.width, canvas.height) ?? image);
     await ensureLutTexture(job.filterFilename);
     await ensureCameraOverlayImages(job.filterFilename);
-    fitCanvasToFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, Math.max(image.naturalWidth, image.naturalHeight));
+    fitCanvasToFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, maxSide);
     renderImage({ includeSpektraGrain: true, includeNomoOverlays: true, includeCameraStack: true });
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
@@ -1252,6 +1254,9 @@ async function processNextCameraSave() {
     state.galleryItems.unshift(item);
     renderGallery();
     setStatus(`Saved ${state.filterMap.get(job.filterFilename)?.name ?? "camera"} shot to local gallery.`);
+  } catch (error) {
+    console.error(error);
+    await saveRawCameraFallback(job);
   } finally {
     restoreRenderState(previous);
   }
@@ -1261,6 +1266,44 @@ async function processNextCameraSave() {
   } else {
     state.cameraSaveProcessing = false;
   }
+}
+
+function getMobileSaveMaxSide(image) {
+  const sourceMaxSide = Math.max(image.naturalWidth || 0, image.naturalHeight || 0);
+  const textureLimit = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : MOBILE_SAVE_MAX_SIDE;
+  const safeTextureLimit = Number.isFinite(textureLimit) ? Math.max(1, Math.floor(textureLimit * 0.5)) : MOBILE_SAVE_MAX_SIDE;
+  return Math.min(sourceMaxSide || MOBILE_SAVE_MAX_SIDE, MOBILE_SAVE_MAX_SIDE, safeTextureLimit);
+}
+
+function createScaledSourceCanvas(source, width, height) {
+  if (!width || !height) {
+    return null;
+  }
+
+  const scaledCanvas = document.createElement("canvas");
+  scaledCanvas.width = width;
+  scaledCanvas.height = height;
+  const context = scaledCanvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+
+  context.drawImage(source, 0, 0, width, height);
+  return scaledCanvas;
+}
+
+async function saveRawCameraFallback(job) {
+  const galleryReady = await ensureGalleryReady();
+  if (!galleryReady) {
+    setStatus("Failed to process queued camera save.");
+    return;
+  }
+
+  const fallbackName = job.filename.replace(/\.jpe?g$/i, "-raw.jpg");
+  const item = await saveGalleryBlob(job.rawBlob, fallbackName);
+  state.galleryItems.unshift(item);
+  renderGallery();
+  setStatus("Filtered save failed, so the raw camera frame was saved instead.");
 }
 
 function snapshotRenderState() {
