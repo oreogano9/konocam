@@ -138,6 +138,8 @@ const state = {
   cameraFacingMode: "environment",
   cameraSwitching: false,
   cameraCropModeIndex: 0,
+  cameraPreviewCanvas: document.createElement("canvas"),
+  cameraPreviewContext: null,
   mobileSettingsOpen: false,
   galleryDb: null,
   galleryReadyPromise: null,
@@ -1177,7 +1179,7 @@ function renderLiveCameraFrameNow() {
   const targetSize = getMobileCaptureCanvasSize(cameraPreview.videoWidth, cameraPreview.videoHeight);
   fitCanvasToSize(targetSize.width, targetSize.height, CAMERA_PREVIEW_MAX_SIDE);
   uploadSourceTexturePixels(createCameraPreviewTextureSource() ?? cameraPreview);
-  renderImage();
+  renderImage({ livePreview: true });
 }
 
 async function captureCameraFrame() {
@@ -1265,13 +1267,14 @@ function createCameraPreviewTextureSource() {
     return null;
   }
 
-  const previewCanvas = document.createElement("canvas");
+  const previewCanvas = state.cameraPreviewCanvas;
   previewCanvas.width = canvas.width;
   previewCanvas.height = canvas.height;
-  const context = previewCanvas.getContext("2d");
+  const context = state.cameraPreviewContext ?? previewCanvas.getContext("2d");
   if (!context) {
     return null;
   }
+  state.cameraPreviewContext = context;
 
   drawCameraVideoToContext(context, previewCanvas.width, previewCanvas.height, { preview: true });
   return previewCanvas;
@@ -2073,7 +2076,11 @@ function renderImage(options = {}) {
   } else {
     renderLookupStage();
     renderEffectsStage();
-    renderPostEffectsStage(options);
+    if (options.livePreview) {
+      renderBlit(state.effectsTarget.texture);
+    } else {
+      renderPostEffectsStage(options);
+    }
   }
 
   canvas.style.display = "block";
