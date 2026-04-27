@@ -529,6 +529,9 @@ function loadFilterEffectDefaults(filters) {
   for (const filter of filters) {
     const defaultsForFilter = {};
     for (const [effectId, value] of Object.entries(filter.defaults ?? {})) {
+      if (isEffectIgnoredByApkFilter(filter, effectId)) {
+        continue;
+      }
       defaultsForFilter[effectId] = normalizeCameraEffectDefault(effectId, value);
     }
     if (Object.keys(defaultsForFilter).length) {
@@ -537,6 +540,26 @@ function loadFilterEffectDefaults(filters) {
   }
 
   return defaultsByFilter;
+}
+
+function isEffectIgnoredByApkFilter(filter, effectId) {
+  const apkTypesByEffect = {
+    nomoGrain: ["grains"],
+    dust: ["dust"],
+    vignette: ["vignette"],
+  };
+  const apkTypes = apkTypesByEffect[effectId];
+  if (!apkTypes?.length) {
+    return false;
+  }
+
+  const matchingEffects = (filter.filters ?? []).filter((effect) => apkTypes.includes(String(effect.type ?? "").toLowerCase()));
+  return matchingEffects.length > 0 && matchingEffects.every((effect) => isApkEffectIgnored(effect));
+}
+
+function isApkEffectIgnored(effect) {
+  const ignored = effect?.params?.Ignore ?? effect?.params?.ignore;
+  return ignored === true || String(ignored).toLowerCase() === "true";
 }
 
 function normalizeCameraEffectDefault(effectId, value) {
@@ -550,12 +573,20 @@ function normalizeCameraEffectDefault(effectId, value) {
     return numeric;
   }
 
+  if (isApkDecimalStrengthEffect(effectId)) {
+    return Math.min(effect.max, Math.max(effect.min ?? 0, numeric / 10));
+  }
+
   let normalized = numeric;
   if (effect.max <= 1 && Math.abs(numeric) > 1) {
     normalized = numeric / 10;
   }
 
   return Math.min(effect.max, Math.max(effect.min ?? 0, normalized));
+}
+
+function isApkDecimalStrengthEffect(effectId) {
+  return ["exposure", "contrast", "saturation", "temperature", "tint"].includes(effectId);
 }
 
 function mapApkSpecificToEffectDefault(specific) {
@@ -1194,6 +1225,7 @@ async function processNextCameraSave() {
     uploadSourceTexturePixels(image);
     await ensureLutTexture(job.filterFilename);
     await ensureCameraOverlayImages(job.filterFilename);
+    fitCanvasToFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, Math.max(image.naturalWidth, image.naturalHeight));
     renderImage({ includeSpektraGrain: true, includeNomoOverlays: true, includeCameraStack: true });
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
@@ -1495,12 +1527,60 @@ async function applyLoadedImage(image, sourceName = "nomo-edit") {
   resetCanvasView();
   await ensureLutTexture(lookSelect.value);
   await ensureCameraOverlayImages(lookSelect.value);
+  fitCanvasToFilterOutputSize(lookSelect.value, image.naturalWidth, image.naturalHeight, STILL_IMAGE_MAX_SIDE);
   renderImage();
   setStatus(`${state.filterMap.get(lookSelect.value)?.name ?? lookSelect.value} loaded.`);
 }
 
 function fitCanvasToImage(image) {
   fitCanvasToSize(image.naturalWidth, image.naturalHeight, STILL_IMAGE_MAX_SIDE);
+}
+
+function fitCanvasToFilterOutputSize(filename, sourceWidth, sourceHeight, maxSide) {
+  const sizingImage = getCameraStackSizingImage(filename);
+  if (!sizingImage) {
+    fitCanvasToSize(sourceWidth, sourceHeight, maxSide);
+    return;
+  }
+
+  const width = sizingImage.naturalWidth || sizingImage.width;
+  const height = sizingImage.naturalHeight || sizingImage.height;
+  if (!width || !height) {
+    fitCanvasToSize(sourceWidth, sourceHeight, maxSide);
+    return;
+  }
+
+  fitCanvasToSize(width, height, maxSide);
+}
+
+function getCameraStackSizingImage(filename) {
+  const filter = state.filterMap.get(filename);
+  if (!filter || isFrameDisabledCamera(filter)) {
+    return null;
+  }
+
+  const overlays = state.currentCameraOverlayImages;
+  if (!overlays) {
+    return null;
+  }
+
+  const frameEffect = (filter.filters ?? []).find((effect) => String(effect.type ?? "").toLowerCase() === "frame" && effect.params?.region);
+  if (frameEffect && overlays.frame?.length) {
+    return pickOverlayImage(overlays.frame, stableOverlayIndex(frameEffect.raw, overlays.frame.length));
+  }
+
+  const fillBlendEffect = (filter.filters ?? []).find((effect) => {
+    if (String(effect.type ?? "").toLowerCase() !== "blend") {
+      return false;
+    }
+    const fillMode = String(effect.params?.fillmode ?? "").toLowerCase();
+    return fillMode === "fill" || effect.params?.replace === "1";
+  });
+  if (fillBlendEffect && overlays.blend?.length) {
+    return pickOverlayImage(overlays.blend, stableOverlayIndex(fillBlendEffect.raw, overlays.blend.length));
+  }
+
+  return null;
 }
 
 function fitCanvasToSize(width, height, maxSide) {
@@ -1803,12 +1883,13 @@ function hasNomoOverlayEffects(options = {}) {
   const includeCameraStack = options.includeCameraStack ?? true;
   const filter = state.filterMap.get(lookSelect.value);
   const cameraOverlayAssets = filter?.overlayAssets ?? {};
+  const hasEnabledFrameAssets = !isFrameDisabledCamera(filter) && Boolean(cameraOverlayAssets.frame?.length);
   return (
     state.effects.nomoGrain?.value > 0 ||
     state.effects.dust?.value > 0 ||
     state.effects.lightLeak?.value > 0 ||
     state.effects.vignette?.value > 0 ||
-    (includeCameraStack && Boolean(cameraOverlayAssets.frame?.length || cameraOverlayAssets.blend?.length || cameraOverlayAssets.water?.length))
+    (includeCameraStack && Boolean(hasEnabledFrameAssets || cameraOverlayAssets.blend?.length || cameraOverlayAssets.water?.length))
   );
 }
 
@@ -1857,13 +1938,19 @@ function compositeCameraStackOverlays(context, cameraOverlays) {
   for (const effect of filter.filters ?? []) {
     const type = String(effect.type ?? "").toLowerCase();
     if (type === "frame") {
-      drawFrameOverlayList(context, cameraOverlays.frame, effect);
+      if (!isFrameDisabledCamera(filter)) {
+        drawFrameOverlayList(context, cameraOverlays.frame, effect);
+      }
     } else if (type === "blend") {
       drawOverlayList(context, cameraOverlays.blend, effect, blendModeFromCameraEffect(effect));
     } else if (type === "water") {
       drawOverlayList(context, cameraOverlays.water, effect, "screen");
     }
   }
+}
+
+function isFrameDisabledCamera(filter) {
+  return filter?.name === "620 B" || filter?.id === 51;
 }
 
 function drawFrameOverlayList(context, images, effect) {
@@ -1894,9 +1981,25 @@ function drawOverlayList(context, images, effect, blendMode) {
   const value = Number(effect.value ?? effect.params?.v ?? 10);
   const alpha = Number.isFinite(value) ? Math.min(1, Math.max(0, value / 10)) : 1;
   const image = pickOverlayImage(images, stableOverlayIndex(effect.raw, images.length));
+  if (effect.params?.replace === "1") {
+    drawReplaceBlendOverlay(context, image, alpha);
+    return;
+  }
   drawOverlay(context, image, alpha, blendMode, {
     tiled: effect.params?.fillmode === "tiled",
   });
+}
+
+function drawReplaceBlendOverlay(context, image, alpha) {
+  if (!image || alpha <= 0) {
+    return;
+  }
+
+  context.save();
+  context.globalAlpha = alpha;
+  context.globalCompositeOperation = "destination-over";
+  context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
+  context.restore();
 }
 
 function parseFrameRegion(regionValue) {
@@ -2423,6 +2526,9 @@ async function selectFilter(filename) {
   await ensureLutTexture(filename);
   if (!state.cameraActive) {
     await ensureCameraOverlayImages(filename);
+    if (state.sourceResolution.width && state.sourceResolution.height) {
+      fitCanvasToFilterOutputSize(filename, state.sourceResolution.width, state.sourceResolution.height, STILL_IMAGE_MAX_SIDE);
+    }
   }
   renderImageAfterSettingsChange();
   setStatus(`${state.filterMap.get(filename)?.name ?? filename} loaded.`);
