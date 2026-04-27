@@ -1574,6 +1574,10 @@ function getCameraStackSizingImage(filename) {
     return null;
   }
 
+  if (isFrameCroppedToPhotoCamera(filter)) {
+    return null;
+  }
+
   const overlays = state.currentCameraOverlayImages;
   if (!overlays) {
     return null;
@@ -2151,7 +2155,7 @@ function isFrameDisabledCamera(filter) {
   return filter?.name === "620 B" || filter?.id === 51;
 }
 
-function isPhotoContainedFrameCamera(filter) {
+function isFrameCroppedToPhotoCamera(filter) {
   return filter?.id === 49 || filter?.id === 50 || filter?.name === "McDonald’s" || filter?.name === "Lunar Rabbits";
 }
 
@@ -2173,9 +2177,12 @@ function drawFrameOverlayList(context, images, effect, filter) {
     return;
   }
 
-  drawRegionFrameOverlay(context, image, alpha, region, {
-    fit: isPhotoContainedFrameCamera(filter) ? "contain" : "cover",
-  });
+  if (isFrameCroppedToPhotoCamera(filter)) {
+    drawFrameCroppedToPhoto(context, image, alpha, region);
+    return;
+  }
+
+  drawRegionFrameOverlay(context, image, alpha, region);
 }
 
 function drawOverlayList(context, images, effect, blendMode) {
@@ -2228,7 +2235,7 @@ function parseFrameRegion(regionValue) {
   };
 }
 
-function drawRegionFrameOverlay(context, image, alpha, region, options = {}) {
+function drawRegionFrameOverlay(context, image, alpha, region) {
   if (!image || alpha <= 0) {
     return;
   }
@@ -2252,11 +2259,7 @@ function drawRegionFrameOverlay(context, image, alpha, region, options = {}) {
     width: region.width * width,
     height: region.height * height,
   };
-  if (options.fit === "contain") {
-    drawImageContain(context, sourceCanvas, target.x, target.y, target.width, target.height);
-  } else {
-    drawImageCover(context, sourceCanvas, target.x, target.y, target.width, target.height);
-  }
+  drawImageCover(context, sourceCanvas, target.x, target.y, target.width, target.height);
 
   context.save();
   context.globalAlpha = alpha;
@@ -2265,19 +2268,32 @@ function drawRegionFrameOverlay(context, image, alpha, region, options = {}) {
   context.restore();
 }
 
-function drawImageContain(context, image, x, y, width, height) {
-  const sourceWidth = image.videoWidth || image.naturalWidth || image.width;
-  const sourceHeight = image.videoHeight || image.naturalHeight || image.height;
-  if (!sourceWidth || !sourceHeight || width <= 0 || height <= 0) {
+function drawFrameCroppedToPhoto(context, image, alpha, region) {
+  const frameWidth = image.naturalWidth || image.width;
+  const frameHeight = image.naturalHeight || image.height;
+  const canvasWidth = context.canvas.width;
+  const canvasHeight = context.canvas.height;
+  if (!frameWidth || !frameHeight || !canvasWidth || !canvasHeight || alpha <= 0) {
     return;
   }
 
-  const scale = Math.min(width / sourceWidth, height / sourceHeight);
-  const drawWidth = sourceWidth * scale;
-  const drawHeight = sourceHeight * scale;
-  const drawX = x + (width - drawWidth) / 2;
-  const drawY = y + (height - drawHeight) / 2;
-  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  const regionWidth = region.width * frameWidth;
+  const regionHeight = region.height * frameHeight;
+  if (regionWidth <= 0 || regionHeight <= 0) {
+    return;
+  }
+
+  const scale = Math.max(canvasWidth / regionWidth, canvasHeight / regionHeight);
+  const scaledRegionWidth = regionWidth * scale;
+  const scaledRegionHeight = regionHeight * scale;
+  const drawX = (canvasWidth - scaledRegionWidth) / 2 - region.left * frameWidth * scale;
+  const drawY = (canvasHeight - scaledRegionHeight) / 2 - region.top * frameHeight * scale;
+
+  context.save();
+  context.globalAlpha = alpha;
+  context.globalCompositeOperation = "source-over";
+  context.drawImage(image, drawX, drawY, frameWidth * scale, frameHeight * scale);
+  context.restore();
 }
 
 function drawImageCover(context, image, x, y, width, height) {
