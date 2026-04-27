@@ -1801,6 +1801,10 @@ function getCameraStackSizingImage(filename) {
     return null;
   }
 
+  if (isSourceAspectBlendCamera(filter)) {
+    return null;
+  }
+
   const overlays = state.currentCameraOverlayImages;
   if (!overlays) {
     return null;
@@ -2385,6 +2389,10 @@ function isFrameCroppedToPhotoCamera(filter) {
   return filter?.id === 49 || filter?.id === 50 || filter?.name === "McDonald’s" || filter?.name === "Lunar Rabbits";
 }
 
+function isSourceAspectBlendCamera(filter) {
+  return filter?.id === 48 || filter?.name === "135 P";
+}
+
 function drawFrameOverlayList(context, images, effect, filter) {
   if (!images?.length) {
     return;
@@ -2423,7 +2431,9 @@ function drawOverlayList(context, images, effect, blendMode) {
     drawReplaceBlendOverlay(context, image, alpha);
     return;
   }
+  const filter = state.filterMap.get(lookSelect.value);
   drawOverlay(context, image, alpha, blendMode, {
+    fit: isSourceAspectBlendCamera(filter) && String(effect.params?.fillmode ?? "").toLowerCase() === "fill" ? "cover" : "stretch",
     tiled: effect.params?.fillmode === "tiled",
   });
 }
@@ -2605,6 +2615,8 @@ function drawOverlay(context, image, alpha, blendMode, options = {}) {
       context.fillStyle = pattern;
       context.fillRect(0, 0, context.canvas.width, context.canvas.height);
     }
+  } else if (options.fit === "cover") {
+    drawImageCover(context, image, 0, 0, context.canvas.width, context.canvas.height);
   } else {
     context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
   }
