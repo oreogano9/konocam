@@ -65,6 +65,7 @@ const CAMERA_PERMISSION_DENIED = "denied";
 const CAMERA_PREVIEW_MAX_SIDE = 1280;
 const STILL_IMAGE_MAX_SIDE = 2200;
 const MOBILE_SAVE_MAX_SIDE = 2200;
+const MOBILE_CAPTURE_ASPECT_RATIO = 3 / 4;
 const JPEG_EXPORT_QUALITY = 0.98;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
@@ -176,6 +177,7 @@ const state = {
 const defaults = {
   intensity: 100,
 };
+const CAMERA_DEFAULT_EFFECT_IDS = new Set(["nomoGrain", "dust", "vignette", "lightLeak"]);
 
 const vertexShaderSource = `#version 300 es
 in vec2 a_position;
@@ -545,6 +547,9 @@ function loadFilterEffectDefaults(filters) {
   for (const filter of filters) {
     const defaultsForFilter = {};
     for (const [effectId, value] of Object.entries(filter.defaults ?? {})) {
+      if (!CAMERA_DEFAULT_EFFECT_IDS.has(effectId)) {
+        continue;
+      }
       if (isEffectIgnoredByApkFilter(filter, effectId)) {
         continue;
       }
@@ -1182,15 +1187,23 @@ async function captureRawCameraBlob() {
   }
 
   const captureCanvas = document.createElement("canvas");
-  captureCanvas.width = cameraPreview.videoWidth;
-  captureCanvas.height = cameraPreview.videoHeight;
+  const targetSize = getMobileCaptureCanvasSize(cameraPreview.videoWidth, cameraPreview.videoHeight);
+  captureCanvas.width = targetSize.width;
+  captureCanvas.height = targetSize.height;
   const context = captureCanvas.getContext("2d");
   if (!context) {
     return null;
   }
 
-  context.drawImage(cameraPreview, 0, 0, captureCanvas.width, captureCanvas.height);
+  drawImageCover(context, cameraPreview, 0, 0, captureCanvas.width, captureCanvas.height);
   return new Promise((resolve) => captureCanvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
+}
+
+function getMobileCaptureCanvasSize(sourceWidth, sourceHeight) {
+  const sourceMaxSide = Math.max(sourceWidth, sourceHeight);
+  const height = Math.max(1, sourceMaxSide);
+  const width = Math.max(1, Math.round(height * MOBILE_CAPTURE_ASPECT_RATIO));
+  return { width, height };
 }
 
 function enqueueCameraSave(job) {
