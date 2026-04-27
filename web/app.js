@@ -127,7 +127,8 @@ const state = {
   cameraPermissionState: readStoredCameraPermission(),
   cameraFlashEnabled: false,
   cameraTorchSupported: false,
-  cameraFacingMode: "user",
+  cameraFacingMode: "environment",
+  cameraSwitching: false,
   mobileSettingsOpen: false,
   galleryDb: null,
   galleryReadyPromise: null,
@@ -181,6 +182,7 @@ const defaults = {
   intensity: 100,
 };
 const CAMERA_DEFAULT_EFFECT_IDS = new Set(["nomoGrain", "dust", "vignette", "lightLeak"]);
+const BNW_CAMERA_NAMES = new Set(["135 GR", "120 SG", "BOOTH", "135 M3", "ROMA", "Pen", "135 A", "620 B"]);
 
 const vertexShaderSource = `#version 300 es
 in vec2 a_position;
@@ -485,8 +487,10 @@ async function loadFilterCatalog() {
   const allFilters = (await fetchJson(CAMERA_CATALOG_PATH)).map((camera) => ({
     ...camera,
     group: camera.group ?? "NOMO Cameras",
-    groupFilename: "downloaded-nomo-cameras",
+    groupFilename: isBnwCamera(camera) ? "BNW" : "downloaded-nomo-cameras",
+    cameraListGroup: isBnwCamera(camera) ? "BNW" : (camera.group ?? "NOMO Cameras"),
     name: camera.name ?? `Camera ${camera.id}`,
+    isBnw: isBnwCamera(camera),
   }));
 
   for (const filter of allFilters) {
@@ -494,6 +498,10 @@ async function loadFilterCatalog() {
   }
 
   return allFilters;
+}
+
+function isBnwCamera(camera) {
+  return BNW_CAMERA_NAMES.has(String(camera.name ?? "").trim());
 }
 
 function populateFilterSelect(filters) {
@@ -504,44 +512,67 @@ function populateFilterSelect(filters) {
   const cameraGroups = new Map();
 
   for (const filter of filters) {
-    if (!groups.has(filter.group)) {
+    const groupLabel = filter.cameraListGroup ?? filter.group;
+    if (!groups.has(groupLabel)) {
       const optgroup = document.createElement("optgroup");
-      optgroup.label = filter.group;
-      groups.set(filter.group, optgroup);
+      optgroup.label = groupLabel;
+      groups.set(groupLabel, optgroup);
       lookSelect.append(optgroup);
 
       const cameraOptgroup = document.createElement("optgroup");
-      cameraOptgroup.label = filter.group;
-      cameraGroups.set(filter.group, cameraOptgroup);
+      cameraOptgroup.label = groupLabel;
+      cameraGroups.set(groupLabel, cameraOptgroup);
       cameraLookSelect.append(cameraOptgroup);
     }
 
     const option = document.createElement("option");
     option.value = filter.filename;
     option.textContent = filter.name;
-    groups.get(filter.group).append(option);
+    groups.get(groupLabel).append(option);
 
     const cameraOption = option.cloneNode(true);
-    cameraGroups.get(filter.group).append(cameraOption);
-
-    const cameraButton = document.createElement("button");
-    cameraButton.type = "button";
-    cameraButton.className = "camera-list__item";
-    cameraButton.dataset.filename = filter.filename;
-    cameraButton.textContent = filter.name;
-    cameraButton.addEventListener("click", () => {
-      if (state.cameraSwipe.suppressNextListClick) {
-        state.cameraSwipe.suppressNextListClick = false;
-        return;
-      }
-      handleFilterSelection(filter.filename);
-      setCameraListOpen(false);
-    });
-    cameraList.append(cameraButton);
+    cameraGroups.get(groupLabel).append(cameraOption);
   }
+
+  populateCameraDrawerList(filters);
 
   lookSelect.disabled = filters.length === 0;
   cameraLookSelect.disabled = filters.length === 0;
+}
+
+function populateCameraDrawerList(filters) {
+  const drawerGroups = new Map();
+  for (const filter of filters) {
+    const groupLabel = filter.cameraListGroup ?? filter.group;
+    if (!drawerGroups.has(groupLabel)) {
+      drawerGroups.set(groupLabel, []);
+    }
+    drawerGroups.get(groupLabel).push(filter);
+  }
+
+  for (const [groupLabel, groupFilters] of drawerGroups.entries()) {
+    const cameraListHeading = document.createElement("div");
+    cameraListHeading.className = "camera-list__heading";
+    cameraListHeading.textContent = groupLabel;
+    cameraList.append(cameraListHeading);
+
+    for (const filter of groupFilters) {
+      const cameraButton = document.createElement("button");
+      cameraButton.type = "button";
+      cameraButton.className = "camera-list__item";
+      cameraButton.dataset.filename = filter.filename;
+      cameraButton.textContent = filter.name;
+      cameraButton.addEventListener("click", () => {
+        if (state.cameraSwipe.suppressNextListClick) {
+          state.cameraSwipe.suppressNextListClick = false;
+          return;
+        }
+        handleFilterSelection(filter.filename);
+        setCameraListOpen(false);
+      });
+      cameraList.append(cameraButton);
+    }
+  }
 }
 
 function loadFilterEffectDefaults(filters) {
@@ -1014,8 +1045,9 @@ async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: state.cameraFacingMode },
-        width: { ideal: 4096 },
-        height: { ideal: 2160 },
+        width: { ideal: 3024 },
+        height: { ideal: 4032 },
+        aspectRatio: { ideal: MOBILE_CAPTURE_ASPECT_RATIO },
       },
       audio: false,
     });
@@ -1119,8 +1151,9 @@ async function renderLiveCameraFrame() {
         width: cameraPreview.videoWidth,
         height: cameraPreview.videoHeight,
       };
-      fitCanvasToSize(cameraPreview.videoWidth, cameraPreview.videoHeight, CAMERA_PREVIEW_MAX_SIDE);
-      uploadSourceTexturePixels(cameraPreview);
+      const targetSize = getMobileCaptureCanvasSize(cameraPreview.videoWidth, cameraPreview.videoHeight);
+      fitCanvasToSize(targetSize.width, targetSize.height, CAMERA_PREVIEW_MAX_SIDE);
+      uploadSourceTexturePixels(createCameraPreviewTextureSource() ?? cameraPreview);
       renderImage();
     } catch (error) {
       console.error(error);
@@ -1202,7 +1235,7 @@ async function captureRawCameraBlob() {
     return null;
   }
 
-  drawImageCover(context, cameraPreview, 0, 0, captureCanvas.width, captureCanvas.height);
+  drawCameraVideoToContext(context, captureCanvas.width, captureCanvas.height);
   return new Promise((resolve) => captureCanvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
 }
 
@@ -1211,6 +1244,33 @@ function getMobileCaptureCanvasSize(sourceWidth, sourceHeight) {
   const height = Math.max(1, sourceMaxSide);
   const width = Math.max(1, Math.round(height * MOBILE_CAPTURE_ASPECT_RATIO));
   return { width, height };
+}
+
+function createCameraPreviewTextureSource() {
+  if (!cameraPreview.videoWidth || !cameraPreview.videoHeight || !canvas.width || !canvas.height) {
+    return null;
+  }
+
+  const previewCanvas = document.createElement("canvas");
+  previewCanvas.width = canvas.width;
+  previewCanvas.height = canvas.height;
+  const context = previewCanvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+
+  drawCameraVideoToContext(context, previewCanvas.width, previewCanvas.height);
+  return previewCanvas;
+}
+
+function drawCameraVideoToContext(context, width, height) {
+  context.save();
+  if (state.cameraFacingMode === "user") {
+    context.translate(width, 0);
+    context.scale(-1, 1);
+  }
+  drawImageCover(context, cameraPreview, 0, 0, width, height);
+  context.restore();
 }
 
 function enqueueCameraSave(job) {
@@ -1440,8 +1500,48 @@ async function toggleCameraFacing() {
   }
 
   state.cameraFacingMode = state.cameraFacingMode === "user" ? "environment" : "user";
-  stopCamera();
-  await startCamera();
+  await switchCameraStream();
+}
+
+async function switchCameraStream() {
+  if (!navigator.mediaDevices?.getUserMedia || state.cameraSwitching) {
+    return;
+  }
+
+  state.cameraSwitching = true;
+  stopLiveCameraRender();
+  canvas.style.visibility = "hidden";
+  cameraPreviewSlot.classList.add("is-switching");
+
+  try {
+    await applyCameraTorch(false);
+    if (state.cameraStream) {
+      for (const track of state.cameraStream.getTracks()) {
+        track.stop();
+      }
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: state.cameraFacingMode },
+        width: { ideal: 3024 },
+        height: { ideal: 4032 },
+        aspectRatio: { ideal: MOBILE_CAPTURE_ASPECT_RATIO },
+      },
+      audio: false,
+    });
+
+    state.cameraStream = stream;
+    cameraPreview.srcObject = stream;
+    await cameraPreview.play();
+    state.cameraTorchSupported = detectTorchSupport(stream);
+    updateCameraFlashState();
+    startLiveCameraRender();
+  } finally {
+    canvas.style.visibility = "";
+    cameraPreviewSlot.classList.remove("is-switching");
+    state.cameraSwitching = false;
+  }
 }
 
 async function toggleCameraFlash() {
