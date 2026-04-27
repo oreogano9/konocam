@@ -125,6 +125,7 @@ const state = {
   cameraAutostartAttempted: false,
   cameraPermissionState: readStoredCameraPermission(),
   cameraFlashEnabled: false,
+  cameraTorchSupported: false,
   mobileSettingsOpen: false,
   galleryDb: null,
   galleryReadyPromise: null,
@@ -1021,6 +1022,8 @@ async function startCamera() {
     cameraPreview.srcObject = stream;
     cameraPreviewSlot.append(canvas);
     await cameraPreview.play();
+    state.cameraTorchSupported = detectTorchSupport(stream);
+    await applyCameraTorch(state.cameraFlashEnabled);
     state.cameraPermissionState = CAMERA_PERMISSION_GRANTED;
     writeStoredCameraPermission(CAMERA_PERMISSION_GRANTED);
     resetCanvasView();
@@ -1048,6 +1051,7 @@ function stopCamera(options = {}) {
   setCameraGalleryPeek(false);
 
   if (state.cameraStream) {
+    applyCameraTorch(false).catch((error) => console.error(error));
     for (const track of state.cameraStream.getTracks()) {
       track.stop();
     }
@@ -1055,6 +1059,7 @@ function stopCamera(options = {}) {
 
   state.cameraStream = null;
   state.cameraActive = false;
+  state.cameraTorchSupported = false;
   state.mobileSettingsOpen = Boolean(options.settings);
   cameraPreview.srcObject = null;
   cameraShell.hidden = true;
@@ -1409,11 +1414,43 @@ function flashCameraPreview() {
 function updateCameraFlashState() {
   cameraFlashTint.classList.toggle("is-visible", state.cameraFlashEnabled);
   cameraFlashToggleButton.setAttribute("aria-pressed", String(state.cameraFlashEnabled));
+  cameraFlashToggleButton.classList.toggle("has-hardware-torch", state.cameraTorchSupported);
 }
 
-function toggleCameraFlash() {
+async function toggleCameraFlash() {
   state.cameraFlashEnabled = !state.cameraFlashEnabled;
   updateCameraFlashState();
+  await applyCameraTorch(state.cameraFlashEnabled);
+  if (state.cameraFlashEnabled && !state.cameraTorchSupported) {
+    setStatus("Hardware flash is not available in this browser, so flash is visual only.");
+  }
+}
+
+function detectTorchSupport(stream) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (!track?.getCapabilities) {
+    return false;
+  }
+
+  const capabilities = track.getCapabilities();
+  return Boolean(capabilities?.torch);
+}
+
+async function applyCameraTorch(enabled) {
+  const track = state.cameraStream?.getVideoTracks?.()[0];
+  if (!track?.applyConstraints || !state.cameraTorchSupported) {
+    return false;
+  }
+
+  try {
+    await track.applyConstraints({ advanced: [{ torch: Boolean(enabled) }] });
+    return true;
+  } catch (error) {
+    state.cameraTorchSupported = false;
+    updateCameraFlashState();
+    console.error(error);
+    return false;
+  }
 }
 
 async function ensureGalleryReady() {
@@ -3151,7 +3188,12 @@ capturePhotoButton.addEventListener("click", handleCameraCaptureClick);
 cameraCaptureButton.addEventListener("click", handleCameraCaptureClick);
 cameraCaptureButton.addEventListener("pointerdown", vibrateCapture);
 cameraPreviewGalleryButton.addEventListener("click", () => stopCamera());
-cameraFlashToggleButton.addEventListener("click", toggleCameraFlash);
+cameraFlashToggleButton.addEventListener("click", () => {
+  toggleCameraFlash().catch((error) => {
+    console.error(error);
+    setStatus("Unable to toggle hardware flash.");
+  });
+});
 stopCameraButton.addEventListener("click", stopCamera);
 cameraSettingsButton.addEventListener("click", () => stopCamera({ settings: true }));
 galleryCameraButton.addEventListener("click", startCamera);
