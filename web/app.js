@@ -1249,7 +1249,7 @@ async function captureRawCameraBlob() {
     return null;
   }
 
-  drawCameraVideoToContext(context, captureCanvas.width, captureCanvas.height);
+  drawCameraVideoToContext(context, captureCanvas.width, captureCanvas.height, { preview: false });
   return new Promise((resolve) => captureCanvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
 }
 
@@ -1273,17 +1273,19 @@ function createCameraPreviewTextureSource() {
     return null;
   }
 
-  drawCameraVideoToContext(context, previewCanvas.width, previewCanvas.height);
+  drawCameraVideoToContext(context, previewCanvas.width, previewCanvas.height, { preview: true });
   return previewCanvas;
 }
 
-function drawCameraVideoToContext(context, width, height) {
+function drawCameraVideoToContext(context, width, height, options = {}) {
   context.save();
   if (state.cameraFacingMode === "user") {
     context.translate(width, 0);
     context.scale(-1, 1);
   }
-  if (getCameraCropFactor() <= 1) {
+  if (options.preview) {
+    drawImageCover(context, cameraPreview, 0, 0, width, height, getCameraCropFactor());
+  } else if (getCameraCropFactor() <= 1) {
     drawImageContain(context, cameraPreview, 0, 0, width, height);
   } else {
     drawImageCover(context, cameraPreview, 0, 0, width, height, getCameraCropFactor());
