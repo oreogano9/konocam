@@ -1284,8 +1284,6 @@ function drawCameraVideoToContext(context, width, height, options = {}) {
   }
   if (options.preview) {
     drawCameraVideoStretch(context, width, height);
-  } else if (getCameraCropFactor() <= 1) {
-    drawImageContain(context, cameraPreview, 0, 0, width, height);
   } else {
     drawImageCover(context, cameraPreview, 0, 0, width, height, getCameraCropFactor());
   }
