@@ -70,6 +70,9 @@ const MOBILE_SAVE_MAX_SIDE = 2200;
 const MOBILE_CAPTURE_WIDTH = 2688;
 const MOBILE_CAPTURE_HEIGHT = 4032;
 const MOBILE_CAPTURE_ASPECT_RATIO = MOBILE_CAPTURE_WIDTH / MOBILE_CAPTURE_HEIGHT;
+const CAMERA_FLASH_SAMPLE_SIZE = 32;
+const CAMERA_FLASH_LUMA_THRESHOLD = 0.34;
+const CAMERA_FLASH_DARK_RATIO_THRESHOLD = 0.58;
 const CAMERA_CROP_MODES = [
   { label: "26", factor: 1 },
   { label: "35", factor: 35 / 26 },
@@ -135,6 +138,7 @@ const state = {
   cameraPermissionState: readStoredCameraPermission(),
   cameraFlashEnabled: false,
   cameraTorchSupported: false,
+  cameraFlashMeterCanvas: document.createElement("canvas"),
   cameraFacingMode: "environment",
   cameraSwitching: false,
   cameraCropModeIndex: 0,
@@ -1212,10 +1216,15 @@ async function saveCurrentCameraFrame() {
   }
 
   vibrateCapture();
-  await triggerCaptureFlash();
+  const flashSession = await prepareCaptureFlash();
 
   const selected = state.filterMap.get(lookSelect.value);
-  const rawBlob = await captureRawCameraBlob();
+  let rawBlob = null;
+  try {
+    rawBlob = await captureRawCameraBlob();
+  } finally {
+    await finishCaptureFlash(flashSession);
+  }
   if (!rawBlob) {
     setStatus("Failed to save the camera frame.");
     return;
@@ -1527,10 +1536,14 @@ function flashCameraPreview() {
   cameraFlash.classList.add("is-active");
 }
 
-async function triggerCaptureFlash() {
+async function prepareCaptureFlash() {
   if (!state.cameraFlashEnabled) {
-    flashCameraPreview();
-    return;
+    return { shouldFlash: false, hardwareFlash: false };
+  }
+
+  const light = measureCameraPreviewLight();
+  if (!shouldUseCaptureFlash(light)) {
+    return { shouldFlash: false, hardwareFlash: false };
   }
 
   const hardwareFlash = await applyCameraTorch(true);
@@ -1538,7 +1551,57 @@ async function triggerCaptureFlash() {
   if (hardwareFlash) {
     await delay(140);
   }
-  await applyCameraTorch(false);
+  return { shouldFlash: true, hardwareFlash };
+}
+
+async function finishCaptureFlash(session) {
+  if (session?.hardwareFlash) {
+    await applyCameraTorch(false);
+  }
+}
+
+function measureCameraPreviewLight() {
+  if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
+    return null;
+  }
+
+  const meterCanvas = state.cameraFlashMeterCanvas;
+  meterCanvas.width = CAMERA_FLASH_SAMPLE_SIZE;
+  meterCanvas.height = CAMERA_FLASH_SAMPLE_SIZE;
+  const context = meterCanvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    return null;
+  }
+
+  try {
+    context.drawImage(cameraPreview, 0, 0, CAMERA_FLASH_SAMPLE_SIZE, CAMERA_FLASH_SAMPLE_SIZE);
+    const { data } = context.getImageData(0, 0, CAMERA_FLASH_SAMPLE_SIZE, CAMERA_FLASH_SAMPLE_SIZE);
+    let lumaTotal = 0;
+    let darkPixels = 0;
+    const pixels = data.length / 4;
+    for (let index = 0; index < data.length; index += 4) {
+      const luma = (0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]) / 255;
+      lumaTotal += luma;
+      if (luma < 0.24) {
+        darkPixels += 1;
+      }
+    }
+    return {
+      averageLuma: lumaTotal / pixels,
+      darkRatio: darkPixels / pixels,
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function shouldUseCaptureFlash(light) {
+  if (!light) {
+    return true;
+  }
+
+  return light.averageLuma < CAMERA_FLASH_LUMA_THRESHOLD || light.darkRatio > CAMERA_FLASH_DARK_RATIO_THRESHOLD;
 }
 
 function updateCameraFlashState() {
