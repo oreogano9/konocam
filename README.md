@@ -1,5 +1,25 @@
-# Disposable Camera
+# KONO CAM
 
-Camera App that dynamically adds a filter to images making them resemble a disposable camera photo.
+Don't think, take photos.
 
-Built using Swift
+KONO CAM is a Capacitor/iOS analogue camera app with native capture, local gallery storage, NOMO-style camera filters, and AltStore distribution tooling.
+
+## AltStore Source
+
+Add this source in AltStore:
+
+https://github.com/oreogano9/konocam/releases/latest/download/source.json
+
+## Local Build
+
+```sh
+npm install
+npm run check:web
+npm run ios:sync
+```
+
+Open the iOS project from:
+
+```sh
+ios/App/App.xcodeproj
+```
