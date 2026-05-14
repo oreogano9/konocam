@@ -2,12 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Disposable Camera Editor</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="app-loading camera-boot camera-mode-active">
+    <div class="app-startup-splash" id="appStartupSplash" aria-hidden="true">
+      <img src="./assets/startup/kono-startup.png" alt="" />
+    </div>
     <main class="app-shell">
       <section class="image-workspace" aria-label="Image editor">
         <div class="empty-state" id="emptyState">
@@ -21,15 +24,16 @@
               <div class="camera-flash-tint" id="cameraFlashTint" aria-hidden="true"></div>
               <div class="camera-flash" id="cameraFlash" aria-hidden="true"></div>
             </div>
-            <img src="./assets/kodak-funsaver-camera-overlay.png" alt="" aria-hidden="true" />
+            <img id="cameraDeviceOverlay" src="./assets/camera-overlays/fujifilm-quicksnap-rotated-overlay.png" alt="" aria-hidden="true" />
+            <div class="camera-focal-label" id="cameraFocalLabel" aria-hidden="true">28mm</div>
             <button class="camera-body-shutter" id="cameraCaptureButton" type="button" aria-label="Take photo"></button>
             <button class="camera-flash-toggle" id="cameraFlashToggleButton" type="button" aria-pressed="false" aria-label="Toggle flash"></button>
             <button class="camera-facing-toggle" id="cameraFacingToggleButton" type="button" aria-label="Switch camera">↺</button>
+            <button class="camera-crop-toggle" id="cameraCropToggleButton" type="button" aria-label="Toggle camera crop">28</button>
           </div>
           <div class="camera-shell__top">
             <button id="cameraSettingsButton" type="button">Settings</button>
           </div>
-          <button class="camera-crop-toggle" id="cameraCropToggleButton" type="button" aria-label="Toggle camera crop">26</button>
           <div class="camera-shell__hud">
             <label class="camera-filter-control">
               <span>Filter</span>
@@ -44,15 +48,26 @@
             </div>
             <div class="camera-list" id="cameraList"></div>
           </aside>
+          <aside class="favorite-camera-drawer" id="favoriteCameraDrawer" aria-label="Favorite cameras" aria-hidden="true">
+            <div class="favorite-camera-drawer__rotator">
+              <div class="favorite-camera-drawer__header">
+                <span>Favorites</span>
+                <small>Swipe right to close</small>
+              </div>
+              <div class="favorite-camera-grid" id="favoriteCameraGrid"></div>
+            </div>
+          </aside>
         </div>
         <canvas id="processedCanvas"></canvas>
+        <div class="selfie-screen-flash" id="selfieScreenFlash" aria-hidden="true"></div>
       </section>
 
       <section class="mobile-gallery" id="mobileGallery" aria-label="Local photo gallery">
         <div class="mobile-gallery__header">
           <div>
-            <p class="eyebrow">Local Gallery</p>
-            <h1>Shots</h1>
+            <p class="eyebrow">KONO CAM</p>
+            <h1>Gallery</h1>
+            <p class="mobile-gallery__count" id="galleryCount">0 photos</p>
           </div>
           <div class="mobile-gallery__actions">
             <button id="galleryCameraButton" type="button">Camera</button>
@@ -62,10 +77,14 @@
         <p class="mobile-gallery__empty" id="galleryEmpty">No local shots yet.</p>
         <div class="mobile-gallery__grid" id="galleryGrid"></div>
         <div class="gallery-viewer" id="galleryViewer" hidden>
-          <img id="galleryViewerImage" alt="Selected local shot" />
+          <div class="gallery-viewer__stage">
+            <button class="gallery-delete-button" id="galleryDeleteButton" type="button" aria-label="Close photo">×</button>
+            <img id="galleryViewerImage" alt="Selected local shot" />
+          </div>
+          <p class="gallery-viewer__camera" id="galleryViewerCamera"></p>
           <div class="gallery-viewer__actions">
             <button id="gallerySaveButton" type="button">Save</button>
-            <button id="galleryCloseButton" type="button">Close</button>
+            <button id="galleryCloseButton" type="button">Delete</button>
           </div>
         </div>
       </section>
@@ -74,60 +93,91 @@
         <button class="settings-gallery-button" id="settingsGalleryButton" type="button">Gallery</button>
 
         <div class="brand-lockup">
-          <p class="eyebrow">Disposable Camera</p>
-          <h1>NOMO LUT Import</h1>
-          <p>Real preset path from the APK: encrypted `.dat` LUT, AES-CBC decrypt, BGR to RGB swizzle, GPU lookup shader.</p>
-        </div>
-
-        <label class="file-trigger">
-          Open photo
-          <input id="fileInput" type="file" accept="image/*" />
-        </label>
-
-        <label class="select-control">
-          NOMO filter
-          <select id="lookSelect" disabled></select>
-        </label>
-
-        <div class="sliders">
-          <label>
-            Filter intensity
-            <input id="intensitySlider" type="range" min="0" max="200" value="100" />
-            <span id="intensityValue">100%</span>
-          </label>
+          <p class="eyebrow">KONO CAM</p>
+          <h1>Settings</h1>
         </div>
 
         <section class="mobile-camera-panel" aria-label="Mobile camera capture">
-          <div class="effects-panel__header">
-            <h2>Mobile Capture</h2>
-            <p>Visible on mobile only. Shows the selected preset live before capture.</p>
+          <label class="settings-toggle">
+            <input id="galleryTwoColumnToggle" type="checkbox" />
+            <span>Compact gallery grid</span>
+          </label>
+          <label class="select-control">
+            Theme
+            <select id="themeSelect">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <div class="accent-control" aria-label="Accent color">
+            <span class="accent-control__label">Accent color</span>
+            <div class="accent-control__swatches" id="accentSwatches">
+              <button class="accent-swatch" type="button" data-accent="#c28538" style="--swatch-color: #c28538" aria-label="Amber accent"></button>
+              <button class="accent-swatch" type="button" data-accent="#d56642" style="--swatch-color: #d56642" aria-label="Clay accent"></button>
+              <button class="accent-swatch" type="button" data-accent="#7f9a76" style="--swatch-color: #7f9a76" aria-label="Sage accent"></button>
+              <button class="accent-swatch" type="button" data-accent="#6f92a8" style="--swatch-color: #6f92a8" aria-label="Blue grey accent"></button>
+              <button class="accent-swatch" type="button" data-accent="#b66f8d" style="--swatch-color: #b66f8d" aria-label="Rose accent"></button>
+            </div>
+            <label class="accent-control__custom">
+              Custom
+              <input id="accentColorInput" type="color" value="#c28538" />
+            </label>
           </div>
-          <div class="mobile-camera-panel__actions">
-            <button id="startCameraButton" type="button" disabled>Open camera</button>
-            <button id="capturePhotoButton" type="button" disabled>Take photo</button>
-            <button id="stopCameraButton" type="button" disabled>Close camera</button>
-          </div>
+          <label class="settings-toggle">
+            <input id="halfSizeSaveToggle" type="checkbox" />
+            <span>Save half-size images</span>
+          </label>
+          <label class="settings-toggle">
+            <input id="minimalModeToggle" type="checkbox" />
+            <span>Minimal Mode overlay</span>
+          </label>
+          <label class="settings-toggle">
+            <input id="levelGuideToggle" type="checkbox" />
+            <span>Haptic level guide</span>
+          </label>
         </section>
 
-        <section class="effects-panel" aria-label="APK backed effects">
-          <div class="effects-panel__header">
-            <h2>Effects</h2>
-            <p>Strict APK-backed post-LUT controls only.</p>
-          </div>
-          <div id="effectsRoot"></div>
-        </section>
+        <details class="advanced-settings-panel">
+          <summary>Advanced settings</summary>
 
-        <section class="effects-panel" aria-label="Imported simulation effects">
-          <div class="effects-panel__header">
-            <h2>Imported Effects</h2>
-            <p>Direct ports from other simulators, kept separate from the APK-backed stack.</p>
-          </div>
-          <div id="importedEffectsRoot"></div>
-        </section>
+          <section class="effects-panel" aria-label="APK backed effects">
+            <div class="effects-panel__header">
+              <h2>Effects</h2>
+            </div>
+            <div id="effectsRoot"></div>
+          </section>
+
+          <section class="effects-panel" aria-label="Spektra Grain">
+            <div class="effects-panel__header">
+              <h2>Spektra Grain</h2>
+            </div>
+            <div id="importedEffectsRoot"></div>
+          </section>
+
+          <button class="copy-settings-button" id="copySettingsButton" type="button">Copy settings</button>
+
+          <details class="debug-panel" open>
+            <summary>Debug report</summary>
+            <div class="debug-panel__actions">
+              <button id="refreshDebugButton" type="button">Refresh</button>
+              <button id="copyDebugButton" type="button">Copy</button>
+            </div>
+            <textarea id="debugReport" readonly spellcheck="false" aria-label="Debug report"></textarea>
+          </details>
+        </details>
 
         <p class="status-message" id="statusMessage">Loading renderer...</p>
 
-        <div class="actions">
+        <div class="native-control-hooks" hidden>
+          <input id="fileInput" type="file" accept="image/*" />
+          <select id="lookSelect" disabled></select>
+          <input id="intensitySlider" type="range" min="0" max="200" value="100" />
+          <span id="intensityValue">100%</span>
+          <button id="startCameraButton" type="button" disabled>Open camera</button>
+          <button id="capturePhotoButton" type="button" disabled>Take photo</button>
+          <button id="stopCameraButton" type="button" disabled>Close camera</button>
+          <input id="focalLabelToggle" type="checkbox" />
           <button id="resetButton" type="button" disabled>Reset</button>
           <button id="toggleEditsButton" type="button" disabled aria-pressed="false">Show original</button>
           <button id="downloadButton" type="button" disabled>Download image</button>

@@ -5,7 +5,12 @@ export const SPEKTRA_GRAIN_EFFECT = {
   label: "Spektra Grain",
   defaultEnabled: false,
   defaultPreset: "Medium",
+  defaultMode: "neutral",
   presets: ["Very Low", "Low", "Medium", "Strong", "Extreme"],
+  modes: [
+    { value: "neutral", label: "Neutral" },
+    { value: "originalDensity", label: "Original Density" },
+  ],
   anchor: "import:Spektrafilm/src/spektrafilm/model/grain.py|profile:kodak_gold_200|defaults:runtime.params_schema.GrainParams",
 };
 
@@ -60,6 +65,7 @@ export async function loadSpektraProfile(path) {
 export function applySpektraGrainToRgba(rgba, width, height, profile, options = {}) {
   const filmFormatMm = options.filmFormatMm ?? 35.0;
   const grain = getSpektraGrainPreset(options.preset ?? SPEKTRA_GRAIN_EFFECT.defaultPreset);
+  const mode = normalizeSpektraMode(options.mode);
   const pixelSizeUm = (filmFormatMm * 1000) / Math.max(width, height);
   const linearRgb = rgbaToLinearRgb(rgba);
   const logRaw = linearRgbToLogRaw(linearRgb);
@@ -78,15 +84,25 @@ export function applySpektraGrainToRgba(rgba, width, height, profile, options = 
   for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
     const rgbOffset = pixelIndex * 3;
     const rgbaOffset = pixelIndex * 4;
+    const neutralDeltaDensity =
+      (grainedDensity[rgbOffset] - density[rgbOffset]) * 0.2126 +
+      (grainedDensity[rgbOffset + 1] - density[rgbOffset + 1]) * 0.7152 +
+      (grainedDensity[rgbOffset + 2] - density[rgbOffset + 2]) * 0.0722;
+    const neutralGain = Math.pow(10, -neutralDeltaDensity);
     for (let channel = 0; channel < 3; channel += 1) {
-      const deltaDensity = grainedDensity[rgbOffset + channel] - density[rgbOffset + channel];
-      const transformed = clamp01(linearRgb[rgbOffset + channel] * Math.pow(10, -deltaDensity));
+      const channelDeltaDensity = grainedDensity[rgbOffset + channel] - density[rgbOffset + channel];
+      const channelGain = mode === "originalDensity" ? Math.pow(10, -channelDeltaDensity) : neutralGain;
+      const transformed = clamp01(linearRgb[rgbOffset + channel] * channelGain);
       output[rgbaOffset + channel] = linearToSrgbByte(transformed);
     }
     output[rgbaOffset + 3] = rgba[rgbaOffset + 3];
   }
 
   return output;
+}
+
+export function normalizeSpektraMode(mode) {
+  return mode === "originalDensity" ? "originalDensity" : SPEKTRA_GRAIN_EFFECT.defaultMode;
 }
 
 function getSpektraGrainPreset(presetName) {
@@ -268,7 +284,10 @@ function gaussianBlurPlane(plane, width, height, sigma) {
     return plane.slice();
   }
 
-  const radius = Math.max(1, Math.ceil(sigma * 3));
+  const radius = Math.max(0, Math.floor(sigma * 3 + 0.5));
+  if (radius === 0) {
+    return plane.slice();
+  }
   const kernel = buildGaussianKernel(radius, sigma);
   const horizontal = new Float32Array(plane.length);
   const output = new Float32Array(plane.length);
@@ -277,7 +296,7 @@ function gaussianBlurPlane(plane, width, height, sigma) {
     for (let x = 0; x < width; x += 1) {
       let sum = 0;
       for (let k = -radius; k <= radius; k += 1) {
-        const sampleX = clampInt(x + k, 0, width - 1);
+        const sampleX = reflectIndex(x + k, width);
         sum += plane[y * width + sampleX] * kernel[k + radius];
       }
       horizontal[y * width + x] = sum;
@@ -288,7 +307,7 @@ function gaussianBlurPlane(plane, width, height, sigma) {
     for (let x = 0; x < width; x += 1) {
       let sum = 0;
       for (let k = -radius; k <= radius; k += 1) {
-        const sampleY = clampInt(y + k, 0, height - 1);
+        const sampleY = reflectIndex(y + k, height);
         sum += horizontal[sampleY * width + x] * kernel[k + radius];
       }
       output[y * width + x] = sum;
@@ -466,4 +485,19 @@ function clamp01(value) {
 
 function clampInt(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function reflectIndex(value, size) {
+  if (size <= 1) {
+    return 0;
+  }
+  if (value >= 0 && value < size) {
+    return value;
+  }
+  const period = size * 2;
+  let reflected = value % period;
+  if (reflected < 0) {
+    reflected += period;
+  }
+  return reflected >= size ? period - 1 - reflected : reflected;
 }

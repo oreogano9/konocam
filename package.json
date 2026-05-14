@@ -1,0 +1,32 @@
+{
+  "name": "kono-cam",
+  "version": "1.0.0",
+  "description": "KONO CAM analogue camera simulator for web and iOS.",
+  "scripts": {
+    "check:web": "node --check web/app.js",
+    "ios:copy": "cap copy ios && node scripts/patch-ios-capacitor-config.mjs",
+    "ios:sync": "cap sync ios && node scripts/patch-ios-capacitor-config.mjs",
+    "ios:open": "cap open ios",
+    "altstore:ipa": "node scripts/build-altstore-ipa.mjs",
+    "altstore:source": "node scripts/generate-altstore-source.mjs",
+    "altstore:github": "node scripts/publish-altstore-github.mjs",
+    "altstore:all": "npm run altstore:ipa && npm run altstore:source"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oreogano9/konocam.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/oreogano9/konocam/issues"
+  },
+  "homepage": "https://github.com/oreogano9/konocam#readme",
+  "dependencies": {
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1"
+  }
+}

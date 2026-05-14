@@ -1,0 +1,12 @@
+{
+  "appId": "com.konocam.app",
+  "appName": "KONO CAM",
+  "webDir": "web",
+  "packageClassList": [
+    "App.KonoNativeBridgePlugin"
+  ],
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

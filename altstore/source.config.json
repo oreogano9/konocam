@@ -1,0 +1,24 @@
+{
+  "source": {
+    "name": "KONO CAM",
+    "subtitle": "Don't think, take photos.",
+    "description": "KONO CAM - Don't think, take photos",
+    "website": "https://github.com/oreogano9/konocam",
+    "tintColor": "#C28538"
+  },
+  "app": {
+    "name": "KONO CAM",
+    "developerName": "Konrad Parada",
+    "subtitle": "Don't think, take photos.",
+    "localizedDescription": "KONO CAM - Don't think, take photos",
+    "category": "photo-video",
+    "tintColor": "#C28538",
+    "releaseNotes": "First shareable AltStore source build.",
+    "minOSVersion": "15.0"
+  },
+  "files": {
+    "ipaName": "KONO-CAM.ipa",
+    "iconName": "icon.png",
+    "sourceName": "source.json"
+  }
+}

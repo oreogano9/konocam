@@ -1,3 +1,9 @@
 .DS_Store
 .playwright-cli/
 nomo-decompiled-local/
+node_modules/
+ios/App/DerivedData/
+dist/altstore/
+output/
+**/xcuserdata/
+*.xcuserstate

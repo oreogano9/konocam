@@ -4,12 +4,16 @@ import { applySpektraGrainToRgba, loadSpektraProfile, SPEKTRA_GRAIN_EFFECT } fro
 const canvas = document.querySelector("#processedCanvas");
 const workspace = document.querySelector(".image-workspace");
 const emptyState = document.querySelector("#emptyState");
+const appStartupSplash = document.querySelector("#appStartupSplash");
 const cameraShell = document.querySelector("#cameraShell");
 const cameraPreview = document.querySelector("#cameraPreview");
 const cameraPreviewSlot = document.querySelector("#cameraPreviewSlot");
 const cameraPreviewGalleryButton = document.querySelector("#cameraPreviewGalleryButton");
+const cameraFocalLabel = document.querySelector("#cameraFocalLabel");
 const cameraFlash = document.querySelector("#cameraFlash");
 const cameraFlashTint = document.querySelector("#cameraFlashTint");
+const selfieScreenFlash = document.querySelector("#selfieScreenFlash");
+const cameraDeviceOverlay = document.querySelector("#cameraDeviceOverlay");
 const cameraFlashToggleButton = document.querySelector("#cameraFlashToggleButton");
 const cameraFacingToggleButton = document.querySelector("#cameraFacingToggleButton");
 const cameraCropToggleButton = document.querySelector("#cameraCropToggleButton");
@@ -17,21 +21,39 @@ const cameraPresetLabel = document.querySelector("#cameraPresetLabel");
 const cameraLookSelect = document.querySelector("#cameraLookSelect");
 const cameraListDrawer = document.querySelector("#cameraListDrawer");
 const cameraList = document.querySelector("#cameraList");
+const favoriteCameraDrawer = document.querySelector("#favoriteCameraDrawer");
+const favoriteCameraGrid = document.querySelector("#favoriteCameraGrid");
 const fileInput = document.querySelector("#fileInput");
 const lookSelect = document.querySelector("#lookSelect");
 const intensitySlider = document.querySelector("#intensitySlider");
 const intensityValue = document.querySelector("#intensityValue");
 const effectsRoot = document.querySelector("#effectsRoot");
 const importedEffectsRoot = document.querySelector("#importedEffectsRoot");
+const copySettingsButton = document.querySelector("#copySettingsButton");
 const mobileGallery = document.querySelector("#mobileGallery");
 const galleryGrid = document.querySelector("#galleryGrid");
 const galleryEmpty = document.querySelector("#galleryEmpty");
+const galleryCount = document.querySelector("#galleryCount");
 const galleryCameraButton = document.querySelector("#galleryCameraButton");
 const gallerySettingsButton = document.querySelector("#gallerySettingsButton");
 const galleryViewer = document.querySelector("#galleryViewer");
 const galleryViewerImage = document.querySelector("#galleryViewerImage");
+const galleryViewerCamera = document.querySelector("#galleryViewerCamera");
 const gallerySaveButton = document.querySelector("#gallerySaveButton");
 const galleryCloseButton = document.querySelector("#galleryCloseButton");
+const galleryDeleteButton = document.querySelector("#galleryDeleteButton");
+const galleryTwoColumnToggle = document.querySelector("#galleryTwoColumnToggle");
+const themeSelect = document.querySelector("#themeSelect");
+const accentSwatches = document.querySelector("#accentSwatches");
+const accentColorInput = document.querySelector("#accentColorInput");
+const halfSizeSaveToggle = document.querySelector("#halfSizeSaveToggle");
+const minimalModeToggle = document.querySelector("#minimalModeToggle");
+const levelGuideToggle = document.querySelector("#levelGuideToggle");
+const focalLabelToggle = document.querySelector("#focalLabelToggle");
+const levelZoneSelect = document.querySelector("#levelZoneSelect");
+const refreshDebugButton = document.querySelector("#refreshDebugButton");
+const copyDebugButton = document.querySelector("#copyDebugButton");
+const debugReport = document.querySelector("#debugReport");
 const settingsGalleryButton = document.querySelector("#settingsGalleryButton");
 const startCameraButton = document.querySelector("#startCameraButton");
 const capturePhotoButton = document.querySelector("#capturePhotoButton");
@@ -44,6 +66,25 @@ const downloadButton = document.querySelector("#downloadButton");
 const statusMessage = document.querySelector("#statusMessage");
 
 const gl = canvas.getContext("webgl2", { preserveDrawingBuffer: true });
+if (gl) {
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    state.webglContextLost = true;
+    stopLiveCameraRender();
+    debugEvent("webgl:lost", {
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      cameraActive: state.cameraActive,
+      queue: state.cameraSaveQueue.length,
+    });
+    setStatus("Renderer context was lost. Restart the app if preview stays black.");
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    state.webglContextLost = false;
+    debugEvent("webgl:restored");
+    setStatus("Renderer context restored. Reopen camera if preview is wrong.");
+  });
+}
 
 const NOMO_AES_KEY = new Uint8Array([
   0xee, 0x49, 0x83, 0xd7, 0x6f, 0x63, 0xd0, 0xc6,
@@ -62,20 +103,55 @@ const GALLERY_DB_NAME = "analoguecam-gallery";
 const GALLERY_DB_VERSION = 1;
 const GALLERY_STORE_NAME = "shots";
 const CAMERA_PERMISSION_STORAGE_KEY = "analoguecam-camera-permission";
+const SELECTED_CAMERA_STORAGE_KEY = "analoguecam-selected-camera";
+const FAVORITE_CAMERAS_STORAGE_KEY = "analoguecam-favorite-cameras";
+const GALLERY_TWO_COLUMN_STORAGE_KEY = "analoguecam-gallery-two-column";
+const THEME_STORAGE_KEY = "analoguecam-theme";
+const ACCENT_COLOR_STORAGE_KEY = "analoguecam-accent-color";
+const HALF_SIZE_SAVE_STORAGE_KEY = "analoguecam-half-size-save";
+const MINIMAL_MODE_STORAGE_KEY = "analoguecam-minimal-mode";
+const LEVEL_GUIDE_STORAGE_KEY = "analoguecam-level-guide";
+const LEVEL_ZONE_STORAGE_KEY = "analoguecam-level-zone";
+const FOCAL_LABEL_STORAGE_KEY = "analoguecam-focal-label";
+const DEBUG_HISTORY_STORAGE_KEY = "analoguecam-debug-history";
 const CAMERA_PERMISSION_GRANTED = "granted";
 const CAMERA_PERMISSION_DENIED = "denied";
 const CAMERA_PREVIEW_MAX_SIDE = 480;
 const STILL_IMAGE_MAX_SIDE = 2200;
-const MOBILE_SAVE_MAX_SIDE = 2200;
+const MOBILE_SAVE_MAX_SIDE = 4032;
+const HEAVY_CAMERA_SAVE_MAX_SIDE = 1200;
+const GALLERY_RENDER_BATCH_SIZE = 30;
+const GALLERY_THUMBNAIL_MAX_SIDE = 480;
+const GALLERY_THUMBNAIL_QUALITY = 0.76;
+const DEBUG_EVENT_LIMIT = 220;
 const MOBILE_CAPTURE_WIDTH = 2688;
 const MOBILE_CAPTURE_HEIGHT = 4032;
 const MOBILE_CAPTURE_ASPECT_RATIO = MOBILE_CAPTURE_WIDTH / MOBILE_CAPTURE_HEIGHT;
 const CAMERA_FLASH_SETTLE_DELAY_MS = 520;
+const SELFIE_SCREEN_FLASH_SETTLE_DELAY_MS = 180;
+const NATIVE_CAMERA_PREVIEW_MODE = true;
+const USE_WEB_FILTERED_CAMERA_PREVIEW = false;
+const CAMERA_PREVIEW_MIN_FRAME_INTERVAL_MS = 66;
+const CAMERA_PREVIEW_SAVE_MIN_FRAME_INTERVAL_MS = 220;
+const RANDOM_CAMERA_FILENAME = "__random-camera__";
+const MAX_PENDING_SHUTTER_CAPTURES = 4;
 const CAMERA_CROP_MODES = [
-  { label: "26", factor: 1 },
-  { label: "35", factor: 35 / 26 },
-  { label: "50", factor: 50 / 26 },
+  { label: "28", factor: 1 },
+  { label: "35", factor: 35 / 28 },
+  { label: "50", factor: 50 / 28 },
 ];
+const CAMERA_EFFECT_DEFAULT_OVERRIDES = {
+  "camera-4": {
+    nomoGrain: 10,
+    dust: 5,
+  },
+};
+const DEFAULT_NOMO_GRAIN_VALUE = 10;
+const LEVEL_ZONE_VALUES = new Set(["precise", "normal", "wide"]);
+const THEME_VALUES = new Set(["system", "light", "dark"]);
+const THEME_MEDIA_QUERY = window.matchMedia?.("(prefers-color-scheme: dark)");
+const DEFAULT_ACCENT_COLOR = "#c28538";
+const ACCENT_SWATCH_VALUES = new Set(["#c28538", "#d56642", "#7f9a76", "#6f92a8", "#b66f8d"]);
 const JPEG_EXPORT_QUALITY = 0.98;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
@@ -84,6 +160,29 @@ const COLOR_MATRIX = new Float32Array([
   0.0, 0.0, 0.0, 1.0,
 ]);
 const RAINBOW_CAMERA_ID = 26;
+const NATIVE_FINAL_STACK_OVERLAY_EFFECT_IDS = new Set(["nomoGrain", "dust", "lightLeak", "vignette"]);
+const NATIVE_FINAL_STACK_CAMERA_FILTER_TYPES = new Set(["frame", "blend", "water"]);
+const CAMERA_OVERLAY_SOURCES = {
+  quicksnap: "./assets/camera-overlays/fujifilm-quicksnap-rotated-overlay.png",
+  random: "./assets/camera-overlays/randocam-rotated-overlay.png",
+  bnw: "./assets/camera-overlays/konak-bnw-rotated-overlay.png",
+  pinkTranslucent: "./assets/camera-overlays/seethrough-pink-rotated-overlay.png",
+  greenTranslucent: "./assets/camera-overlays/seethrough-green-rotated-overlay.png",
+  kodakM35: "./assets/camera-overlays/kodak-m35-rotated-overlay.png",
+  minimal: "./assets/camera-overlays/minimal-mode-rotated-overlay.png",
+};
+const CAMERA_OVERLAY_BY_FILENAME = {
+  "camera-53": "pinkTranslucent",
+  "camera-23": "greenTranslucent",
+  "camera-35": "kodakM35",
+};
+const CAMERA_OVERLAY_FEEDBACK = {
+  enabled: false,
+  shutterPress: true,
+  cropPress: true,
+  flashActiveBrightness: true,
+  facingToggleSlide: true,
+};
 const RAINBOW_CONFIG = {
   random: "2",
   tilt1: 2,
@@ -110,6 +209,7 @@ const NOMO_OVERLAY_PATHS = {
     "leak_060_g09_jpg_50_bottom.jpg",
   ],
 };
+const DEBUG_SESSION_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const state = {
   source: null,
   stillImage: null,
@@ -117,6 +217,7 @@ const state = {
   sourceName: "nomo-edit",
   sourceTexture: null,
   lutTexture: null,
+  lutRgbBytes: null,
   lookupTarget: null,
   effectsTarget: null,
   grainTexture: null,
@@ -126,27 +227,66 @@ const state = {
   filterMap: new Map(),
   filterEffectDefaults: new Map(),
   selectedFilterFilename: "",
+  lutByteCache: new Map(),
+  lutBytePromises: new Map(),
   aesKey: null,
   geometry: null,
   beforeHoldActive: false,
   cameraStream: null,
   cameraActive: false,
+  cameraStarting: false,
+  cameraStartToken: 0,
+  nativeCameraActive: false,
+  nativeCameraReady: false,
+  nativeCameraPreviewSize: { width: MOBILE_CAPTURE_WIDTH, height: MOBILE_CAPTURE_HEIGHT },
+  nativePreviewRectLastGood: null,
   cameraAnimationFrame: 0,
+  lastLiveRenderAt: 0,
   cameraAutostartAttempted: false,
+  cameraForceOpenUntilStarted: isMobileView(),
+  cameraCaptureInProgress: false,
+  cameraPendingCaptureCount: 0,
+  randomCameraEnabled: false,
+  favoriteCameraFilenames: readStoredFavoriteCameras(),
+  galleryTwoColumn: readStoredGalleryTwoColumn(),
+  theme: readStoredTheme(),
+  accentColor: readStoredAccentColor(),
+  halfSizeSave: readStoredHalfSizeSave(),
+  minimalMode: readStoredMinimalMode(),
+  levelGuideEnabled: readStoredLevelGuide(),
+  focalLabelEnabled: readStoredFocalLabel(),
+  levelZone: readStoredLevelZone(),
+  levelGuideActive: false,
+  nativeHardwareShutterReady: false,
   cameraPermissionState: readStoredCameraPermission(),
   cameraFlashEnabled: false,
   cameraTorchSupported: false,
   cameraFacingMode: "environment",
   cameraSwitching: false,
   cameraCropModeIndex: 0,
+  cameraCropLastToggleAt: 0,
+  cameraCropRenderTimer: 0,
+  pendingCameraStopOptions: null,
   cameraPreviewCanvas: document.createElement("canvas"),
   cameraPreviewContext: null,
+  webglContextLost: false,
   mobileSettingsOpen: false,
   galleryDb: null,
   galleryReadyPromise: null,
+  galleryLoadPromise: null,
+  galleryLoaded: false,
   galleryItems: [],
   galleryObjectUrls: [],
+  favoriteCameraObjectUrls: [],
+  galleryRenderedCount: 0,
+  nativeGalleryOffset: 0,
+  nativeGalleryHasMore: false,
+  nativeGalleryLoading: false,
+  nativeGalleryTotal: 0,
+  legacyGalleryLoaded: false,
+  nativeSpektraPendingListenerReady: false,
   selectedGalleryItem: null,
+  selectedGalleryObjectUrl: "",
   cameraSaveQueue: [],
   cameraSaveProcessing: false,
   nomoOverlayImages: null,
@@ -157,16 +297,20 @@ const state = {
     dust: 0,
     lightLeak: 0,
     vignette: 0,
+    stackTransform: 0,
   },
+  debug: readStoredDebugHistory(),
   effects: cloneEffectDefaults(),
   effectInputs: new Map(),
   importedEffects: {
     spektraGrain: {
       enabled: SPEKTRA_GRAIN_EFFECT.defaultEnabled,
       preset: SPEKTRA_GRAIN_EFFECT.defaultPreset,
+      mode: SPEKTRA_GRAIN_EFFECT.defaultMode,
     },
   },
   spektraProfile: null,
+  spektraProfilePromise: null,
   spektraRenderTimer: 0,
   importedEffectInputs: new Map(),
   canvasView: {
@@ -186,8 +330,24 @@ const state = {
     distance: 0,
     suppressNextListClick: false,
     startedInCameraList: false,
+    startedInFavoriteDrawer: false,
+    horizontalDirection: null,
   },
+  nativePreviewRectFrame: 0,
+  nativePreviewRectInFlight: false,
+  nativePreviewOffsetFrame: 0,
+  nativePreviewOffsetAnimationFrame: 0,
+  nativePreviewOffsetInFlight: false,
+  nativePreviewOffsetY: 0,
   cameraListOpen: false,
+  favoriteCameraDrawerOpen: false,
+  gallerySwipe: {
+    active: false,
+    pointerId: null,
+    startY: 0,
+    startScrollTop: 0,
+    distance: 0,
+  },
 };
 
 const defaults = {
@@ -362,6 +522,81 @@ void main() {
 
 main();
 
+function createEmptyDebugHistory() {
+  return {
+    sessions: 0,
+    lastOpenedAt: null,
+    events: [],
+    liveFrameCount: 0,
+    liveFrameTotalMs: 0,
+    lastLiveFrameMs: 0,
+    maxLiveFrameMs: 0,
+    captureCount: 0,
+    lastCaptureMs: 0,
+    lastCaptureBytes: 0,
+    saveCount: 0,
+    lastSaveMs: 0,
+    maxSaveMs: 0,
+    lastQueueDelayMs: 0,
+  };
+}
+
+function readStoredDebugHistory() {
+  let stored = null;
+  try {
+    stored = JSON.parse(window.localStorage.getItem(DEBUG_HISTORY_STORAGE_KEY) ?? "null");
+  } catch {
+    stored = null;
+  }
+  const debug = {
+    ...createEmptyDebugHistory(),
+    ...(stored && typeof stored === "object" ? stored : {}),
+  };
+  debug.events = Array.isArray(debug.events) ? debug.events.slice(-DEBUG_EVENT_LIMIT) : [];
+  debug.sessions = Number(debug.sessions ?? 0) + 1;
+  debug.lastOpenedAt = new Date().toISOString();
+  debug.events.push({
+    t: debug.lastOpenedAt,
+    session: DEBUG_SESSION_ID,
+    type: "session:start",
+    details: {
+      previousEvents: Math.max(0, debug.events.length),
+      previousSessions: Math.max(0, debug.sessions - 1),
+    },
+  });
+  if (debug.events.length > DEBUG_EVENT_LIMIT) {
+    debug.events.splice(0, debug.events.length - DEBUG_EVENT_LIMIT);
+  }
+  persistDebugHistory(debug);
+  return debug;
+}
+
+function persistDebugHistory(debug = state?.debug) {
+  if (!debug) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(DEBUG_HISTORY_STORAGE_KEY, JSON.stringify({
+      sessions: debug.sessions,
+      lastOpenedAt: debug.lastOpenedAt,
+      events: debug.events.slice(-DEBUG_EVENT_LIMIT),
+      liveFrameCount: debug.liveFrameCount,
+      liveFrameTotalMs: debug.liveFrameTotalMs,
+      lastLiveFrameMs: debug.lastLiveFrameMs,
+      maxLiveFrameMs: debug.maxLiveFrameMs,
+      captureCount: debug.captureCount,
+      lastCaptureMs: debug.lastCaptureMs,
+      lastCaptureBytes: debug.lastCaptureBytes,
+      saveCount: debug.saveCount,
+      lastSaveMs: debug.lastSaveMs,
+      maxSaveMs: debug.maxSaveMs,
+      lastQueueDelayMs: debug.lastQueueDelayMs,
+    }));
+  } catch {
+    // Debug persistence is best-effort and must never block capture.
+  }
+}
+
 async function main() {
   if (!gl) {
     emptyState.textContent = "This browser does not support WebGL2.";
@@ -422,10 +657,19 @@ async function initializeApp() {
   state.selectedFilterFilename = "";
   syncIntensityControlState();
   updateEffectControlState();
-  updateMobileCameraState();
   queueMobileCameraAutostart();
+  updateMobileCameraState();
   setStatus(isMobileView() ? "Opening camera..." : "Open a photo to start.");
+  if (!isMobileView()) {
+    revealAppUi();
+  }
   initializeDeferredAssets();
+}
+
+function revealAppUi() {
+  document.body.classList.remove("app-loading");
+  appStartupSplash?.setAttribute("aria-hidden", "true");
+  getNativeBridge()?.hideStartupSplash?.().catch((error) => console.error(error));
 }
 
 function initializeDeferredAssets() {
@@ -436,27 +680,6 @@ function initializeDeferredAssets() {
   ensureCameraOverlayImages(lookSelect.value)
     .then(() => renderImageAfterSettingsChange())
     .catch((error) => console.error(error));
-
-  loadSpektraProfile(SPEKTRA_PROFILE_PATH)
-    .then((profile) => {
-      state.spektraProfile = profile;
-      renderImageAfterSettingsChange();
-    })
-    .catch((error) => {
-      console.error(error);
-    });
-
-  state.galleryReadyPromise = openGalleryDb()
-    .then(async (db) => {
-      state.galleryDb = db;
-      state.galleryItems = await loadGalleryItems();
-      renderGallery();
-      return db;
-    })
-    .catch((error) => {
-      console.error(error);
-      return null;
-    });
 }
 
 async function loadNomoOverlayImages() {
@@ -523,6 +746,11 @@ function populateFilterSelect(filters) {
   const groups = new Map();
   const cameraGroups = new Map();
 
+  const randomCameraOption = document.createElement("option");
+  randomCameraOption.value = RANDOM_CAMERA_FILENAME;
+  randomCameraOption.textContent = "Random Cam";
+  cameraLookSelect.append(randomCameraOption);
+
   for (const filter of filters) {
     const groupLabel = filter.cameraListGroup ?? filter.group;
     if (!groups.has(groupLabel)) {
@@ -547,12 +775,45 @@ function populateFilterSelect(filters) {
   }
 
   populateCameraDrawerList(filters);
+  renderFavoriteCameraDrawer();
 
   lookSelect.disabled = filters.length === 0;
   cameraLookSelect.disabled = filters.length === 0;
+
+  const storedCamera = readStoredSelectedCamera();
+  const initialFilename = filters.some((filter) => filter.filename === storedCamera)
+    ? storedCamera
+    : filters[0]?.filename;
+  if (initialFilename) {
+    lookSelect.value = initialFilename;
+    cameraLookSelect.value = initialFilename;
+    writeStoredSelectedCamera(initialFilename);
+  }
+  syncCameraListSelection();
 }
 
 function populateCameraDrawerList(filters) {
+  cameraList.innerHTML = "";
+  const randomButton = document.createElement("button");
+  randomButton.type = "button";
+  randomButton.className = "camera-list__item";
+  randomButton.dataset.filename = RANDOM_CAMERA_FILENAME;
+  randomButton.textContent = "Random Cam";
+  randomButton.addEventListener("click", () => {
+    if (state.cameraSwipe.suppressNextListClick) {
+      state.cameraSwipe.suppressNextListClick = false;
+      return;
+    }
+    selectFilter(RANDOM_CAMERA_FILENAME).catch((error) => console.error(error));
+    setCameraListOpen(false);
+  });
+  cameraList.append(randomButton);
+
+  const favoriteFilters = filters.filter((filter) => state.favoriteCameraFilenames.has(filter.filename));
+  if (favoriteFilters.length) {
+    appendCameraDrawerGroup("Favorites", favoriteFilters);
+  }
+
   const drawerGroups = new Map();
   for (const filter of filters) {
     const groupLabel = filter.cameraListGroup ?? filter.group;
@@ -563,28 +824,51 @@ function populateCameraDrawerList(filters) {
   }
 
   for (const [groupLabel, groupFilters] of drawerGroups.entries()) {
-    const cameraListHeading = document.createElement("div");
-    cameraListHeading.className = "camera-list__heading";
-    cameraListHeading.textContent = groupLabel;
-    cameraList.append(cameraListHeading);
-
-    for (const filter of groupFilters) {
-      const cameraButton = document.createElement("button");
-      cameraButton.type = "button";
-      cameraButton.className = "camera-list__item";
-      cameraButton.dataset.filename = filter.filename;
-      cameraButton.textContent = filter.name;
-      cameraButton.addEventListener("click", () => {
-        if (state.cameraSwipe.suppressNextListClick) {
-          state.cameraSwipe.suppressNextListClick = false;
-          return;
-        }
-        handleFilterSelection(filter.filename);
-        setCameraListOpen(false);
-      });
-      cameraList.append(cameraButton);
-    }
+    appendCameraDrawerGroup(groupLabel, groupFilters);
   }
+}
+
+function appendCameraDrawerGroup(groupLabel, groupFilters) {
+  const cameraListHeading = document.createElement("div");
+  cameraListHeading.className = "camera-list__heading";
+  cameraListHeading.textContent = groupLabel;
+  cameraList.append(cameraListHeading);
+
+  for (const filter of groupFilters) {
+    cameraList.append(createCameraListRow(filter));
+  }
+}
+
+function createCameraListRow(filter) {
+  const row = document.createElement("div");
+  row.className = "camera-list__row";
+
+  const cameraButton = document.createElement("button");
+  cameraButton.type = "button";
+  cameraButton.className = "camera-list__item";
+  cameraButton.dataset.filename = filter.filename;
+  cameraButton.textContent = filter.name;
+  cameraButton.addEventListener("click", () => {
+    if (state.cameraSwipe.suppressNextListClick) {
+      state.cameraSwipe.suppressNextListClick = false;
+      return;
+    }
+    handleFilterSelection(filter.filename);
+    setCameraListOpen(false);
+  });
+
+  const favoriteButton = document.createElement("button");
+  favoriteButton.type = "button";
+  favoriteButton.className = "camera-list__favorite";
+  favoriteButton.dataset.filename = filter.filename;
+  favoriteButton.setAttribute("aria-label", `Toggle ${filter.name} favorite`);
+  favoriteButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleFavoriteCamera(filter.filename);
+  });
+
+  row.append(cameraButton, favoriteButton);
+  return row;
 }
 
 function loadFilterEffectDefaults(filters) {
@@ -604,6 +888,13 @@ function loadFilterEffectDefaults(filters) {
     if (Object.keys(defaultsForFilter).length) {
       defaultsByFilter.set(filter.filename, defaultsForFilter);
     }
+  }
+
+  for (const [filename, overrides] of Object.entries(CAMERA_EFFECT_DEFAULT_OVERRIDES)) {
+    defaultsByFilter.set(filename, {
+      ...(defaultsByFilter.get(filename) ?? {}),
+      ...overrides,
+    });
   }
 
   return defaultsByFilter;
@@ -825,16 +1116,28 @@ function renderImportedEffectControls() {
   }
   presetSelect.value = state.importedEffects.spektraGrain.preset;
 
-  card.append(row, presetSelect);
+  const modeSelect = document.createElement("select");
+  modeSelect.className = "imported-effect-select";
+  modeSelect.disabled = !state.importedEffects.spektraGrain.enabled;
+  for (const mode of SPEKTRA_GRAIN_EFFECT.modes) {
+    const option = document.createElement("option");
+    option.value = mode.value;
+    option.textContent = mode.label;
+    modeSelect.append(option);
+  }
+  modeSelect.value = state.importedEffects.spektraGrain.mode ?? SPEKTRA_GRAIN_EFFECT.defaultMode;
+
+  card.append(row, presetSelect, modeSelect);
 
   card.title = SPEKTRA_GRAIN_EFFECT.anchor;
 
   importedEffectsRoot.append(card);
-  state.importedEffectInputs.set(SPEKTRA_GRAIN_EFFECT.id, { input, presetSelect });
+  state.importedEffectInputs.set(SPEKTRA_GRAIN_EFFECT.id, { input, presetSelect, modeSelect });
 
   input.addEventListener("input", () => {
     state.importedEffects.spektraGrain.enabled = input.checked;
     presetSelect.disabled = !input.checked;
+    modeSelect.disabled = !input.checked;
     renderImageAfterSettingsChange();
   });
 
@@ -842,6 +1145,12 @@ function renderImportedEffectControls() {
     state.importedEffects.spektraGrain.preset = presetSelect.value;
     renderImageAfterSettingsChange();
   });
+
+  modeSelect.addEventListener("input", () => {
+    state.importedEffects.spektraGrain.mode = modeSelect.value;
+    renderImageAfterSettingsChange();
+  });
+
 }
 
 function createShader(type, source) {
@@ -917,8 +1226,20 @@ function initializeGeometry() {
 }
 
 function bindCameraUi() {
+  syncThemeSetting();
+  syncAccentColorSetting();
+  syncGalleryLayoutSetting();
+  syncHalfSizeSaveSetting();
+  syncMinimalModeSetting();
+  syncLevelGuideSetting();
+  syncFocalLabelSetting();
   updateMobileCameraState();
   MOBILE_MEDIA_QUERY.addEventListener("change", handleMobileViewportChange);
+  THEME_MEDIA_QUERY?.addEventListener?.("change", () => {
+    if (state.theme === "system") {
+      applyThemeSetting();
+    }
+  });
 }
 
 function handleMobileViewportChange(event) {
@@ -948,6 +1269,246 @@ function writeStoredCameraPermission(value) {
     window.localStorage.setItem(CAMERA_PERMISSION_STORAGE_KEY, value);
   } catch {
     // Storage can be unavailable in private mode; browser permission remains authoritative.
+  }
+}
+
+function readStoredSelectedCamera() {
+  try {
+    return window.localStorage.getItem(SELECTED_CAMERA_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSelectedCamera(filename) {
+  if (!filename || filename === RANDOM_CAMERA_FILENAME) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(SELECTED_CAMERA_STORAGE_KEY, filename);
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory selection still works.
+  }
+}
+
+function readStoredFavoriteCameras() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FAVORITE_CAMERAS_STORAGE_KEY) ?? "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((filename) => typeof filename === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeStoredFavoriteCameras() {
+  try {
+    window.localStorage.setItem(FAVORITE_CAMERAS_STORAGE_KEY, JSON.stringify([...state.favoriteCameraFilenames]));
+  } catch {
+    // Storage can be unavailable in private mode; favorites persist for this session only.
+  }
+}
+
+function readStoredGalleryTwoColumn() {
+  try {
+    return window.localStorage.getItem(GALLERY_TWO_COLUMN_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredGalleryTwoColumn(value) {
+  try {
+    window.localStorage.setItem(GALLERY_TWO_COLUMN_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredTheme() {
+  try {
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return THEME_VALUES.has(value) ? value : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+function writeStoredTheme(value) {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, value);
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function normalizeAccentColor(value) {
+  const color = String(value ?? "").trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_ACCENT_COLOR;
+}
+
+function readStoredAccentColor() {
+  try {
+    return normalizeAccentColor(window.localStorage.getItem(ACCENT_COLOR_STORAGE_KEY));
+  } catch {
+    return DEFAULT_ACCENT_COLOR;
+  }
+}
+
+function writeStoredAccentColor(value) {
+  try {
+    window.localStorage.setItem(ACCENT_COLOR_STORAGE_KEY, normalizeAccentColor(value));
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredHalfSizeSave() {
+  try {
+    return window.localStorage.getItem(HALF_SIZE_SAVE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredHalfSizeSave(value) {
+  try {
+    window.localStorage.setItem(HALF_SIZE_SAVE_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredMinimalMode() {
+  try {
+    const value = window.localStorage.getItem(MINIMAL_MODE_STORAGE_KEY);
+    return value === null ? true : value === "1";
+  } catch {
+    return true;
+  }
+}
+
+function writeStoredMinimalMode(value) {
+  try {
+    window.localStorage.setItem(MINIMAL_MODE_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredLevelGuide() {
+  try {
+    const value = window.localStorage.getItem(LEVEL_GUIDE_STORAGE_KEY);
+    return value === null ? true : value === "1";
+  } catch {
+    return true;
+  }
+}
+
+function writeStoredLevelGuide(value) {
+  try {
+    window.localStorage.setItem(LEVEL_GUIDE_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredFocalLabel() {
+  try {
+    return window.localStorage.getItem(FOCAL_LABEL_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredFocalLabel(value) {
+  try {
+    window.localStorage.setItem(FOCAL_LABEL_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function readStoredLevelZone() {
+  return "wide";
+}
+
+function writeStoredLevelZone(value) {
+  try {
+    window.localStorage.setItem(LEVEL_ZONE_STORAGE_KEY, value);
+  } catch {
+    // Storage can be unavailable in private mode; the in-memory setting still works.
+  }
+}
+
+function syncGalleryLayoutSetting() {
+  document.body.classList.toggle("gallery-two-column", state.galleryTwoColumn);
+  if (galleryTwoColumnToggle) {
+    galleryTwoColumnToggle.checked = state.galleryTwoColumn;
+  }
+}
+
+function getResolvedTheme() {
+  if (state.theme === "light" || state.theme === "dark") {
+    return state.theme;
+  }
+  return THEME_MEDIA_QUERY?.matches ? "dark" : "light";
+}
+
+function applyThemeSetting() {
+  document.documentElement.dataset.appTheme = getResolvedTheme();
+  document.documentElement.dataset.themeSetting = state.theme;
+}
+
+function applyAccentColorSetting() {
+  const color = normalizeAccentColor(state.accentColor);
+  document.documentElement.style.setProperty("--ui-accent", color);
+  document.documentElement.style.setProperty("--ui-accent-strong", color);
+}
+
+function syncThemeSetting() {
+  applyThemeSetting();
+  if (themeSelect) {
+    themeSelect.value = state.theme;
+  }
+}
+
+function syncAccentColorSetting() {
+  state.accentColor = normalizeAccentColor(state.accentColor);
+  applyAccentColorSetting();
+  if (accentColorInput) {
+    accentColorInput.value = state.accentColor;
+  }
+  for (const button of accentSwatches?.querySelectorAll(".accent-swatch") ?? []) {
+    const swatchColor = normalizeAccentColor(button.dataset.accent);
+    button.classList.toggle("is-selected", swatchColor === state.accentColor);
+    button.setAttribute("aria-pressed", swatchColor === state.accentColor ? "true" : "false");
+  }
+}
+
+function syncHalfSizeSaveSetting() {
+  if (halfSizeSaveToggle) {
+    halfSizeSaveToggle.checked = state.halfSizeSave;
+  }
+}
+
+function syncMinimalModeSetting() {
+  document.body.classList.toggle("minimal-mode-active", state.minimalMode);
+  if (minimalModeToggle) {
+    minimalModeToggle.checked = state.minimalMode;
+  }
+}
+
+function syncLevelGuideSetting() {
+  if (levelGuideToggle) {
+    levelGuideToggle.checked = state.levelGuideEnabled;
+  }
+  state.levelZone = "wide";
+}
+
+function syncFocalLabelSetting() {
+  document.body.classList.toggle("camera-focal-label-enabled", state.focalLabelEnabled);
+  if (focalLabelToggle) {
+    focalLabelToggle.checked = state.focalLabelEnabled;
   }
 }
 
@@ -994,8 +1555,11 @@ async function canAutostartCameraWithoutPrompt() {
 
 function updateMobileCameraState() {
   const mobile = isMobileView();
-  const cameraSupported = Boolean(navigator.mediaDevices?.getUserMedia);
-  const canOpen = mobile && cameraSupported && !state.cameraActive && !lookSelect.disabled;
+  const cameraSupported = Boolean(isNativeCameraAvailable() || navigator.mediaDevices?.getUserMedia);
+  const canOpen = mobile && cameraSupported && !state.cameraActive && !state.cameraStarting && !lookSelect.disabled;
+  const cameraUiActive = mobile && (state.cameraActive || state.cameraStarting || state.cameraForceOpenUntilStarted);
+  const selectedFilter = state.filterMap.get(lookSelect.value);
+  const useBnwOverlay = Boolean(selectedFilter?.isBnw);
 
   startCameraButton.disabled = !canOpen;
   capturePhotoButton.disabled = !mobile || !state.cameraActive;
@@ -1011,16 +1575,147 @@ function updateMobileCameraState() {
   cameraPresetLabel.textContent = state.cameraActive
     ? `Live preview: ${state.filterMap.get(lookSelect.value)?.name ?? "selected preset"}`
     : "Ready to capture with the selected preset.";
-  document.body.classList.toggle("camera-mode-active", mobile && state.cameraActive);
-  document.body.classList.toggle("mobile-gallery-active", mobile && !state.cameraActive && !state.mobileSettingsOpen);
-  document.body.classList.toggle("mobile-settings-active", mobile && !state.cameraActive && state.mobileSettingsOpen);
+  document.body.classList.toggle("camera-boot", cameraUiActive && !state.cameraActive);
+  document.body.classList.toggle("camera-mode-active", cameraUiActive);
+  document.body.classList.toggle("bnw-camera-active", cameraUiActive && useBnwOverlay);
+  document.body.classList.toggle("random-camera-active", cameraUiActive && state.randomCameraEnabled);
+  document.body.classList.toggle("selfie-camera-active", cameraUiActive && state.cameraFacingMode === "user");
+  document.body.classList.toggle("translucent-camera-active", cameraUiActive && getCameraOverlayKey(useBnwOverlay).includes("Translucent"));
+  document.body.classList.toggle("m35-camera-active", cameraUiActive && getCameraOverlayKey(useBnwOverlay) === "kodakM35");
+  document.body.classList.toggle("camera-flash-enabled", cameraUiActive && state.cameraFlashEnabled);
+  document.body.classList.toggle("camera-overlay-feedback", cameraUiActive && CAMERA_OVERLAY_FEEDBACK.enabled);
+  document.body.classList.toggle("camera-overlay-shutter-feedback", CAMERA_OVERLAY_FEEDBACK.enabled && CAMERA_OVERLAY_FEEDBACK.shutterPress);
+  document.body.classList.toggle("camera-overlay-crop-feedback", CAMERA_OVERLAY_FEEDBACK.enabled && CAMERA_OVERLAY_FEEDBACK.cropPress);
+  document.body.classList.toggle("camera-overlay-flash-feedback", CAMERA_OVERLAY_FEEDBACK.enabled && CAMERA_OVERLAY_FEEDBACK.flashActiveBrightness);
+  document.body.classList.toggle("camera-overlay-facing-feedback", CAMERA_OVERLAY_FEEDBACK.enabled && CAMERA_OVERLAY_FEEDBACK.facingToggleSlide);
+  document.body.classList.toggle("native-camera-active", mobile && state.nativeCameraActive);
+  document.documentElement.classList.toggle("native-camera-active", mobile && state.nativeCameraActive);
+  document.body.classList.toggle(
+    "mobile-gallery-active",
+    mobile && !state.cameraActive && !state.cameraStarting && !state.mobileSettingsOpen && !state.cameraForceOpenUntilStarted
+  );
+  document.body.classList.toggle("mobile-settings-active", mobile && !state.cameraActive && !state.cameraStarting && state.mobileSettingsOpen);
   if (!mobile || !state.cameraActive) {
     setCameraGalleryPeek(false);
     setCameraListOpen(false);
+    setFavoriteCameraDrawerOpen(false);
   }
   syncCameraListSelection();
+  syncCameraDeviceOverlay(useBnwOverlay);
   updateCameraFlashState();
   updateCameraCropButton();
+  updateCameraCaptureLock();
+  syncNativeLevelGuide();
+}
+
+function syncCameraDeviceOverlay(useBnwOverlay) {
+  const nextSrc = CAMERA_OVERLAY_SOURCES[getCameraOverlayKey(useBnwOverlay)] ?? CAMERA_OVERLAY_SOURCES.quicksnap;
+  if (cameraDeviceOverlay && !cameraDeviceOverlay.src.endsWith(nextSrc.replace("./", ""))) {
+    cameraDeviceOverlay.src = nextSrc;
+    scheduleNativePreviewRectUpdate();
+  }
+}
+
+function getCameraOverlayKey(useBnwOverlay = Boolean(state.filterMap.get(lookSelect.value)?.isBnw)) {
+  if (state.minimalMode) {
+    return "minimal";
+  }
+  if (state.randomCameraEnabled) {
+    return "random";
+  }
+  return CAMERA_OVERLAY_BY_FILENAME[lookSelect.value] ?? (useBnwOverlay ? "bnw" : "quicksnap");
+}
+
+function updateCameraCaptureLock() {
+  const locked = state.cameraCaptureInProgress;
+  capturePhotoButton.setAttribute("aria-busy", String(locked));
+  cameraCaptureButton.setAttribute("aria-busy", String(locked));
+  cameraFacingToggleButton.disabled = cameraFacingToggleButton.disabled || locked;
+  cameraPreviewGalleryButton.disabled = cameraPreviewGalleryButton.disabled || locked;
+  stopCameraButton.disabled = stopCameraButton.disabled || locked;
+}
+
+function setupNativeHardwareShutter() {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge) {
+    return;
+  }
+  setupNativeSpektraPendingPreviewListener(nativeBridge);
+
+  if (!state.nativeHardwareShutterReady) {
+    state.nativeHardwareShutterReady = true;
+    const listenerPromise = nativeBridge.addListener?.("hardwareShutter", (event) => {
+      debugEvent("hardware-shutter", event ?? { source: "volume" });
+      requestCameraCapture({ source: "hardware" });
+    });
+    listenerPromise?.catch?.((error) => {
+      state.nativeHardwareShutterReady = false;
+      console.error(error);
+    });
+  }
+
+  nativeBridge.startHardwareShutter?.()
+    .then((result) => {
+      if (result?.mode) {
+        debugEvent("hardware-shutter:ready", { mode: result.mode });
+      }
+    })
+    .catch((error) => console.error(error));
+}
+
+function setupNativeSpektraPendingPreviewListener(nativeBridge = getNativeBridge()) {
+  if (!nativeBridge || state.nativeSpektraPendingListenerReady) {
+    return;
+  }
+  state.nativeSpektraPendingListenerReady = true;
+  const listenerPromise = nativeBridge.addListener?.("nativeSpektraPendingPreview", (event) => {
+    upsertPendingSpektraGalleryItem(event ?? {});
+  });
+  listenerPromise?.catch?.((error) => {
+    state.nativeSpektraPendingListenerReady = false;
+    console.error(error);
+  });
+}
+
+function syncNativeLevelGuide() {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.startLevelGuide || !nativeBridge?.stopLevelGuide) {
+    return;
+  }
+
+  const shouldRun = isMobileView() && state.cameraActive && state.levelGuideEnabled;
+  if (shouldRun && !state.levelGuideActive) {
+    state.levelGuideActive = true;
+    nativeBridge.startLevelGuide({ zone: state.levelZone }).catch((error) => {
+      console.error(error);
+      state.levelGuideActive = false;
+      setStatus("Haptic level guide is unavailable on this device.");
+    });
+  } else if (!shouldRun && state.levelGuideActive) {
+    state.levelGuideActive = false;
+    nativeBridge.stopLevelGuide().catch((error) => console.error(error));
+  }
+}
+
+async function ensureSpektraProfileLoaded() {
+  if (state.spektraProfile) {
+    return state.spektraProfile;
+  }
+  if (!state.spektraProfilePromise) {
+    state.spektraProfilePromise = loadSpektraProfile(SPEKTRA_PROFILE_PATH)
+      .then((profile) => {
+        state.spektraProfile = profile;
+        return profile;
+      })
+      .catch((error) => {
+        console.error(error);
+        return null;
+      })
+      .finally(() => {
+        state.spektraProfilePromise = null;
+      });
+  }
+  return state.spektraProfilePromise;
 }
 
 function queueMobileCameraAutostart() {
@@ -1029,6 +1724,8 @@ function queueMobileCameraAutostart() {
   }
 
   state.cameraAutostartAttempted = true;
+  state.cameraForceOpenUntilStarted = true;
+  updateMobileCameraState();
   window.setTimeout(async () => {
     if (isMobileView() && !state.cameraActive) {
       await startCamera({ automatic: true });
@@ -1036,22 +1733,90 @@ function queueMobileCameraAutostart() {
   }, 0);
 }
 
+function resetMobileTransitionState(options = {}) {
+  state.cameraSwipe.active = false;
+  state.cameraSwipe.pointerId = null;
+  state.cameraSwipe.axis = null;
+  state.cameraSwipe.distance = 0;
+  state.cameraSwipe.startedInCameraList = false;
+  state.cameraSwipe.startedInFavoriteDrawer = false;
+  state.cameraSwipe.horizontalDirection = null;
+  state.gallerySwipe.active = false;
+  state.gallerySwipe.pointerId = null;
+  state.gallerySwipe.startY = 0;
+  state.gallerySwipe.distance = 0;
+  workspace.style.transition = "";
+  workspace.style.transform = "";
+  mobileGallery.style.transition = "";
+  mobileGallery.style.transform = "";
+  setCameraGalleryPeek(false);
+  if (options.closeDrawers) {
+    setCameraListOpen(false);
+    setFavoriteCameraDrawerOpen(false);
+  }
+  if (options.resetNativePreviewOffset) {
+    cancelNativePreviewOffsetAnimation();
+    state.nativePreviewOffsetY = 0;
+    scheduleNativePreviewOffsetUpdate(0);
+  }
+}
+
+function getNativeBridge() {
+  return window.Capacitor?.Plugins?.KonoNativeBridge ?? null;
+}
+
+function isNativeCameraAvailable() {
+  return Boolean(getNativeBridge()?.startCamera);
+}
+
+function installMobileZoomGuards() {
+  document.addEventListener(
+    "gesturestart",
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false }
+  );
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches?.length > 1) {
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+}
+
 async function startCamera() {
   if (!isMobileView()) {
     return;
   }
 
-  if (state.cameraActive) {
+  if (state.cameraActive || state.cameraStarting) {
     return;
   }
 
-  if (!navigator.mediaDevices?.getUserMedia) {
-    setStatus("Camera capture is not available in this browser.");
-    return;
-  }
+  const startToken = ++state.cameraStartToken;
+  state.cameraStarting = true;
+  state.cameraForceOpenUntilStarted = true;
+  state.mobileSettingsOpen = false;
+  resetMobileTransitionState({ closeDrawers: true, resetNativePreviewOffset: true });
+  updateMobileCameraState();
 
   try {
-    state.mobileSettingsOpen = false;
+    if (isNativeCameraAvailable() && !USE_WEB_FILTERED_CAMERA_PREVIEW) {
+      await startNativeCamera(startToken);
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("Camera capture is not available in this browser.");
+      state.cameraForceOpenUntilStarted = false;
+      updateMobileCameraState();
+      return;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: state.cameraFacingMode },
@@ -1060,10 +1825,17 @@ async function startCamera() {
       },
       audio: false,
     });
+    if (state.cameraStartToken !== startToken) {
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
+      return;
+    }
 
     state.cameraStream = stream;
     state.cameraActive = true;
     cameraPreview.srcObject = stream;
+    cameraPreviewSlot.prepend(cameraPreview);
     cameraPreviewSlot.append(canvas);
     await cameraPreview.play();
     state.cameraTorchSupported = detectTorchSupport(stream);
@@ -1075,6 +1847,8 @@ async function startCamera() {
     emptyState.style.display = "none";
     updateMobileCameraState();
     startLiveCameraRender();
+    state.cameraForceOpenUntilStarted = false;
+    revealAppUi();
     setStatus("Camera ready. Live preview uses the selected preset.");
   } catch (error) {
     console.error(error);
@@ -1085,13 +1859,114 @@ async function startCamera() {
     } else {
       setStatus("Unable to open the camera.");
     }
+    state.cameraForceOpenUntilStarted = false;
     updateMobileCameraState();
+    revealAppUi();
+  } finally {
+    if (state.cameraStartToken === startToken) {
+      state.cameraStarting = false;
+      updateMobileCameraState();
+    }
+  }
+}
+
+async function startNativeCamera(startToken = state.cameraStartToken) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.startCamera) {
+    throw new Error("Native camera bridge is unavailable.");
+  }
+
+  try {
+    setupNativeHardwareShutter();
+    state.mobileSettingsOpen = false;
+    cameraPreviewSlot.append(canvas);
+    resetCanvasView();
+    cameraShell.hidden = false;
+    state.cameraActive = true;
+    state.nativeCameraActive = true;
+    state.nativeCameraReady = false;
+    canvas.style.display = "block";
+    emptyState.style.display = "none";
+    updateMobileCameraState();
+    await waitForNextPaint();
+    const result = await nativeBridge.startCamera({
+      facingMode: state.cameraFacingMode,
+      flashEnabled: state.cameraFlashEnabled,
+      cropFactor: getCameraCropFactor(),
+      previewRect: getCameraPreviewViewportRect(),
+      shellRect: getCameraShellViewportRect(),
+      overlayPath: getNativeCameraOverlayPath(),
+    });
+    if (state.cameraStartToken !== startToken || !state.cameraActive) {
+      nativeBridge.stopCamera?.().catch((error) => console.error(error));
+      return;
+    }
+    state.nativeCameraReady = true;
+    state.nativeCameraPreviewSize = {
+      width: Number(result?.width) || MOBILE_CAPTURE_WIDTH,
+      height: Number(result?.height) || MOBILE_CAPTURE_HEIGHT,
+    };
+    state.cameraTorchSupported = Boolean(result?.flashSupported);
+    state.cameraPermissionState = CAMERA_PERMISSION_GRANTED;
+    writeStoredCameraPermission(CAMERA_PERMISSION_GRANTED);
+    updateMobileCameraState();
+    if (!NATIVE_CAMERA_PREVIEW_MODE) {
+      renderNativeCameraPlaceholder();
+    }
+    state.cameraForceOpenUntilStarted = false;
+    revealAppUi();
+    setStatus("Native camera ready. Captures use iPhone camera APIs.");
+  } catch (error) {
+    console.error(error);
+    state.nativeCameraActive = false;
+    state.nativeCameraReady = false;
+    state.cameraActive = false;
+    cameraShell.hidden = true;
+    workspace.append(canvas);
+    state.cameraForceOpenUntilStarted = false;
+    if (error?.message?.includes("denied")) {
+      state.cameraPermissionState = CAMERA_PERMISSION_DENIED;
+      writeStoredCameraPermission(CAMERA_PERMISSION_DENIED);
+      setStatus("Camera permission is blocked. Enable it in iOS Settings.");
+    } else {
+      setStatus("Unable to open the native camera.");
+    }
+    updateMobileCameraState();
+    revealAppUi();
   }
 }
 
 function stopCamera(options = {}) {
+  state.cameraStartToken += 1;
+  state.cameraStarting = false;
+  if (state.cameraCaptureInProgress && !options.force) {
+    state.pendingCameraStopOptions = { ...options };
+    setStatus("Finishing capture before closing camera.");
+    updateMobileCameraState();
+    return;
+  }
+
   stopLiveCameraRender();
-  setCameraGalleryPeek(false);
+  resetMobileTransitionState({ closeDrawers: true, resetNativePreviewOffset: true });
+  if (state.nativePreviewRectFrame) {
+    window.cancelAnimationFrame(state.nativePreviewRectFrame);
+    state.nativePreviewRectFrame = 0;
+  }
+  if (state.nativePreviewOffsetFrame) {
+    window.cancelAnimationFrame(state.nativePreviewOffsetFrame);
+    state.nativePreviewOffsetFrame = 0;
+  }
+  if (state.nativePreviewOffsetAnimationFrame) {
+    window.cancelAnimationFrame(state.nativePreviewOffsetAnimationFrame);
+    state.nativePreviewOffsetAnimationFrame = 0;
+  }
+  state.nativePreviewRectInFlight = false;
+  state.nativePreviewOffsetInFlight = false;
+  state.nativePreviewOffsetY = 0;
+
+  if (state.nativeCameraActive) {
+    getNativeBridge()?.stopCamera?.().catch((error) => console.error(error));
+  }
 
   if (state.cameraStream) {
     applyCameraTorch(false).catch((error) => console.error(error));
@@ -1102,8 +1977,13 @@ function stopCamera(options = {}) {
 
   state.cameraStream = null;
   state.cameraActive = false;
+  state.nativeCameraActive = false;
+  state.nativeCameraReady = false;
+  state.cameraPendingCaptureCount = 0;
+  state.cameraForceOpenUntilStarted = false;
   state.cameraTorchSupported = false;
   state.mobileSettingsOpen = Boolean(options.settings);
+  state.pendingCameraStopOptions = null;
   cameraPreview.srcObject = null;
   cameraShell.hidden = true;
   workspace.append(canvas);
@@ -1121,6 +2001,9 @@ function stopCamera(options = {}) {
     }
   }
   updateMobileCameraState();
+  if (!options.settings) {
+    loadGalleryOnDemand().catch((error) => console.error(error));
+  }
 
   if (state.source) {
     renderImage();
@@ -1129,8 +2012,171 @@ function stopCamera(options = {}) {
   }
 }
 
+function getCameraPreviewViewportRect() {
+  const rect = cameraPreviewSlot.getBoundingClientRect();
+  return getViewportRectFromDomRect(rect);
+}
+
+function getCameraShellViewportRect() {
+  const frame = document.querySelector(".camera-device-frame");
+  const rect = frame?.getBoundingClientRect?.();
+  return rect ? getViewportRectFromDomRect(rect) : getCameraPreviewViewportRect();
+}
+
+function getNativeCameraOverlayPath() {
+  const key = getCameraOverlayKey();
+  return CAMERA_OVERLAY_SOURCES[key] ?? CAMERA_OVERLAY_SOURCES.quicksnap;
+}
+
+function getViewportRectFromDomRect(rect) {
+  const scale = window.devicePixelRatio || 1;
+  const viewportRect = {
+    x: Math.round(rect.left * scale),
+    y: Math.round(rect.top * scale),
+    width: Math.round(rect.width * scale),
+    height: Math.round(rect.height * scale),
+  };
+  const minSide = Math.round(80 * scale);
+  const viewportWidth = Math.round(window.innerWidth * scale);
+  const viewportHeight = Math.round(window.innerHeight * scale);
+  const valid = viewportRect.width >= minSide
+    && viewportRect.height >= minSide
+    && viewportRect.x > -viewportRect.width
+    && viewportRect.y > -viewportRect.height
+    && viewportRect.x < viewportWidth
+    && viewportRect.y < viewportHeight;
+
+  if (valid) {
+    state.nativePreviewRectLastGood = viewportRect;
+    return viewportRect;
+  }
+
+  debugEvent("native-preview-rect:ignored", viewportRect);
+  return state.nativePreviewRectLastGood ?? {
+    x: 0,
+    y: 0,
+    width: viewportWidth,
+    height: viewportHeight,
+  };
+}
+
+function scheduleNativePreviewRectUpdate() {
+  const nativeBridge = getNativeBridge();
+  if (!state.nativeCameraActive || !nativeBridge?.setPreviewRect || state.nativePreviewRectFrame) {
+    return;
+  }
+
+  state.nativePreviewRectFrame = window.requestAnimationFrame(() => {
+    state.nativePreviewRectFrame = 0;
+    if (!state.nativeCameraActive || state.nativePreviewRectInFlight) {
+      return;
+    }
+
+    state.nativePreviewRectInFlight = true;
+    nativeBridge.setPreviewRect({
+      previewRect: getCameraPreviewViewportRect(),
+      shellRect: getCameraShellViewportRect(),
+      overlayPath: getNativeCameraOverlayPath(),
+    })
+      .catch((error) => {
+        console.error(error);
+        debugEvent("native-preview-rect:error", { message: error?.message ?? String(error) });
+      })
+      .finally(() => {
+        state.nativePreviewRectInFlight = false;
+      });
+  });
+}
+
+function resyncNativeCameraPreview(reason = "unknown") {
+  if (!state.nativeCameraActive) {
+    return;
+  }
+
+  debugEvent("native-preview:resync", {
+    reason,
+    cropFactor: getCameraCropFactor(),
+    visible: document.visibilityState,
+  });
+
+  getNativeBridge()?.setCropFactor?.({ factor: getCameraCropFactor() }).catch((error) => {
+    console.error(error);
+    debugEvent("native-preview-crop:error", { message: error?.message ?? String(error), reason });
+  });
+  scheduleNativePreviewOffsetUpdate(state.nativePreviewOffsetY || 0);
+  scheduleNativePreviewRectUpdate();
+}
+
+function scheduleNativePreviewOffsetUpdate(y = 0) {
+  const nativeBridge = getNativeBridge();
+  if (!state.nativeCameraActive || !nativeBridge?.setPreviewOffset) {
+    return;
+  }
+  state.nativePreviewOffsetY = y;
+  if (state.nativePreviewOffsetFrame) {
+    return;
+  }
+
+  state.nativePreviewOffsetFrame = window.requestAnimationFrame(() => {
+    state.nativePreviewOffsetFrame = 0;
+    if (!state.nativeCameraActive) {
+      return;
+    }
+    const nextY = state.nativePreviewOffsetY;
+    state.nativePreviewOffsetInFlight = true;
+    nativeBridge.setPreviewOffset({ y: nextY })
+      .catch((error) => {
+        console.error(error);
+        debugEvent("native-preview-offset:error", { message: error?.message ?? String(error) });
+      })
+      .finally(() => {
+        state.nativePreviewOffsetInFlight = false;
+        if (state.nativePreviewOffsetY !== nextY) {
+          scheduleNativePreviewOffsetUpdate(state.nativePreviewOffsetY);
+        }
+      });
+  });
+}
+
+function cancelNativePreviewOffsetAnimation() {
+  if (!state.nativePreviewOffsetAnimationFrame) {
+    return;
+  }
+  window.cancelAnimationFrame(state.nativePreviewOffsetAnimationFrame);
+  state.nativePreviewOffsetAnimationFrame = 0;
+}
+
+function animateNativePreviewOffsetTo(targetY = 0, durationMs = 220) {
+  cancelNativePreviewOffsetAnimation();
+  const startY = state.nativePreviewOffsetY || 0;
+  const startedAt = performance.now();
+  const duration = Math.max(1, durationMs);
+
+  const step = (now) => {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const y = startY + (targetY - startY) * eased;
+    scheduleNativePreviewOffsetUpdate(y);
+    if (progress < 1) {
+      state.nativePreviewOffsetAnimationFrame = window.requestAnimationFrame(step);
+      return;
+    }
+    state.nativePreviewOffsetAnimationFrame = 0;
+    scheduleNativePreviewOffsetUpdate(targetY);
+  };
+
+  state.nativePreviewOffsetAnimationFrame = window.requestAnimationFrame(step);
+}
+
+function waitForNextPaint() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+  });
+}
+
 function startLiveCameraRender() {
   stopLiveCameraRender();
+  state.lastLiveRenderAt = 0;
   state.cameraAnimationFrame = window.requestAnimationFrame(renderLiveCameraFrame);
 }
 
@@ -1142,14 +2188,30 @@ function stopLiveCameraRender() {
 }
 
 async function renderLiveCameraFrame() {
+  const frameStartedAt = performance.now();
   state.cameraAnimationFrame = 0;
 
-  if (!state.cameraActive) {
+  if (!state.cameraActive || state.nativeCameraActive || state.webglContextLost) {
     return;
   }
 
+  const minFrameInterval = state.cameraSaveProcessing
+    ? CAMERA_PREVIEW_SAVE_MIN_FRAME_INTERVAL_MS
+    : CAMERA_PREVIEW_MIN_FRAME_INTERVAL_MS;
+  if (frameStartedAt - state.lastLiveRenderAt < minFrameInterval) {
+    state.cameraAnimationFrame = window.requestAnimationFrame(renderLiveCameraFrame);
+    return;
+  }
+  state.lastLiveRenderAt = frameStartedAt;
+
   if (cameraPreview.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && cameraPreview.videoWidth && cameraPreview.videoHeight) {
     try {
+      if (state.randomCameraEnabled) {
+        state.debug.liveFrameCount += 1;
+        state.debug.lastLiveFrameMs = 0;
+        state.cameraAnimationFrame = window.requestAnimationFrame(renderLiveCameraFrame);
+        return;
+      }
       await ensureLutTexture(lookSelect.value);
       if (!state.cameraActive) {
         return;
@@ -1161,6 +2223,14 @@ async function renderLiveCameraFrame() {
         height: cameraPreview.videoHeight,
       };
       renderLiveCameraFrameNow();
+      const frameMs = performance.now() - frameStartedAt;
+      state.debug.liveFrameCount += 1;
+      state.debug.liveFrameTotalMs += frameMs;
+      state.debug.lastLiveFrameMs = frameMs;
+      state.debug.maxLiveFrameMs = Math.max(state.debug.maxLiveFrameMs, frameMs);
+      if (state.debug.liveFrameCount % 60 === 0) {
+        persistDebugHistory();
+      }
     } catch (error) {
       console.error(error);
       setStatus("Failed to render live camera preview.");
@@ -1173,9 +2243,27 @@ async function renderLiveCameraFrame() {
 }
 
 function renderLiveCameraFrameNow() {
+  if (state.webglContextLost || state.randomCameraEnabled) {
+    return;
+  }
   const targetSize = getMobileCaptureCanvasSize(cameraPreview.videoWidth, cameraPreview.videoHeight);
   fitCanvasToSize(targetSize.width, targetSize.height, CAMERA_PREVIEW_MAX_SIDE);
   uploadSourceTexturePixels(createCameraPreviewTextureSource() ?? cameraPreview);
+  renderImage({ livePreview: true });
+}
+
+function renderNativeCameraPlaceholder() {
+  const size = state.nativeCameraPreviewSize;
+  fitCanvasToSize(size.width, size.height, CAMERA_PREVIEW_MAX_SIDE);
+  state.cameraPreviewCanvas.width = canvas.width;
+  state.cameraPreviewCanvas.height = canvas.height;
+  const context = state.cameraPreviewContext ?? state.cameraPreviewCanvas.getContext("2d");
+  if (context) {
+    state.cameraPreviewContext = context;
+    context.fillStyle = "#111";
+    context.fillRect(0, 0, state.cameraPreviewCanvas.width, state.cameraPreviewCanvas.height);
+    uploadSourceTexturePixels(state.cameraPreviewCanvas);
+  }
   renderImage({ livePreview: true });
 }
 
@@ -1208,35 +2296,419 @@ async function captureCameraFrame() {
 }
 
 async function saveCurrentCameraFrame() {
-  if (!state.cameraActive || !state.source || canvas.style.display === "none") {
-    return;
+  if (!state.cameraActive || canvas.style.display === "none") {
+    return false;
+  }
+
+  const startedAt = performance.now();
+  state.cameraCaptureInProgress = true;
+  updateMobileCameraState();
+  try {
+    const shotFilterFilename = await resolveShotFilterFilename();
+
+    const selected = state.filterMap.get(shotFilterFilename);
+    rerollOverlaySelections();
+    if (state.nativeCameraActive) {
+      const nativeResult = await captureAndSaveNativePhotoStack(shotFilterFilename, selected);
+      if (nativeResult?.failedSpektra || nativeResult?.failedComplexLayout) {
+        return false;
+      }
+      if (nativeResult?.item) {
+        if (!nativeResult.galleryInserted) {
+          state.galleryItems.unshift(nativeResult.item);
+          renderGallery();
+        }
+        state.debug.captureCount += 1;
+        state.debug.lastCaptureMs = performance.now() - startedAt;
+        state.debug.lastCaptureBytes = 0;
+        debugEvent("capture", {
+          camera: selected?.name ?? shotFilterFilename,
+          native: true,
+          mode: nativeResult.mode,
+          ms: Math.round(state.debug.lastCaptureMs),
+        });
+        setStatus(
+          nativeResult.nativeSaved
+            ? `Saved ${selected?.name ?? "camera"} shot with ${nativeResult.mode} to Photos and local gallery.`
+            : `Saved ${selected?.name ?? "camera"} shot with ${nativeResult.mode} to local gallery.`
+        );
+        return true;
+      }
+    }
+
+    const rawCapture = state.nativeCameraActive ? await captureNativeCameraBlob() : await captureWebCameraBlobWithFlash();
+    let rawBlob = rawCapture?.blob ?? rawCapture;
+    const captureOrientation = rawCapture?.orientation ?? "portrait";
+    if (!rawBlob) {
+      setStatus("Failed to save the camera frame.");
+      return false;
+    }
+    if (state.nativeCameraActive && isComplexNomoLayoutCamera(selected)) {
+      rawBlob = await resizeBlobForMaxSide(rawBlob, HEAVY_CAMERA_SAVE_MAX_SIDE);
+    }
+
+    const filename = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.jpg`;
+    enqueueCameraSave({
+      rawBlob,
+      filename,
+      filterFilename: shotFilterFilename,
+      cameraName: selected?.name ?? "camera",
+      intensity: intensitySlider.value,
+      effects: cloneEffectsState(state.effects),
+      importedEffects: cloneImportedEffectsState(state.importedEffects),
+      overlaySelections: cloneOverlaySelections(state.overlaySelections),
+      captureOrientation,
+      halfSizeSave: state.halfSizeSave,
+      enqueuedAt: performance.now(),
+    });
+    state.debug.captureCount += 1;
+    state.debug.lastCaptureMs = performance.now() - startedAt;
+    state.debug.lastCaptureBytes = rawBlob.size ?? 0;
+    debugEvent("capture", {
+      camera: selected?.name ?? shotFilterFilename,
+      native: state.nativeCameraActive,
+      orientation: captureOrientation,
+      ms: Math.round(state.debug.lastCaptureMs),
+      bytes: state.debug.lastCaptureBytes,
+    });
+    setStatus(`Captured ${selected?.name ?? "camera"} frame. Processing save in background.`);
+    return true;
+  } finally {
+    state.cameraCaptureInProgress = false;
+    const pendingStopOptions = state.pendingCameraStopOptions;
+    state.pendingCameraStopOptions = null;
+    updateMobileCameraState();
+    if (pendingStopOptions && state.cameraActive) {
+      window.setTimeout(() => stopCamera({ ...pendingStopOptions, force: true }), 0);
+    } else {
+      drainPendingCameraCaptures();
+    }
+  }
+}
+
+function requestCameraCapture(options = {}) {
+  if (!state.cameraActive) {
+    captureCameraFrame().catch((error) => {
+      console.error(error);
+      setStatus("Failed to capture the camera frame.");
+    });
+    return false;
+  }
+
+  if (state.cameraCaptureInProgress) {
+    if (state.cameraPendingCaptureCount >= MAX_PENDING_SHUTTER_CAPTURES) {
+      debugEvent("capture:queue-full", {
+        source: options.source ?? "button",
+        pending: state.cameraPendingCaptureCount,
+      });
+      setStatus("Still saving. Wait a moment before shooting more.");
+      return false;
+    }
+    state.cameraPendingCaptureCount += 1;
+    debugEvent("capture:queued", {
+      source: options.source ?? "button",
+      pending: state.cameraPendingCaptureCount,
+    });
+    vibrateCapture();
+    setStatus(`Queued shot ${state.cameraPendingCaptureCount}.`);
+    updateMobileCameraState();
+    return true;
   }
 
   vibrateCapture();
-  const flashSession = await prepareCaptureFlash();
+  saveCurrentCameraFrame().catch((error) => {
+    console.error(error);
+    setStatus("Failed to capture the camera frame.");
+    drainPendingCameraCaptures();
+  });
+  return true;
+}
 
-  const selected = state.filterMap.get(lookSelect.value);
-  let rawBlob = null;
+function drainPendingCameraCaptures() {
+  if (!state.cameraActive || state.cameraCaptureInProgress || state.cameraPendingCaptureCount <= 0) {
+    updateMobileCameraState();
+    return;
+  }
+  state.cameraPendingCaptureCount -= 1;
+  debugEvent("capture:queued-start", { pending: state.cameraPendingCaptureCount });
+  window.setTimeout(() => {
+    if (!state.cameraActive || state.cameraCaptureInProgress) {
+      drainPendingCameraCaptures();
+      return;
+    }
+    saveCurrentCameraFrame().catch((error) => {
+      console.error(error);
+      setStatus("Failed to capture queued camera frame.");
+      drainPendingCameraCaptures();
+    });
+  }, 120);
+  updateMobileCameraState();
+}
+
+async function resolveShotFilterFilename() {
+  if (!state.randomCameraEnabled) {
+    return lookSelect.value;
+  }
+
+  const realFilters = state.filters.filter((filter) => filter.filename && state.filterMap.has(filter.filename));
+  const selected = realFilters[Math.floor(Math.random() * realFilters.length)] ?? realFilters[0];
+  if (!selected) {
+    return lookSelect.value;
+  }
+  await selectFilter(selected.filename, { keepRandomMode: true });
+  return selected.filename;
+}
+
+async function captureWebCameraBlobWithFlash() {
+  const flashSession = await prepareCaptureFlash();
   try {
-    rawBlob = await captureRawCameraBlob();
+    return await captureRawCameraBlob();
   } finally {
     await finishCaptureFlash(flashSession);
   }
-  if (!rawBlob) {
-    setStatus("Failed to save the camera frame.");
-    return;
+}
+
+async function captureNativeCameraBlob() {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.capturePhoto) {
+    return null;
   }
 
-  const filename = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.jpg`;
-  enqueueCameraSave({
-    rawBlob,
-    filename,
-    filterFilename: lookSelect.value,
-    intensity: intensitySlider.value,
-    effects: cloneEffectsState(state.effects),
-    importedEffects: cloneImportedEffectsState(state.importedEffects),
+  const result = await nativeBridge.capturePhoto({
+    flashEnabled: state.cameraFlashEnabled,
+    facingMode: state.cameraFacingMode,
   });
-  setStatus(`Captured ${selected?.name ?? "camera"} frame. Processing save in background.`);
+  if (!result?.dataUrl) {
+    return null;
+  }
+  const blob = await dataUrlToBlob(result.dataUrl);
+  const croppedBlob = await cropNativeCameraBlob(blob, result.orientation);
+  return {
+    blob: croppedBlob,
+    orientation: result.orientation ?? "portrait",
+  };
+}
+
+async function captureAndSaveNativePhotoStack(filterFilename, selectedFilter) {
+  const nativeBridge = getNativeBridge();
+  const filter = state.filterMap.get(filterFilename);
+  if (state.nativeCameraActive && isComplexNomoLayoutCamera(filter)) {
+    return captureAndSaveNativeSimplePhotoStack(filterFilename, selectedFilter);
+  }
+  if (!nativeBridge?.captureAndSavePhotoStack || !isNativeFinalStackSaveEligible(filterFilename, state.effects, state.importedEffects)) {
+    return null;
+  }
+
+  let pendingGalleryId = "";
+  try {
+    setupNativeSpektraPendingPreviewListener(nativeBridge);
+    const lutBytes = await ensureLutBytes(filterFilename);
+    if (!lutBytes) {
+      return null;
+    }
+
+    const spektraEnabled = hasSpektraGrainEnabled(state.importedEffects);
+    pendingGalleryId = spektraEnabled
+      ? `pending-spektra-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      : "";
+    const nativeMaxSide = hasSpektraGrainEnabled(state.importedEffects)
+      ? Math.min(getCameraSaveMaxSide(), HEAVY_CAMERA_SAVE_MAX_SIDE)
+      : getCameraSaveMaxSide();
+    const outputSize = getFilterOutputSize(filterFilename, MOBILE_CAPTURE_WIDTH, MOBILE_CAPTURE_HEIGHT, nativeMaxSide);
+    const isBnWFamily = selectedFilter?.groupFilename === "BNW";
+    const filename = `analoguecam-${selectedFilter?.filename ?? "camera"}-${Date.now()}.jpg`;
+    const result = await nativeBridge.captureAndSavePhotoStack({
+      lutBase64: bytesToBase64(lutBytes),
+      filename,
+      cameraName: selectedFilter?.name ?? "camera",
+      intensity: isBnWFamily ? 1 : Number(intensitySlider.value) / 100,
+      width: outputSize.width,
+      height: outputSize.height,
+      cropFactor: getCameraCropFactor(),
+      mirrored: state.cameraFacingMode === "user",
+      filter: makeNativeStackFilterPayload(filter),
+      effects: cloneEffectsState(state.effects),
+      importedEffects: cloneImportedEffectsState(state.importedEffects),
+      overlaySelections: cloneOverlaySelections(state.overlaySelections ?? {}),
+      pendingGalleryId,
+    });
+
+    if (!result?.item) {
+      removePendingSpektraGalleryItem(pendingGalleryId);
+      return null;
+    }
+
+    const item = result.item;
+    item.width = Number(item.width) || Number(result.width) || null;
+    item.height = Number(item.height) || Number(result.height) || null;
+    item.orientation = item.orientation ?? result.orientation ?? null;
+    debugEvent("native-capture-stack:success", {
+      camera: selectedFilter?.name ?? filterFilename,
+      width: result.width ?? outputSize.width,
+      height: result.height ?? outputSize.height,
+      orientation: result.orientation ?? null,
+      halfSize: Boolean(state.halfSizeSave),
+      metrics: result.metrics ?? null,
+    });
+    const galleryInserted = replacePendingSpektraGalleryItem(pendingGalleryId, item);
+    return { item, nativeSaved: Boolean(result.saved), mode: "native capture stack", galleryInserted };
+  } catch (error) {
+    removePendingSpektraGalleryItem(pendingGalleryId);
+    console.warn("Native capture stack failed; falling back to queued save.", error);
+    debugEvent("native-capture-stack:fallback", {
+      camera: selectedFilter?.name ?? filterFilename,
+      error: error?.message ?? String(error),
+      spektra: hasSpektraGrainEnabled(state.importedEffects),
+    });
+    if (hasSpektraGrainEnabled(state.importedEffects)) {
+      setStatus("Spektra native save failed. Skipped the old JS fallback to avoid a crash.");
+      return { item: null, failedSpektra: true };
+    }
+    return null;
+  }
+}
+
+async function captureAndSaveNativeSimplePhotoStack(filterFilename, selectedFilter) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.captureAndSavePhotoStack) {
+    return null;
+  }
+
+  try {
+    const lutBytes = await ensureLutBytes(filterFilename);
+    if (!lutBytes) {
+      return null;
+    }
+
+    const isBnWFamily = selectedFilter?.groupFilename === "BNW";
+    const filename = `analoguecam-${selectedFilter?.filename ?? "camera"}-${Date.now()}.jpg`;
+    const outputSize = getScaledCaptureOutputSize(HEAVY_CAMERA_SAVE_MAX_SIDE);
+    const result = await nativeBridge.captureAndSavePhotoStack({
+      lutBase64: bytesToBase64(lutBytes),
+      filename,
+      cameraName: selectedFilter?.name ?? "camera",
+      intensity: isBnWFamily ? 1 : Number(intensitySlider.value) / 100,
+      width: outputSize.width,
+      height: outputSize.height,
+      cropFactor: getCameraCropFactor(),
+      mirrored: state.cameraFacingMode === "user",
+      filter: {
+        id: selectedFilter?.id ?? null,
+        name: selectedFilter?.name ?? filterFilename,
+        filename: selectedFilter?.filename ?? filterFilename,
+        groupFilename: selectedFilter?.groupFilename ?? "",
+        overlayAssets: {},
+        filters: [],
+      },
+      effects: cloneEffectsState(state.effects),
+      importedEffects: cloneImportedEffectsState(state.importedEffects),
+      overlaySelections: cloneOverlaySelections(state.overlaySelections ?? {}),
+      pendingGalleryId: "",
+    });
+
+    if (!result?.item) {
+      return null;
+    }
+
+    const item = result.item;
+    item.width = Number(item.width) || Number(result.width) || null;
+    item.height = Number(item.height) || Number(result.height) || null;
+    item.orientation = item.orientation ?? result.orientation ?? null;
+    debugEvent("native-capture-simple:success", {
+      camera: selectedFilter?.name ?? filterFilename,
+      width: result.width ?? outputSize.width,
+      height: result.height ?? outputSize.height,
+      orientation: result.orientation ?? null,
+      reason: "complex-layout-safety",
+      metrics: result.metrics ?? null,
+    });
+    return { item, nativeSaved: Boolean(result.saved), mode: "native simple stack", galleryInserted: false };
+  } catch (error) {
+    console.warn("Native simple stack failed; skipping complex JS fallback.", error);
+    debugEvent("native-capture-simple:fallback-blocked", {
+      camera: selectedFilter?.name ?? filterFilename,
+      error: error?.message ?? String(error),
+      reason: "complex-layout-js-fallback-disabled",
+    });
+    setStatus(`${selectedFilter?.name ?? "Camera"} native save failed. Skipped the old JS fallback to avoid a crash.`);
+    return { item: null, failedComplexLayout: true };
+  }
+}
+
+function getScaledCaptureOutputSize(maxSide) {
+  const scale = Math.min(1, Math.max(1, maxSide) / Math.max(MOBILE_CAPTURE_WIDTH, MOBILE_CAPTURE_HEIGHT));
+  return {
+    width: Math.max(1, Math.round(MOBILE_CAPTURE_WIDTH * scale)),
+    height: Math.max(1, Math.round(MOBILE_CAPTURE_HEIGHT * scale)),
+  };
+}
+
+function isLandscapeCaptureOrientation(orientation) {
+  return orientation === "landscapeLeft" || orientation === "landscapeRight";
+}
+
+function getCaptureOutputSizeForOrientation(orientation) {
+  return isLandscapeCaptureOrientation(orientation)
+    ? { width: MOBILE_CAPTURE_HEIGHT, height: MOBILE_CAPTURE_WIDTH }
+    : { width: MOBILE_CAPTURE_WIDTH, height: MOBILE_CAPTURE_HEIGHT };
+}
+
+async function cropNativeCameraBlob(blob, orientation = "portrait") {
+  const image = await decodeBlobToImage(blob);
+  const portraitCanvas = document.createElement("canvas");
+  portraitCanvas.width = MOBILE_CAPTURE_WIDTH;
+  portraitCanvas.height = MOBILE_CAPTURE_HEIGHT;
+  const context = portraitCanvas.getContext("2d");
+  if (!context) {
+    return blob;
+  }
+
+  context.save();
+  const logicalRect = { x: 0, y: 0, width: portraitCanvas.width, height: portraitCanvas.height };
+  if (state.cameraFacingMode === "user") {
+    context.translate(logicalRect.width, 0);
+    context.scale(-1, 1);
+  }
+  drawImageCover(context, image, logicalRect.x, logicalRect.y, logicalRect.width, logicalRect.height, getCameraCropFactor());
+  context.restore();
+  const outputCanvas = rotateCaptureCanvasIfNeeded(portraitCanvas, orientation);
+  return new Promise((resolve) => outputCanvas.toBlob((croppedBlob) => resolve(croppedBlob ?? blob), "image/jpeg", JPEG_EXPORT_QUALITY));
+}
+
+function rotateCaptureCanvasIfNeeded(sourceCanvas, orientation) {
+  if (!isLandscapeCaptureOrientation(orientation) && orientation !== "portraitUpsideDown") {
+    return sourceCanvas;
+  }
+  const outputCanvas = document.createElement("canvas");
+  if (isLandscapeCaptureOrientation(orientation)) {
+    outputCanvas.width = sourceCanvas.height;
+    outputCanvas.height = sourceCanvas.width;
+  } else {
+    outputCanvas.width = sourceCanvas.width;
+    outputCanvas.height = sourceCanvas.height;
+  }
+  const context = outputCanvas.getContext("2d");
+  if (!context) {
+    return sourceCanvas;
+  }
+  if (orientation === "landscapeLeft") {
+    context.translate(0, outputCanvas.height);
+    context.rotate(-Math.PI / 2);
+    context.drawImage(sourceCanvas, 0, 0);
+    return outputCanvas;
+  }
+  if (orientation === "landscapeRight") {
+    context.translate(outputCanvas.width, 0);
+    context.rotate(Math.PI / 2);
+    context.drawImage(sourceCanvas, 0, 0);
+    return outputCanvas;
+  }
+  if (orientation === "portraitUpsideDown") {
+    context.translate(outputCanvas.width, outputCanvas.height);
+    context.rotate(Math.PI);
+    context.drawImage(sourceCanvas, 0, 0);
+  }
+  return outputCanvas;
 }
 
 async function captureRawCameraBlob() {
@@ -1258,10 +2730,7 @@ async function captureRawCameraBlob() {
 }
 
 function getMobileCaptureCanvasSize(sourceWidth, sourceHeight) {
-  const sourceMaxSide = Math.max(sourceWidth, sourceHeight);
-  const height = Math.max(1, Math.min(MOBILE_CAPTURE_HEIGHT, sourceMaxSide));
-  const width = Math.max(1, Math.round(height * MOBILE_CAPTURE_ASPECT_RATIO));
-  return { width, height };
+  return { width: MOBILE_CAPTURE_WIDTH, height: MOBILE_CAPTURE_HEIGHT };
 }
 
 function createCameraPreviewTextureSource() {
@@ -1288,7 +2757,7 @@ function drawCameraVideoToContext(context, width, height, options = {}) {
     context.translate(width, 0);
     context.scale(-1, 1);
   }
-  if (options.preview) {
+  if (options.preview && state.cameraFacingMode !== "user") {
     drawCameraVideoStretch(context, width, height);
   } else {
     drawImageCover(context, cameraPreview, 0, 0, width, height, getCameraCropFactor());
@@ -1324,13 +2793,31 @@ function updateCameraCropButton() {
   const mode = CAMERA_CROP_MODES[state.cameraCropModeIndex] ?? CAMERA_CROP_MODES[0];
   cameraCropToggleButton.textContent = mode.label;
   cameraCropToggleButton.setAttribute("aria-label", `${mode.label}mm camera crop`);
+  if (cameraFocalLabel) {
+    cameraFocalLabel.textContent = `${mode.label}mm`;
+  }
 }
 
 function toggleCameraCropMode() {
+  const now = performance.now();
+  if (now - state.cameraCropLastToggleAt < 220) {
+    return;
+  }
+  state.cameraCropLastToggleAt = now;
   state.cameraCropModeIndex = (state.cameraCropModeIndex + 1) % CAMERA_CROP_MODES.length;
   updateCameraCropButton();
-  if (state.cameraActive) {
-    renderImage();
+  if (state.nativeCameraActive) {
+    getNativeBridge()?.setCropFactor?.({ factor: getCameraCropFactor() })
+      .then(() => scheduleNativePreviewRectUpdate())
+      .catch((error) => console.error(error));
+  }
+  if (state.cameraActive && !state.webglContextLost && !state.randomCameraEnabled) {
+    window.clearTimeout(state.cameraCropRenderTimer);
+    state.cameraCropRenderTimer = window.setTimeout(() => {
+      if (state.cameraActive && !state.webglContextLost && !state.randomCameraEnabled) {
+        renderLiveCameraFrameNow();
+      }
+    }, 80);
   }
 }
 
@@ -1343,13 +2830,21 @@ function enqueueCameraSave(job) {
 }
 
 function scheduleSlowCameraSaveProcessing() {
-  window.setTimeout(() => {
+  const run = () => {
     processNextCameraSave().catch((error) => {
       console.error(error);
       setStatus("Failed to process queued camera save.");
       state.cameraSaveProcessing = false;
     });
-  }, 650);
+  };
+
+  window.setTimeout(() => {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 4200 });
+      return;
+    }
+    window.setTimeout(run, 0);
+  }, 900);
 }
 
 async function processNextCameraSave() {
@@ -1359,6 +2854,13 @@ async function processNextCameraSave() {
     return;
   }
 
+  const saveStartedAt = performance.now();
+  state.debug.lastQueueDelayMs = job.enqueuedAt ? saveStartedAt - job.enqueuedAt : 0;
+  debugEvent("save:start", {
+    camera: job.cameraName,
+    queueDelayMs: Math.round(state.debug.lastQueueDelayMs),
+    remaining: state.cameraSaveQueue.length,
+  });
   const galleryReady = await ensureGalleryReady();
   if (!galleryReady) {
     setStatus("Local gallery storage is unavailable in this browser.");
@@ -1368,37 +2870,68 @@ async function processNextCameraSave() {
 
   const previous = snapshotRenderState();
   try {
-    const image = await decodeBlobToImage(job.rawBlob);
-    stopLiveCameraRender();
-    lookSelect.value = job.filterFilename;
-    cameraLookSelect.value = job.filterFilename;
-    intensitySlider.value = job.intensity;
-    state.effects = cloneEffectsState(job.effects);
-    state.importedEffects = cloneImportedEffectsState(job.importedEffects);
-    state.source = image;
-    state.sourceName = "queued-camera-save";
-    state.sourceResolution = { width: image.naturalWidth, height: image.naturalHeight };
-    const maxSide = getMobileSaveMaxSide(image);
-    fitCanvasToSize(image.naturalWidth, image.naturalHeight, maxSide);
-    uploadSourceTexturePixels(createScaledSourceCanvas(image, canvas.width, canvas.height) ?? image);
-    await ensureLutTexture(job.filterFilename);
-    await ensureCameraOverlayImages(job.filterFilename);
-    fitCanvasToFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, maxSide);
-    renderImage({ includeSpektraGrain: true, includeNomoOverlays: true, includeCameraStack: true });
+    const nativeResult = await processQueuedSaveWithNativeFinalStack(job) ?? await processQueuedSaveWithNativeCpuStack(job);
+    if (nativeResult) {
+      state.galleryItems.unshift(nativeResult.item);
+      renderGallery();
+      setStatus(
+        nativeResult.nativeSaved
+          ? `Saved ${job.cameraName ?? "camera"} shot with ${nativeResult.mode ?? "native"} processing to Photos and local gallery.`
+          : `Saved ${job.cameraName ?? "camera"} shot with ${nativeResult.mode ?? "native"} processing to local gallery.`
+      );
+    } else {
+      const image = await decodeBlobToImage(job.rawBlob);
+      await waitForNextPaint();
+      stopLiveCameraRender();
+      lookSelect.value = job.filterFilename;
+      cameraLookSelect.value = job.filterFilename;
+      intensitySlider.value = job.intensity;
+      state.effects = cloneEffectsState(job.effects);
+      state.importedEffects = cloneImportedEffectsState(job.importedEffects);
+      state.overlaySelections = cloneOverlaySelections(job.overlaySelections ?? state.overlaySelections);
+      state.source = image;
+      state.sourceName = "queued-camera-save";
+      state.sourceResolution = { width: image.naturalWidth, height: image.naturalHeight };
+      const maxSide = getMobileSaveMaxSide(image, job);
+      fitCanvasToSize(image.naturalWidth, image.naturalHeight, maxSide);
+      uploadSourceTexturePixels(createScaledSourceCanvas(image, canvas.width, canvas.height) ?? image);
+      await ensureLutTexture(job.filterFilename);
+      await ensureCameraOverlayImages(job.filterFilename);
+      fitCanvasToFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, maxSide);
+      await waitForNextPaint();
+      renderImage({ includeSpektraGrain: true, includeNomoOverlays: true, includeCameraStack: true });
+      if (gl?.isContextLost?.()) {
+        throw new Error("WebGL context was lost during queued camera save.");
+      }
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
-    if (!blob) {
-      throw new Error("Processed camera save did not produce a blob.");
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
+      if (!blob) {
+        throw new Error("Processed camera save did not produce a blob.");
+      }
+
+      const item = await saveGalleryBlob(blob, job.filename, job.cameraName ?? state.filterMap.get(job.filterFilename)?.name ?? null);
+      state.galleryItems.unshift(item);
+      renderGallery();
+      const nativeSaved = await saveBlobToNativePhotoLibrary(blob, job.filename);
+      vibrateSaveComplete();
+      setStatus(
+        nativeSaved
+          ? `Saved ${state.filterMap.get(job.filterFilename)?.name ?? "camera"} shot to Photos and local gallery.`
+          : `Saved ${state.filterMap.get(job.filterFilename)?.name ?? "camera"} shot to local gallery.`
+      );
     }
-
-    const item = await saveGalleryBlob(blob, job.filename);
-    state.galleryItems.unshift(item);
-    renderGallery();
-    setStatus(`Saved ${state.filterMap.get(job.filterFilename)?.name ?? "camera"} shot to local gallery.`);
   } catch (error) {
     console.error(error);
     await saveRawCameraFallback(job);
   } finally {
+    state.debug.saveCount += 1;
+    state.debug.lastSaveMs = performance.now() - saveStartedAt;
+    state.debug.maxSaveMs = Math.max(state.debug.maxSaveMs, state.debug.lastSaveMs);
+    debugEvent("save:end", {
+      camera: job.cameraName,
+      ms: Math.round(state.debug.lastSaveMs),
+      queue: state.cameraSaveQueue.length,
+    });
     restoreRenderState(previous);
   }
 
@@ -1409,11 +2942,264 @@ async function processNextCameraSave() {
   }
 }
 
-function getMobileSaveMaxSide(image) {
+async function processQueuedSaveWithNativeFinalStack(job) {
+  const nativeBridge = getNativeBridge();
+  const filter = state.filterMap.get(job.filterFilename);
+  if (!nativeBridge?.processAndSavePhotoStack || !isNativeFinalStackSaveEligible(job.filterFilename, job.effects, job.importedEffects)) {
+    return null;
+  }
+
+  try {
+    const lutBytes = await ensureLutBytes(job.filterFilename);
+    if (!lutBytes) {
+      return null;
+    }
+
+    const processingBlob = job.halfSizeSave || hasSpektraGrainEnabled(job.importedEffects)
+      ? await resizeBlobForMaxSide(
+        job.rawBlob,
+        hasSpektraGrainEnabled(job.importedEffects) ? HEAVY_CAMERA_SAVE_MAX_SIDE : Math.round(MOBILE_SAVE_MAX_SIDE / 2),
+      )
+      : job.rawBlob;
+    const image = await decodeBlobToImage(processingBlob);
+    const outputSize = getFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, getCameraSaveMaxSide(job));
+    const selectedFilter = state.filterMap.get(job.filterFilename);
+    const isBnWFamily = selectedFilter?.groupFilename === "BNW";
+    const result = await nativeBridge.processAndSavePhotoStack({
+      dataUrl: await blobToDataUrl(processingBlob),
+      lutBase64: bytesToBase64(lutBytes),
+      filename: job.filename,
+      intensity: isBnWFamily ? 1 : Number(job.intensity) / 100,
+      width: outputSize.width,
+      height: outputSize.height,
+      filter: makeNativeStackFilterPayload(filter),
+      effects: job.effects,
+      importedEffects: cloneImportedEffectsState(job.importedEffects),
+      overlaySelections: job.overlaySelections ?? {},
+    });
+
+    const item = result.item ?? (
+      result.dataUrl
+        ? await saveGalleryBlob(await dataUrlToBlob(result.dataUrl), result.filename ?? job.filename, job.cameraName ?? null)
+        : null
+    );
+    if (!item) {
+      return null;
+    }
+    debugEvent("native-stack:success", {
+      camera: job.cameraName,
+      width: outputSize.width,
+      height: outputSize.height,
+      halfSize: Boolean(job.halfSizeSave),
+      metrics: result.metrics ?? null,
+    });
+    return { item, nativeSaved: Boolean(result.saved), mode: "native stack" };
+  } catch (error) {
+    console.warn("Native final stack failed; falling back to JS stack.", error);
+    debugEvent("native-stack:fallback", {
+      camera: job.cameraName,
+      error: error?.message ?? String(error),
+      spektra: hasSpektraGrainEnabled(job.importedEffects),
+    });
+    if (hasSpektraGrainEnabled(job.importedEffects)) {
+      throw new Error("Native Spektra failed; JS Spektra fallback skipped to avoid WebView crash.");
+    }
+    return null;
+  }
+}
+
+function makeNativeStackFilterPayload(filter) {
+  return {
+    id: filter.id,
+    name: filter.name,
+    filename: filter.filename,
+    groupFilename: filter.groupFilename,
+    overlayAssets: filter.overlayAssets ?? {},
+    filters: filter.filters ?? [],
+  };
+}
+
+async function processQueuedSaveWithNativeCpuStack(job) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.processPhoto) {
+    return null;
+  }
+
+  const lutBytes = await ensureLutBytes(job.filterFilename);
+  if (!lutBytes) {
+    return null;
+  }
+
+  const selectedFilter = state.filterMap.get(job.filterFilename);
+  const isBnWFamily = selectedFilter?.groupFilename === "BNW";
+  const needsLowMemoryStack = isComplexNomoLayoutCamera(selectedFilter) || hasCameraStackOverlayAssets(selectedFilter);
+  const processingBlob = needsLowMemoryStack
+    ? await resizeBlobForMaxSide(job.rawBlob, HEAVY_CAMERA_SAVE_MAX_SIDE)
+    : job.halfSizeSave
+      ? await resizeBlobForHalfSizeSave(job.rawBlob)
+      : job.rawBlob;
+  const result = await nativeBridge.processPhoto({
+    dataUrl: await blobToDataUrl(processingBlob),
+    lutBase64: bytesToBase64(lutBytes),
+    filename: job.filename,
+    intensity: isBnWFamily ? 1 : Number(job.intensity) / 100,
+  });
+
+  if (!result?.dataUrl) {
+    return null;
+  }
+
+  const image = await decodeBlobToImage(await dataUrlToBlob(result.dataUrl));
+  const previous = snapshotRenderState();
+  try {
+    lookSelect.value = job.filterFilename;
+    cameraLookSelect.value = job.filterFilename;
+    intensitySlider.value = job.intensity;
+    state.effects = cloneEffectsState(job.effects);
+    state.importedEffects = cloneImportedEffectsState(job.importedEffects);
+    state.overlaySelections = cloneOverlaySelections(job.overlaySelections ?? state.overlaySelections);
+    await ensureCameraOverlayImages(job.filterFilename);
+
+    const outputSize = getFilterOutputSize(job.filterFilename, image.naturalWidth, image.naturalHeight, getCameraSaveMaxSide(job));
+    const processedBlob = await renderNativeProcessedImageWithCpuStack(image, outputSize.width, outputSize.height, {
+      includeSpektraGrain: true,
+      includeNomoOverlays: true,
+      includeCameraStack: true,
+    });
+    const item = await saveGalleryBlob(processedBlob, result.filename ?? job.filename, job.cameraName ?? null);
+    const nativeSaved = await saveBlobToNativePhotoLibrary(processedBlob, result.filename ?? job.filename);
+    vibrateSaveComplete();
+    return { item, nativeSaved, mode: "native LUT + JS stack" };
+  } finally {
+    restoreRenderState(previous);
+  }
+}
+
+function isNativeFinalStackSaveEligible(filterFilename, effects, importedEffects) {
+  const filter = state.filterMap.get(filterFilename);
+  if (!filter || filter.custom || filter.id === RAINBOW_CAMERA_ID) {
+    return false;
+  }
+  if (!areNativeFinalStackEffectsSupported(effects)) {
+    return false;
+  }
+  return isNativeFinalStackCameraSupported(filter);
+}
+
+function hasSpektraGrainEnabled(importedEffects) {
+  return Boolean(importedEffects?.spektraGrain?.enabled);
+}
+
+function areNativeFinalStackEffectsSupported(effects) {
+  for (const [effectId, effect] of Object.entries(effects ?? {})) {
+    const catalog = getEffectById(effectId);
+    const value = Number(effect?.value ?? catalog?.defaultValue ?? 0);
+    const defaultValue = Number(catalog?.defaultValue ?? 0);
+    if (value === defaultValue) {
+      continue;
+    }
+    if (
+      NATIVE_FINAL_STACK_OVERLAY_EFFECT_IDS.has(effectId)
+      || catalog?.group === "tone"
+      || effectId === "sharpen"
+      || effectId === "disposableSoftness"
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+function isNativeFinalStackCameraSupported(filter) {
+  if (isComplexNomoLayoutCamera(filter)) {
+    return false;
+  }
+  for (const effect of filter.filters ?? []) {
+    const type = String(effect.type ?? "").toLowerCase();
+    if (!NATIVE_FINAL_STACK_CAMERA_FILTER_TYPES.has(type)) {
+      continue;
+    }
+    if (!isNativeFinalStackCameraEffectSupported(effect, filter)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isComplexNomoLayoutCamera(filter) {
+  if (!filter) {
+    return false;
+  }
+  const complexIds = new Set([42, 46, 47, 49, 50, 51]);
+  if (complexIds.has(filter.id)) {
+    return true;
+  }
+  return ["INS A", "INS 70", "Lonesome", "McDonald’s", "Lunar Rabbits", "620 B"].includes(filter.name);
+}
+
+function isNativeFinalStackCameraEffectSupported(effect, filter) {
+  const type = String(effect.type ?? "").toLowerCase();
+  if (type === "frame" && isFrameDisabledCamera(filter)) {
+    return true;
+  }
+  const params = effect.params ?? {};
+  const fillMode = String(params.fillmode ?? "").toLowerCase();
+  if (fillMode === "tiled") {
+    return false;
+  }
+  if (params.only || params.region || params.replace === "1") {
+    return false;
+  }
+  return true;
+}
+
+function hasCameraStackOverlayAssets(filter) {
+  if (!filter || isFrameDisabledCamera(filter)) {
+    return false;
+  }
+  const overlayAssets = filter.overlayAssets ?? {};
+  return Boolean(overlayAssets.frame?.length || overlayAssets.blend?.length || overlayAssets.water?.length);
+}
+
+function getMobileSaveMaxSide(image, job = null) {
   const sourceMaxSide = Math.max(image.naturalWidth || 0, image.naturalHeight || 0);
   const textureLimit = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : MOBILE_SAVE_MAX_SIDE;
-  const safeTextureLimit = Number.isFinite(textureLimit) ? Math.max(1, Math.floor(textureLimit * 0.5)) : MOBILE_SAVE_MAX_SIDE;
-  return Math.min(sourceMaxSide || MOBILE_SAVE_MAX_SIDE, MOBILE_SAVE_MAX_SIDE, safeTextureLimit);
+  const safeTextureLimit = Number.isFinite(textureLimit) ? Math.max(1, Math.floor(textureLimit)) : MOBILE_SAVE_MAX_SIDE;
+  const filter = state.filterMap.get(job?.filterFilename ?? lookSelect.value);
+  const heavyCameraStack = hasCameraStackOverlayAssets(filter)
+    || (job?.effects?.nomoGrain?.value ?? state.effects.nomoGrain?.value ?? 0) > 0
+    || hasSpektraGrainEnabled(job?.importedEffects ?? state.importedEffects);
+  const requestedMaxSide = Math.min(getCameraSaveMaxSide(job), heavyCameraStack ? HEAVY_CAMERA_SAVE_MAX_SIDE : MOBILE_SAVE_MAX_SIDE);
+  return Math.min(sourceMaxSide || requestedMaxSide, requestedMaxSide, safeTextureLimit);
+}
+
+function getCameraSaveMaxSide(job = null) {
+  return (job?.halfSizeSave ?? state.halfSizeSave) ? Math.round(MOBILE_SAVE_MAX_SIDE / 2) : MOBILE_SAVE_MAX_SIDE;
+}
+
+async function resizeBlobForHalfSizeSave(blob) {
+  return resizeBlobForMaxSide(blob, Math.round(MOBILE_SAVE_MAX_SIDE / 2));
+}
+
+async function resizeBlobForMaxSide(blob, maxSide) {
+  const image = await decodeBlobToImage(blob);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.min(1, Math.max(1, maxSide) / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const resizeCanvas = document.createElement("canvas");
+  resizeCanvas.width = width;
+  resizeCanvas.height = height;
+  const context = resizeCanvas.getContext("2d");
+  if (!context) {
+    return blob;
+  }
+  context.drawImage(image, 0, 0, width, height);
+  return new Promise((resolve) => {
+    resizeCanvas.toBlob((resizedBlob) => resolve(resizedBlob ?? blob), "image/jpeg", JPEG_EXPORT_QUALITY);
+  });
 }
 
 function createScaledSourceCanvas(source, width, height) {
@@ -1441,7 +3227,8 @@ async function saveRawCameraFallback(job) {
   }
 
   const fallbackName = job.filename.replace(/\.jpe?g$/i, "-raw.jpg");
-  const item = await saveGalleryBlob(job.rawBlob, fallbackName);
+  const fallbackBlob = job.halfSizeSave ? await resizeBlobForHalfSizeSave(job.rawBlob) : job.rawBlob;
+  const item = await saveGalleryBlob(fallbackBlob, fallbackName, job.cameraName ?? state.filterMap.get(job.filterFilename)?.name ?? null);
   state.galleryItems.unshift(item);
   renderGallery();
   setStatus("Filtered save failed, so the raw camera frame was saved instead.");
@@ -1456,6 +3243,7 @@ function snapshotRenderState() {
     intensity: intensitySlider.value,
     effects: cloneEffectsState(state.effects),
     importedEffects: cloneImportedEffectsState(state.importedEffects),
+    overlaySelections: cloneOverlaySelections(state.overlaySelections),
     currentCameraOverlayImages: state.currentCameraOverlayImages,
   };
 }
@@ -1466,11 +3254,17 @@ function restoreRenderState(previous) {
   intensitySlider.value = previous.intensity;
   state.effects = previous.effects;
   state.importedEffects = previous.importedEffects;
+  state.overlaySelections = previous.overlaySelections;
   state.currentCameraOverlayImages = previous.currentCameraOverlayImages;
   syncIntensityControlState();
   updateEffectControlState();
   syncEffectInputs();
   syncImportedEffectInputs();
+
+  if (state.nativeCameraActive) {
+    renderNativeCameraPlaceholder();
+    return;
+  }
 
   if (state.cameraActive && cameraPreview.videoWidth && cameraPreview.videoHeight) {
     state.source = cameraPreview;
@@ -1522,20 +3316,96 @@ function decodeBlobToImage(blob) {
 }
 
 function vibrateCapture() {
+  const levelPadding = state.levelGuideEnabled ? 190 : 80;
+  const levelSuppressMs = state.levelGuideEnabled ? levelPadding + 245 + 1000 : 0;
+  triggerHapticPattern([
+    { style: "heavy", delay: levelPadding, suppressLevelMs: levelSuppressMs },
+    { style: "rigid", delay: levelPadding + 245 },
+  ], state.levelGuideEnabled ? [1, 190, 42, 245, 24, 220, 1] : [1, 80, 36, 205, 20]);
+}
+
+function vibrateSaveComplete() {
+  // Intentionally silent. The shutter haptic is the only shooting vibration.
+}
+
+function triggerHaptic(style, pattern) {
+  const nativeBridge = getNativeBridge();
+  if (nativeBridge?.hapticImpact) {
+    nativeBridge.hapticImpact({ style }).catch(() => {});
+    return;
+  }
   if (navigator.vibrate) {
-    navigator.vibrate([22, 28, 22]);
+    navigator.vibrate(pattern);
+  }
+}
+
+function triggerHapticPattern(steps, fallbackPattern) {
+  const nativeBridge = getNativeBridge();
+  if (nativeBridge?.hapticImpact) {
+    for (const step of steps) {
+      window.setTimeout(() => {
+        nativeBridge.hapticImpact({ style: step.style, suppressLevelMs: step.suppressLevelMs ?? 0 }).catch(() => {});
+      }, step.delay);
+    }
+    return;
+  }
+  if (navigator.vibrate) {
+    navigator.vibrate(fallbackPattern);
   }
 }
 
 function flashCameraPreview() {
+  if (state.nativeCameraActive) {
+    getNativeBridge()?.setPreviewFlashOverlay?.({
+      tintVisible: state.cameraFlashEnabled,
+      pulse: true,
+    }).catch((error) => {
+      console.error(error);
+      debugEvent("native-preview-flash:error", { message: error?.message ?? String(error) });
+    });
+    return;
+  }
   cameraFlash.classList.remove("is-active");
   void cameraFlash.offsetWidth;
   cameraFlash.classList.add("is-active");
 }
 
+async function setNativeScreenBrightness(brightness) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.setScreenBrightness) {
+    return null;
+  }
+  try {
+    const result = await nativeBridge.setScreenBrightness({ brightness });
+    return typeof result?.previousBrightness === "number" ? result.previousBrightness : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function startSelfieScreenFlash() {
+  selfieScreenFlash?.classList.add("is-visible");
+  const previousBrightness = await setNativeScreenBrightness(1);
+  await delay(SELFIE_SCREEN_FLASH_SETTLE_DELAY_MS);
+  return { previousBrightness };
+}
+
+async function finishSelfieScreenFlash(session) {
+  selfieScreenFlash?.classList.remove("is-visible");
+  if (typeof session?.previousBrightness === "number") {
+    await setNativeScreenBrightness(session.previousBrightness);
+  }
+}
+
 async function prepareCaptureFlash() {
   if (!state.cameraFlashEnabled) {
-    return { shouldFlash: false, hardwareFlash: false };
+    return { shouldFlash: false, hardwareFlash: false, selfieFlash: false };
+  }
+
+  if (state.cameraFacingMode === "user") {
+    const selfieFlashSession = await startSelfieScreenFlash();
+    return { shouldFlash: true, hardwareFlash: false, selfieFlash: true, selfieFlashSession };
   }
 
   const hardwareFlash = await applyCameraTorch(true);
@@ -1550,12 +3420,25 @@ async function finishCaptureFlash(session) {
   if (session?.hardwareFlash) {
     await applyCameraTorch(false);
   }
+  if (session?.selfieFlash) {
+    await finishSelfieScreenFlash(session.selfieFlashSession);
+  }
 }
 
 function updateCameraFlashState() {
   cameraFlashTint.classList.toggle("is-visible", state.cameraFlashEnabled);
   cameraFlashToggleButton.setAttribute("aria-pressed", String(state.cameraFlashEnabled));
   cameraFlashToggleButton.classList.toggle("has-hardware-torch", state.cameraTorchSupported);
+  document.body.classList.toggle("camera-flash-enabled", isMobileView() && state.cameraActive && state.cameraFlashEnabled);
+  if (state.nativeCameraActive) {
+    getNativeBridge()?.setPreviewFlashOverlay?.({
+      tintVisible: state.cameraFlashEnabled,
+      pulse: false,
+    }).catch((error) => {
+      console.error(error);
+      debugEvent("native-preview-flash:error", { message: error?.message ?? String(error) });
+    });
+  }
 }
 
 async function toggleCameraFacing() {
@@ -1569,6 +3452,11 @@ async function toggleCameraFacing() {
 }
 
 async function switchCameraStream() {
+  if (state.nativeCameraActive) {
+    await switchNativeCamera();
+    return;
+  }
+
   if (!navigator.mediaDevices?.getUserMedia || state.cameraSwitching) {
     return;
   }
@@ -1608,8 +3496,37 @@ async function switchCameraStream() {
   }
 }
 
+async function switchNativeCamera() {
+  if (state.cameraSwitching) {
+    return;
+  }
+
+  state.cameraSwitching = true;
+  canvas.style.visibility = "hidden";
+  cameraPreviewSlot.classList.add("is-switching");
+  try {
+    const result = await getNativeBridge()?.switchCamera?.({
+      facingMode: state.cameraFacingMode,
+      cropFactor: getCameraCropFactor(),
+      previewRect: getCameraPreviewViewportRect(),
+    });
+    state.cameraTorchSupported = Boolean(result?.flashSupported);
+    if (!NATIVE_CAMERA_PREVIEW_MODE) {
+      renderNativeCameraPlaceholder();
+    }
+    updateCameraFlashState();
+  } finally {
+    canvas.style.visibility = "";
+    cameraPreviewSlot.classList.remove("is-switching");
+    state.cameraSwitching = false;
+  }
+}
+
 async function toggleCameraFlash() {
   state.cameraFlashEnabled = !state.cameraFlashEnabled;
+  if (state.nativeCameraActive) {
+    await getNativeBridge()?.setFlashEnabled?.({ enabled: state.cameraFlashEnabled });
+  }
   updateCameraFlashState();
   if (state.cameraFlashEnabled && !state.cameraTorchSupported) {
     setStatus("Hardware flash is not available in this browser, so flash is visual only.");
@@ -1631,6 +3548,10 @@ function detectTorchSupport(stream) {
 }
 
 async function applyCameraTorch(enabled) {
+  if (state.nativeCameraActive) {
+    return false;
+  }
+
   const track = state.cameraStream?.getVideoTracks?.()[0];
   if (!track?.applyConstraints || !state.cameraTorchSupported) {
     return false;
@@ -1651,10 +3572,49 @@ async function ensureGalleryReady() {
   if (state.galleryDb) {
     return true;
   }
-  if (state.galleryReadyPromise) {
-    await state.galleryReadyPromise;
+  if (!state.galleryReadyPromise) {
+    state.galleryReadyPromise = openGalleryDb()
+      .then((db) => {
+        state.galleryDb = db;
+        return db;
+      })
+      .catch((error) => {
+        console.error(error);
+        return null;
+      });
   }
+  await state.galleryReadyPromise;
   return Boolean(state.galleryDb);
+}
+
+async function loadGalleryOnDemand(options = {}) {
+  if (state.galleryLoaded && !options.force) {
+    return state.galleryItems;
+  }
+  if (state.galleryLoadPromise && !options.force) {
+    return state.galleryLoadPromise;
+  }
+
+  state.galleryLoadPromise = (async () => {
+    const ready = await ensureGalleryReady();
+    if (!ready) {
+      return state.galleryItems;
+    }
+    state.galleryItems = await loadCombinedGalleryItems();
+    state.galleryLoaded = true;
+    renderGallery();
+    return state.galleryItems;
+  })()
+    .catch((error) => {
+      console.error(error);
+      debugEvent("gallery:load-error", { message: error?.message ?? String(error) });
+      return state.galleryItems;
+    })
+    .finally(() => {
+      state.galleryLoadPromise = null;
+    });
+
+  return state.galleryLoadPromise;
 }
 
 function openGalleryDb() {
@@ -1699,12 +3659,195 @@ function loadGalleryItems() {
   });
 }
 
-function saveGalleryBlob(blob, filename) {
+async function loadCombinedGalleryItems() {
+  state.nativeGalleryOffset = 0;
+  state.nativeGalleryHasMore = false;
+  state.nativeGalleryLoading = false;
+  state.nativeGalleryTotal = 0;
+  state.legacyGalleryLoaded = false;
+
+  const nativePage = await loadNativeGalleryItemsPage(0, GALLERY_RENDER_BATCH_SIZE);
+  const nativeItems = nativePage.items;
+  state.nativeGalleryOffset = nativeItems.length;
+  state.nativeGalleryHasMore = nativePage.hasMore;
+  state.nativeGalleryTotal = nativePage.total;
+
+  const legacyItems = nativeItems.length ? [] : await loadLegacyGalleryItemsOnce();
+  const seen = new Set();
+  const combined = [];
+  for (const item of [...nativeItems, ...legacyItems]) {
+    const key = item.fileUrl || item.id;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    combined.push(item);
+  }
+  return combined.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
+async function loadNativeGalleryItems() {
+  const page = await loadNativeGalleryItemsPage(0, Number.MAX_SAFE_INTEGER);
+  return page.items;
+}
+
+async function loadNativeGalleryItemsPage(offset = 0, limit = GALLERY_RENDER_BATCH_SIZE) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.listGalleryItems) {
+    return { items: [], total: 0, hasMore: false };
+  }
+  try {
+    const result = await nativeBridge.listGalleryItems({ offset, limit });
+    const items = Array.isArray(result?.items) ? result.items.map(normalizeNativeGalleryItem) : [];
+    return {
+      items,
+      total: Number(result?.total ?? items.length),
+      hasMore: Boolean(result?.hasMore),
+    };
+  } catch (error) {
+    console.error(error);
+    debugEvent("native-gallery:list-error", { message: error?.message ?? String(error) });
+    return { items: [], total: 0, hasMore: false };
+  }
+}
+
+function normalizeNativeGalleryItem(nativeItem) {
+  const width = Number(nativeItem?.width) || null;
+  const height = Number(nativeItem?.height) || null;
+  return {
+    ...nativeItem,
+    id: nativeItem?.id ?? `${nativeItem?.fileUrl ?? "native"}-${nativeItem?.createdAt ?? Date.now()}`,
+    fileUrl: nativeItem?.fileUrl ?? null,
+    thumbnailFileUrl: nativeItem?.thumbnailFileUrl ?? nativeItem?.fileUrl ?? null,
+    cameraName: normalizeGalleryCameraName(nativeItem?.cameraName, nativeItem?.filename),
+    createdAt: Number(nativeItem?.createdAt) || Date.now(),
+    width,
+    height,
+    aspectRatio: width && height ? width / height : null,
+    displayOrientation: width && height && width > height ? "landscape" : "portrait",
+    fileBacked: nativeItem?.fileBacked ?? true,
+    thumbnailBacked: nativeItem?.thumbnailBacked ?? Boolean(nativeItem?.thumbnailFileUrl && nativeItem.thumbnailFileUrl !== nativeItem.fileUrl),
+    processing: Boolean(nativeItem?.processing),
+    source: nativeItem?.source ?? "native",
+  };
+}
+
+function normalizeGalleryCameraName(cameraName, filename = "") {
+  if (typeof cameraName === "string" && cameraName.trim() && cameraName !== "Camera Unknown") {
+    const explicit = cameraName.trim();
+    const genericCameraMatch = explicit.match(/^camera\s+(\d+)$/i);
+    if (!genericCameraMatch) {
+      return explicit;
+    }
+    const filter = state.filterMap.get(`camera-${genericCameraMatch[1]}`);
+    if (filter?.name) {
+      return filter.name;
+    }
+  }
+  const match = String(filename).match(/analoguecam-(.+)-\d+(?:-raw)?\.jpe?g$/i);
+  if (!match) {
+    return "Camera";
+  }
+  return match[1].replace(/-/g, " ").trim() || "Camera";
+}
+
+async function loadLegacyGalleryItemsOnce() {
+  if (state.legacyGalleryLoaded) {
+    return [];
+  }
+  state.legacyGalleryLoaded = true;
+  return loadGalleryItems();
+}
+
+function appendUniqueGalleryItems(items) {
+  const seen = new Set(state.galleryItems.map((item) => item.fileUrl || item.id).filter(Boolean));
+  let appended = 0;
+  for (const item of items) {
+    const key = item.fileUrl || item.id;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    state.galleryItems.push(item);
+    appended += 1;
+  }
+  return appended;
+}
+
+function isNativeGalleryItem(item) {
+  return Boolean(item?.fileBacked && item?.fileUrl);
+}
+
+function hasNativeGalleryFile(item) {
+  return Boolean(item?.fileUrl);
+}
+
+function removeGalleryItemFromState(item) {
+  const key = item?.fileUrl || item?.id;
+  const previousLength = state.galleryItems.length;
+  state.galleryItems = state.galleryItems.filter((galleryItem) => {
+    const galleryKey = galleryItem.fileUrl || galleryItem.id;
+    return galleryKey !== key && galleryItem.id !== item?.id;
+  });
+  state.galleryRenderedCount = Math.min(state.galleryRenderedCount, state.galleryItems.length);
+  galleryEmpty.hidden = state.galleryItems.length > 0;
+  return state.galleryItems.length !== previousLength;
+}
+
+async function deleteGalleryItemRecord(item) {
+  if (isNativeGalleryItem(item)) {
+    return;
+  }
+  await deleteGalleryItem(item);
+}
+
+async function loadMoreGalleryItems() {
+  if (state.nativeGalleryLoading) {
+    return 0;
+  }
+  state.nativeGalleryLoading = true;
+  try {
+    if (state.nativeGalleryHasMore) {
+      const page = await loadNativeGalleryItemsPage(state.nativeGalleryOffset, GALLERY_RENDER_BATCH_SIZE);
+      state.nativeGalleryOffset += page.items.length;
+      state.nativeGalleryHasMore = page.hasMore;
+      state.nativeGalleryTotal = page.total;
+      return appendUniqueGalleryItems(page.items);
+    }
+
+    const legacyItems = await loadLegacyGalleryItemsOnce();
+    return appendUniqueGalleryItems(legacyItems);
+  } finally {
+    state.nativeGalleryLoading = false;
+  }
+}
+
+async function saveGalleryBlob(blob, filename, cameraName = null) {
+  const nativeBridge = getNativeBridge();
+  if (nativeBridge?.writeGalleryItem) {
+    try {
+      const result = await nativeBridge.writeGalleryItem({
+        dataUrl: await blobToDataUrl(blob),
+        filename,
+        cameraName: cameraName ?? "camera",
+      });
+      if (result?.item) {
+        return result.item;
+      }
+    } catch (error) {
+      console.warn("Native gallery write failed; falling back to IndexedDB.", error);
+      debugEvent("native-gallery:write-fallback", { message: error?.message ?? String(error) });
+    }
+  }
+
+  const thumbnailBlob = await createGalleryThumbnailBlob(blob).catch(() => null);
   return new Promise((resolve, reject) => {
     const item = {
       id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       filename,
       blob,
+      thumbnailBlob,
+      cameraName,
       createdAt: Date.now(),
     };
     const store = galleryStore("readwrite");
@@ -1719,45 +3862,402 @@ function saveGalleryBlob(blob, filename) {
   });
 }
 
-function renderGallery() {
-  for (const url of state.galleryObjectUrls) {
-    URL.revokeObjectURL(url);
+function saveGalleryItemRecord(nativeItem) {
+  return new Promise((resolve, reject) => {
+    const item = {
+      id: nativeItem.id ?? (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
+      filename: nativeItem.filename ?? `native-${Date.now()}.jpg`,
+      fileUrl: nativeItem.fileUrl ?? null,
+      thumbnailFileUrl: nativeItem.thumbnailFileUrl ?? nativeItem.fileUrl ?? null,
+      cameraName: nativeItem.cameraName ?? null,
+      createdAt: Number(nativeItem.createdAt) || Date.now(),
+      width: Number(nativeItem.width) || null,
+      height: Number(nativeItem.height) || null,
+      orientation: nativeItem.orientation ?? null,
+    };
+    const store = galleryStore("readwrite");
+    if (!store) {
+      reject(new Error("Local gallery storage is unavailable."));
+      return;
+    }
+
+    const request = store.put(item);
+    request.onsuccess = () => resolve(item);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function deleteGalleryItem(item) {
+  return new Promise((resolve, reject) => {
+    const store = galleryStore("readwrite");
+    if (!store) {
+      reject(new Error("Local gallery storage is unavailable."));
+      return;
+    }
+
+    const request = store.delete(item.id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function saveGalleryItemRecordUpdate(item) {
+  return new Promise((resolve, reject) => {
+    const store = galleryStore("readwrite");
+    if (!store) {
+      reject(new Error("Local gallery storage is unavailable."));
+      return;
+    }
+
+    const request = store.put(item);
+    request.onsuccess = () => resolve(item);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function upsertPendingSpektraGalleryItem(event) {
+  if (!event?.id || !event.previewDataUrl) {
+    return;
   }
-  state.galleryObjectUrls = [];
-  galleryGrid.innerHTML = "";
-  galleryEmpty.hidden = state.galleryItems.length > 0;
+  const item = {
+    id: event.id,
+    filename: event.filename ?? `spektra-processing-${Date.now()}.jpg`,
+    previewDataUrl: event.previewDataUrl,
+    cameraName: event.cameraName ?? null,
+    createdAt: Number(event.createdAt) || Date.now(),
+    width: Number(event.width) || null,
+    height: Number(event.height) || null,
+    orientation: event.orientation ?? null,
+    processing: true,
+    processingLabel: "Spektra processing",
+  };
+  const index = state.galleryItems.findIndex((galleryItem) => galleryItem.id === item.id);
+  if (index >= 0) {
+    state.galleryItems[index] = { ...state.galleryItems[index], ...item };
+  } else {
+    state.galleryItems.unshift(item);
+  }
+  debugEvent("gallery:pending-spektrapreview", {
+    id: item.id,
+    camera: item.cameraName,
+    width: item.width,
+    height: item.height,
+  });
+  renderGallery();
+}
 
-  for (const item of state.galleryItems) {
-    const url = URL.createObjectURL(item.blob);
-    state.galleryObjectUrls.push(url);
+function replacePendingSpektraGalleryItem(pendingId, finalItem) {
+  if (!pendingId) {
+    return false;
+  }
+  const index = state.galleryItems.findIndex((item) => item.id === pendingId);
+  if (index >= 0) {
+    state.galleryItems[index] = finalItem;
+    renderGallery();
+    return true;
+  }
+  return false;
+}
 
-    const card = document.createElement("article");
-    card.className = "mobile-gallery__item";
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.addEventListener("click", () => openGalleryItem(item, url));
-
-    const image = document.createElement("img");
-    image.src = url;
-    image.alt = "Local analogue shot";
-
-    button.append(image);
-    card.append(button);
-    galleryGrid.append(card);
+function removePendingSpektraGalleryItem(pendingId) {
+  if (!pendingId) {
+    return;
+  }
+  const nextItems = state.galleryItems.filter((item) => item.id !== pendingId);
+  if (nextItems.length !== state.galleryItems.length) {
+    state.galleryItems = nextItems;
+    renderGallery();
   }
 }
 
-function openGalleryItem(item, url) {
+function renderGallery(options = {}) {
+  const append = Boolean(options.append);
+  if (!append) {
+    for (const url of state.galleryObjectUrls) {
+      URL.revokeObjectURL(url);
+    }
+    state.galleryObjectUrls = [];
+    state.galleryRenderedCount = 0;
+    galleryGrid.innerHTML = "";
+  }
+
+  galleryEmpty.hidden = state.galleryItems.length > 0;
+  if (galleryCount) {
+    const total = Math.max(state.nativeGalleryTotal || 0, state.galleryItems.length);
+    galleryCount.textContent = `${total} ${total === 1 ? "photo" : "photos"}`;
+  }
+
+  const nextCount = Math.min(state.galleryItems.length, state.galleryRenderedCount + GALLERY_RENDER_BATCH_SIZE);
+  for (const item of state.galleryItems.slice(state.galleryRenderedCount, nextCount)) {
+    const card = document.createElement("article");
+    card.className = "mobile-gallery__item";
+    card.classList.toggle("is-landscape", isGalleryItemLandscape(item));
+    card.classList.toggle("is-processing", Boolean(item.processing));
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.addEventListener("click", () => {
+      if (item.processing) {
+        setStatus(item.processingLabel ?? "Photo is still processing.");
+        return;
+      }
+      openGalleryItem(item).catch((error) => {
+        console.error(error);
+        setStatus("Selected gallery image is unavailable.");
+      });
+    });
+
+    const image = document.createElement("img");
+    image.alt = "Local analogue shot";
+    image.loading = "lazy";
+    image.addEventListener("load", () => {
+      if (!item.width && image.naturalWidth) {
+        item.width = image.naturalWidth;
+      }
+      if (!item.height && image.naturalHeight) {
+        item.height = image.naturalHeight;
+      }
+      card.classList.toggle("is-landscape", isGalleryItemLandscape(item));
+    });
+    image.addEventListener("error", () => handleGalleryImageError(item, card));
+    setGalleryThumbnailImage(item, image, card);
+
+    button.append(image);
+    if (item.processing) {
+      const overlay = document.createElement("div");
+      overlay.className = "mobile-gallery__processing";
+      overlay.innerHTML = '<span class="mobile-gallery__spinner" aria-hidden="true"></span><span>Processing</span>';
+      button.append(overlay);
+    }
+    card.append(button);
+    galleryGrid.append(card);
+  }
+  state.galleryRenderedCount = nextCount;
+  if (state.favoriteCameraDrawerOpen) {
+    renderFavoriteCameraDrawer();
+  }
+}
+
+function isGalleryItemLandscape(item) {
+  const width = Number(item?.width);
+  const height = Number(item?.height);
+  if (width > 0 && height > 0) {
+    return width > height;
+  }
+  return isLandscapeCaptureOrientation(item?.orientation);
+}
+
+function handleGalleryImageError(item, card) {
+  debugEvent("gallery:image-error", {
+    id: item.id,
+    filename: item.filename,
+    fileBacked: isNativeGalleryItem(item),
+  });
+  card.remove();
+  if (hasNativeGalleryFile(item)) {
+    getNativeBridge()?.deleteGalleryItem?.({ fileUrl: item.fileUrl }).catch((error) => console.error(error));
+  }
+  deleteGalleryItemRecord(item)
+    .then(() => {
+      removeGalleryItemFromState(item);
+      if (state.favoriteCameraDrawerOpen) {
+        renderFavoriteCameraDrawer();
+      }
+    })
+    .catch((error) => console.error(error));
+}
+
+async function renderMoreGalleryItemsIfNeeded() {
+  if (!state.galleryItems.length) {
+    return;
+  }
+  const threshold = 900;
+  if (mobileGallery.scrollTop + mobileGallery.clientHeight < mobileGallery.scrollHeight - threshold) {
+    return;
+  }
+
+  if (state.galleryRenderedCount >= state.galleryItems.length) {
+    const appended = await loadMoreGalleryItems();
+    if (!appended) {
+      return;
+    }
+  }
+
+  if (state.galleryRenderedCount < state.galleryItems.length) {
+    renderGallery({ append: true });
+  }
+}
+
+function setGalleryThumbnailImage(item, image, card) {
+  if (item.previewDataUrl) {
+    image.src = item.previewDataUrl;
+    return;
+  }
+
+  if (item.thumbnailFileUrl) {
+    image.src = window.Capacitor?.convertFileSrc?.(item.thumbnailFileUrl) ?? item.thumbnailFileUrl;
+    return;
+  }
+
+  if (item.thumbnailBlob) {
+    const url = URL.createObjectURL(item.thumbnailBlob);
+    state.galleryObjectUrls.push(url);
+    image.src = url;
+    return;
+  }
+
+  image.removeAttribute("src");
+  generateGalleryThumbnail(item)
+    .then((thumbnailBlob) => {
+      if (!thumbnailBlob || !card.isConnected) {
+        return;
+      }
+      item.thumbnailBlob = thumbnailBlob;
+      const url = URL.createObjectURL(thumbnailBlob);
+      state.galleryObjectUrls.push(url);
+      image.src = url;
+    })
+    .catch(() => handleGalleryImageError(item, card));
+}
+
+async function generateGalleryThumbnail(item) {
+  const blob = await getGalleryItemBlob(item);
+  if (!blob) {
+    return null;
+  }
+
+  const thumbnailBlob = await createGalleryThumbnailBlob(blob);
+  item.thumbnailBlob = thumbnailBlob;
+  await saveGalleryItemRecordUpdate(item);
+  return thumbnailBlob;
+}
+
+async function createGalleryThumbnailBlob(blob) {
+  const image = await decodeBlobToImage(blob);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("Invalid gallery image size.");
+  }
+
+  const scale = Math.min(1, GALLERY_THUMBNAIL_MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const thumbnailCanvas = document.createElement("canvas");
+  thumbnailCanvas.width = width;
+  thumbnailCanvas.height = height;
+  const context = thumbnailCanvas.getContext("2d");
+  if (!context) {
+    throw new Error("Gallery thumbnail canvas is unavailable.");
+  }
+  context.drawImage(image, 0, 0, width, height);
+  return new Promise((resolve, reject) => {
+    thumbnailCanvas.toBlob((thumbnailBlob) => {
+      if (thumbnailBlob) {
+        resolve(thumbnailBlob);
+      } else {
+        reject(new Error("Failed to create gallery thumbnail."));
+      }
+    }, "image/jpeg", GALLERY_THUMBNAIL_QUALITY);
+  });
+}
+
+function getGalleryItemUrl(item) {
+  if (item.blob) {
+    return URL.createObjectURL(item.blob);
+  }
+  if (item.fileUrl) {
+    return window.Capacitor?.convertFileSrc?.(item.fileUrl) ?? item.fileUrl;
+  }
+  return "";
+}
+
+function resolveGalleryCameraName(item) {
+  const explicitName = typeof item.cameraName === "string" ? item.cameraName.trim() : "";
+  if (explicitName && explicitName.toLowerCase() !== "camera" && explicitName.toLowerCase() !== "unknown") {
+    return explicitName;
+  }
+
+  const filename = typeof item.filename === "string" ? item.filename : "";
+  const cameraIdMatch = filename.match(/camera-(\d+)(?:\D|$)/i);
+  if (cameraIdMatch) {
+    const filter = state.filters.find((candidate) => candidate.filename === `camera-${cameraIdMatch[1]}`);
+    if (filter?.name) {
+      return filter.name;
+    }
+  }
+
+  const filenameMatch = filename.match(/(camera-\d+)/i);
+  if (filenameMatch) {
+    const filter = state.filterMap.get(filenameMatch[1]);
+    if (filter?.name) {
+      return filter.name;
+    }
+  }
+
+  return "";
+}
+
+async function openGalleryItem(item) {
   state.selectedGalleryItem = item;
-  galleryViewerImage.src = url;
+  if (state.selectedGalleryObjectUrl) {
+    URL.revokeObjectURL(state.selectedGalleryObjectUrl);
+    state.selectedGalleryObjectUrl = "";
+  }
+  const cameraName = resolveGalleryCameraName(item);
+  galleryViewerCamera.textContent = cameraName ? `Shot with ${cameraName}` : "Camera unavailable";
   galleryViewer.hidden = false;
+  galleryViewerImage.removeAttribute("src");
+  const url = getGalleryItemUrl(item);
+  if (!url) {
+    setStatus("Selected gallery image is unavailable.");
+    return;
+  }
+  if (item.blob) {
+    state.selectedGalleryObjectUrl = url;
+  }
+  galleryViewerImage.src = url;
 }
 
 function closeGalleryItem() {
   state.selectedGalleryItem = null;
+  if (state.selectedGalleryObjectUrl) {
+    URL.revokeObjectURL(state.selectedGalleryObjectUrl);
+    state.selectedGalleryObjectUrl = "";
+  }
   galleryViewer.hidden = true;
   galleryViewerImage.removeAttribute("src");
+  galleryViewerCamera.textContent = "";
+}
+
+async function deleteSelectedGalleryItem() {
+  const item = state.selectedGalleryItem;
+  if (!item) {
+    return;
+  }
+
+  if (hasNativeGalleryFile(item)) {
+    try {
+      const result = await getNativeBridge()?.deleteGalleryItem?.({ fileUrl: item.fileUrl });
+      debugEvent("native-gallery:delete", {
+        id: item.id,
+        filename: item.filename,
+        deleted: Boolean(result?.deleted),
+      });
+    } catch (error) {
+      console.error(error);
+      debugEvent("native-gallery:delete-error", {
+        id: item.id,
+        filename: item.filename,
+        message: error?.message ?? String(error),
+      });
+    }
+  }
+  await deleteGalleryItemRecord(item);
+  removeGalleryItemFromState(item);
+  closeGalleryItem();
+  renderGallery();
+  setStatus("Deleted local gallery image.");
 }
 
 async function saveSelectedGalleryItem() {
@@ -1766,13 +4266,29 @@ async function saveSelectedGalleryItem() {
     return;
   }
 
-  const file = new File([item.blob], item.filename, { type: "image/jpeg" });
+  if (item.fileUrl && await saveNativeGalleryItemToPhotos(item)) {
+    setStatus("Saved selected gallery image to Photos.");
+    return;
+  }
+
+  const blob = await getGalleryItemBlob(item);
+  if (!blob) {
+    setStatus("Selected gallery image is unavailable.");
+    return;
+  }
+
+  if (await saveBlobToNativePhotoLibrary(blob, item.filename)) {
+    setStatus("Saved selected gallery image to Photos.");
+    return;
+  }
+
+  const file = new File([blob], item.filename, { type: "image/jpeg" });
   if (navigator.canShare?.({ files: [file] })) {
     await navigator.share({ files: [file], title: "Analoguecam photo" });
     return;
   }
 
-  const url = URL.createObjectURL(item.blob);
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = item.filename;
@@ -1780,6 +4296,83 @@ async function saveSelectedGalleryItem() {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function saveNativeGalleryItemToPhotos(item) {
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.saveGalleryItemToPhotos || !item.fileUrl) {
+    return false;
+  }
+
+  try {
+    const result = await nativeBridge.saveGalleryItemToPhotos({ fileUrl: item.fileUrl });
+    const saved = Boolean(result?.saved);
+    debugEvent("native-gallery:save-to-photos", {
+      id: item.id,
+      filename: item.filename,
+      saved,
+    });
+    return saved;
+  } catch (error) {
+    console.error(error);
+    debugEvent("native-gallery:save-to-photos-error", {
+      id: item.id,
+      filename: item.filename,
+      message: error?.message ?? String(error),
+    });
+    return false;
+  }
+}
+
+async function getGalleryItemBlob(item) {
+  if (item.blob) {
+    return item.blob;
+  }
+  const url = getGalleryItemUrl(item);
+  if (!url) {
+    return null;
+  }
+  const response = await fetch(url);
+  return response.ok ? response.blob() : null;
+}
+
+async function saveBlobToNativePhotoLibrary(blob, filename) {
+  const nativeBridge = window.Capacitor?.Plugins?.KonoNativeBridge;
+  if (!nativeBridge?.savePhoto) {
+    return false;
+  }
+
+  try {
+    const dataUrl = await blobToDataUrl(blob);
+    await nativeBridge.savePhoto({ dataUrl, filename });
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read photo blob."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function dataUrlToBlob(dataUrl) {
+  const response = await fetch(dataUrl);
+  return response.blob();
 }
 
 function loadFile(file) {
@@ -1839,20 +4432,32 @@ function fitCanvasToImage(image) {
 }
 
 function fitCanvasToFilterOutputSize(filename, sourceWidth, sourceHeight, maxSide) {
+  const size = getFilterOutputSize(filename, sourceWidth, sourceHeight, maxSide);
+  fitCanvasToSize(size.width, size.height, maxSide);
+}
+
+function getFilterOutputSize(filename, sourceWidth, sourceHeight, maxSide) {
   const sizingImage = getCameraStackSizingImage(filename);
   if (!sizingImage) {
-    fitCanvasToSize(sourceWidth, sourceHeight, maxSide);
-    return;
+    return fitSizeWithinMax(sourceWidth, sourceHeight, maxSide);
   }
 
   const width = sizingImage.naturalWidth || sizingImage.width;
   const height = sizingImage.naturalHeight || sizingImage.height;
   if (!width || !height) {
-    fitCanvasToSize(sourceWidth, sourceHeight, maxSide);
-    return;
+    return fitSizeWithinMax(sourceWidth, sourceHeight, maxSide);
   }
 
-  fitCanvasToSize(width, height, maxSide);
+  return fitSizeWithinMax(width, height, maxSide);
+}
+
+function fitSizeWithinMax(width, height, maxSide) {
+  const longestSide = Math.max(width, height);
+  const scale = Math.min(1, maxSide / longestSide);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
 }
 
 function getCameraStackSizingImage(filename) {
@@ -1894,10 +4499,7 @@ function getCameraStackSizingImage(filename) {
 }
 
 function fitCanvasToSize(width, height, maxSide) {
-  const longestSide = Math.max(width, height);
-  const scale = Math.min(1, maxSide / longestSide);
-  const nextWidth = Math.max(1, Math.round(width * scale));
-  const nextHeight = Math.max(1, Math.round(height * scale));
+  const { width: nextWidth, height: nextHeight } = fitSizeWithinMax(width, height, maxSide);
   if (canvas.width === nextWidth && canvas.height === nextHeight) {
     return;
   }
@@ -1970,28 +4572,53 @@ async function ensureLutTexture(filename) {
     return;
   }
 
+  const rgbBytes = await ensureLutBytes(filename);
+  uploadLutTexture(rgbBytes);
+  state.lutRgbBytes = rgbBytes;
+  state.selectedFilterFilename = filename;
+}
+
+async function ensureLutBytes(filename) {
+  if (!filename) {
+    return null;
+  }
+  if (state.lutByteCache.has(filename)) {
+    return state.lutByteCache.get(filename);
+  }
+  if (state.lutBytePromises.has(filename)) {
+    return state.lutBytePromises.get(filename);
+  }
+
+  const loadPromise = loadLutBytes(filename);
+  state.lutBytePromises.set(filename, loadPromise);
+  try {
+    const rgbBytes = await loadPromise;
+    state.lutByteCache.set(filename, rgbBytes);
+    return rgbBytes;
+  } finally {
+    state.lutBytePromises.delete(filename);
+  }
+}
+
+async function loadLutBytes(filename) {
   const filter = state.filterMap.get(filename);
-  let rgbBytes;
 
   if (filter?.custom) {
     setStatus(`Generating ${filter.name}...`);
-    rgbBytes = generateCustomLut(filter.recipe);
-  } else {
-    setStatus(`Decrypting ${filter?.name ?? filename}...`);
-    const lutPath = filter?.lutPath ? `${CAMERA_ASSETS_ROOT}/${filter.lutPath}` : null;
-    if (!lutPath) {
-      throw new Error(`Camera ${filename} does not define a LUT asset.`);
-    }
-    const response = await fetch(lutPath);
-    if (!response.ok) {
-      throw new Error(`Failed to load LUT ${filename}: ${response.status}`);
-    }
-    const encrypted = await response.arrayBuffer();
-    rgbBytes = await decryptNomoLut(encrypted);
+    return generateCustomLut(filter.recipe);
   }
 
-  uploadLutTexture(rgbBytes);
-  state.selectedFilterFilename = filename;
+  setStatus(`Decrypting ${filter?.name ?? filename}...`);
+  const lutPath = filter?.lutPath ? `${CAMERA_ASSETS_ROOT}/${filter.lutPath}` : null;
+  if (!lutPath) {
+    throw new Error(`Camera ${filename} does not define a LUT asset.`);
+  }
+  const response = await fetch(lutPath);
+  if (!response.ok) {
+    throw new Error(`Failed to load LUT ${filename}: ${response.status}`);
+  }
+  const encrypted = await response.arrayBuffer();
+  return decryptNomoLut(encrypted);
 }
 
 async function decryptNomoLut(encryptedBuffer) {
@@ -2174,12 +4801,145 @@ function renderPostEffectsStage(options = {}) {
       {
         filmFormatMm: 35.0,
         preset: state.importedEffects.spektraGrain.preset,
+        mode: state.importedEffects.spektraGrain.mode,
       },
     );
   }
 
   uploadGrainTexture(output);
   renderBlit(state.grainTexture);
+}
+
+async function renderNativeProcessedImageWithCpuStack(image, width, height, options = {}) {
+  const outputCanvas = document.createElement("canvas");
+  outputCanvas.width = width;
+  outputCanvas.height = height;
+  const context = outputCanvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    throw new Error("Unable to create CPU save canvas.");
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  let imageData = context.getImageData(0, 0, width, height);
+  let output = applyCpuManualEffects(new Uint8Array(imageData.data), width, height, state.effects);
+
+  const includeNomoOverlays = options.includeNomoOverlays ?? true;
+  const includeCameraStack = options.includeCameraStack ?? includeNomoOverlays;
+  if (includeNomoOverlays && isRainbowFilterSelected()) {
+    output = applyRainbowCameraPass(output, width, height);
+  }
+
+  if (includeNomoOverlays && hasNomoOverlayEffects({ includeCameraStack })) {
+    output = compositeNomoOverlays(output, { includeCameraStack, width, height });
+  }
+
+  const includeSpektraGrain = options.includeSpektraGrain ?? true;
+  if (includeSpektraGrain && state.importedEffects.spektraGrain.enabled && !state.spektraProfile) {
+    await ensureSpektraProfileLoaded();
+  }
+  if (includeSpektraGrain && state.importedEffects.spektraGrain.enabled && state.spektraProfile) {
+    output = applySpektraGrainToRgba(
+      output,
+      width,
+      height,
+      state.spektraProfile,
+      {
+        filmFormatMm: 35.0,
+        preset: state.importedEffects.spektraGrain.preset,
+        mode: state.importedEffects.spektraGrain.mode,
+      },
+    );
+  }
+
+  imageData = context.createImageData(width, height);
+  imageData.data.set(output);
+  context.putImageData(imageData, 0, 0);
+  return new Promise((resolve, reject) => {
+    outputCanvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("CPU camera save did not produce a blob."));
+      }
+    }, "image/jpeg", JPEG_EXPORT_QUALITY);
+  });
+}
+
+function applyCpuManualEffects(rgba, width, height, effects) {
+  const exposure = Number(effects.exposure?.value ?? 0);
+  const contrast = Number(effects.contrast?.value ?? 0);
+  const saturation = Number(effects.saturation?.value ?? 0);
+  const temperature = Number(effects.temperature?.value ?? 0);
+  const tint = Number(effects.tint?.value ?? 0);
+  const fade = Number(effects.fade?.value ?? 0);
+  const highlight = Number(effects.highlight?.value ?? 0);
+  const shadow = Number(effects.shadow?.value ?? 0);
+  const sharpen = Number(effects.sharpen?.value ?? 0);
+  const exposureScale = Math.pow(2, exposure);
+  const output = new Uint8Array(rgba.length);
+
+  for (let index = 0; index < rgba.length; index += 4) {
+    let r = (rgba[index] / 255) * exposureScale;
+    let g = (rgba[index + 1] / 255) * exposureScale;
+    let b = (rgba[index + 2] / 255) * exposureScale;
+
+    r = clamp01((r - 0.5) * (1 + contrast) + 0.5);
+    g = clamp01((g - 0.5) * (1 + contrast) + 0.5);
+    b = clamp01((b - 0.5) * (1 + contrast) + 0.5);
+
+    const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+    r = clamp01(luma + (r - luma) * (1 + saturation));
+    g = clamp01(luma + (g - luma) * (1 + saturation));
+    b = clamp01(luma + (b - luma) * (1 + saturation));
+
+    r = clamp01(r + (temperature * 0.12) + (tint * 0.05));
+    g = clamp01(g + (temperature * 0.03) + (tint * -0.08));
+    b = clamp01(b + (temperature * -0.12) + (tint * 0.05));
+
+    const adjustedLuma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+    const highlightMask = smoothstep(0.45, 1.0, adjustedLuma) * highlight;
+    const shadowMask = (1 - smoothstep(0.0, 0.55, adjustedLuma)) * shadow;
+    r = r * (1 - (0.16 * highlightMask));
+    g = g * (1 - (0.16 * highlightMask));
+    b = b * (1 - (0.16 * highlightMask));
+    r = r * (1 - shadowMask) + Math.pow(Math.max(r, 0), 0.85) * shadowMask;
+    g = g * (1 - shadowMask) + Math.pow(Math.max(g, 0), 0.85) * shadowMask;
+    b = b * (1 - shadowMask) + Math.pow(Math.max(b, 0), 0.85) * shadowMask;
+
+    r = r * (1 - fade) + ((r * 0.88) + 0.12) * fade;
+    g = g * (1 - fade) + ((g * 0.88) + 0.12) * fade;
+    b = b * (1 - fade) + ((b * 0.88) + 0.12) * fade;
+
+    output[index] = clampByte(r * 255);
+    output[index + 1] = clampByte(g * 255);
+    output[index + 2] = clampByte(b * 255);
+    output[index + 3] = rgba[index + 3];
+  }
+
+  if (sharpen > 0) {
+    return applyCpuSharpen(output, width, height, sharpen);
+  }
+  return output;
+}
+
+function applyCpuSharpen(rgba, width, height, amount) {
+  const output = new Uint8Array(rgba.length);
+  output.set(rgba);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
+      for (let channel = 0; channel < 3; channel++) {
+        const center = rgba[index + channel];
+        const north = rgba[((Math.max(0, y - 1) * width + x) * 4) + channel];
+        const south = rgba[((Math.min(height - 1, y + 1) * width + x) * 4) + channel];
+        const west = rgba[((y * width + Math.max(0, x - 1)) * 4) + channel];
+        const east = rgba[((y * width + Math.min(width - 1, x + 1)) * 4) + channel];
+        const blur = (north + south + west + east) * 0.25;
+        output[index + channel] = clampByte(center + (center - blur) * amount * 1.6);
+      }
+    }
+  }
+  return output;
 }
 
 function isRainbowFilterSelected() {
@@ -2394,7 +5154,7 @@ function hasNomoOverlayEffects(options = {}) {
 }
 
 function compositeNomoOverlays(rgba, options = {}) {
-  const baseCanvas = createCompositeCanvas(rgba);
+  const baseCanvas = createCompositeCanvas(rgba, options.width, options.height);
   const context = baseCanvas.getContext("2d");
   const cameraOverlays = state.currentCameraOverlayImages;
 
@@ -2454,7 +5214,10 @@ function isFrameDisabledCamera(filter) {
 }
 
 function isFrameCroppedToPhotoCamera(filter) {
-  return filter?.id === 49 || filter?.id === 50 || filter?.name === "McDonald’s" || filter?.name === "Lunar Rabbits";
+  return filter?.id === 49
+    || filter?.id === 50
+    || filter?.name === "McDonald’s"
+    || filter?.name === "Lunar Rabbits";
 }
 
 function isSourceAspectBlendCamera(filter) {
@@ -2480,7 +5243,7 @@ function drawFrameOverlayList(context, images, effect, filter) {
   }
 
   if (isFrameCroppedToPhotoCamera(filter)) {
-    drawFrameCroppedToPhoto(context, image, alpha, region);
+    drawFrameCroppedToPhoto(context, image, alpha, region, getRandomizedStackOverlayTransform(filter, effect));
     return;
   }
 
@@ -2503,6 +5266,7 @@ function drawOverlayList(context, images, effect, blendMode) {
   drawOverlay(context, image, alpha, blendMode, {
     fit: isSourceAspectBlendCamera(filter) && String(effect.params?.fillmode ?? "").toLowerCase() === "fill" ? "cover" : "stretch",
     tiled: effect.params?.fillmode === "tiled",
+    transform: getRandomizedStackOverlayTransform(filter, effect),
   });
 }
 
@@ -2572,7 +5336,7 @@ function drawRegionFrameOverlay(context, image, alpha, region) {
   context.restore();
 }
 
-function drawFrameCroppedToPhoto(context, image, alpha, region) {
+function drawFrameCroppedToPhoto(context, image, alpha, region, transform = null) {
   const frameWidth = image.naturalWidth || image.width;
   const frameHeight = image.naturalHeight || image.height;
   const canvasWidth = context.canvas.width;
@@ -2596,7 +5360,7 @@ function drawFrameCroppedToPhoto(context, image, alpha, region) {
   context.save();
   context.globalAlpha = alpha;
   context.globalCompositeOperation = "source-over";
-  context.drawImage(image, drawX, drawY, frameWidth * scale, frameHeight * scale);
+  drawPossiblyTransformedImage(context, image, drawX, drawY, frameWidth * scale, frameHeight * scale, transform);
   context.restore();
 }
 
@@ -2679,12 +5443,12 @@ function blendModeFromCameraEffect(effect) {
   return "source-over";
 }
 
-function createCompositeCanvas(rgba) {
+function createCompositeCanvas(rgba, width = canvas.width, height = canvas.height) {
   const compositeCanvas = document.createElement("canvas");
-  compositeCanvas.width = canvas.width;
-  compositeCanvas.height = canvas.height;
+  compositeCanvas.width = width;
+  compositeCanvas.height = height;
   const context = compositeCanvas.getContext("2d");
-  const imageData = context.createImageData(canvas.width, canvas.height);
+  const imageData = context.createImageData(width, height);
   imageData.data.set(rgba);
   context.putImageData(imageData, 0, 0);
   return compositeCanvas;
@@ -2709,11 +5473,55 @@ function drawOverlay(context, image, alpha, blendMode, options = {}) {
       context.fillRect(0, 0, context.canvas.width, context.canvas.height);
     }
   } else if (options.fit === "cover") {
-    drawImageCover(context, image, 0, 0, context.canvas.width, context.canvas.height);
+    if (options.transform) {
+      drawTransformedCover(context, image, options.transform);
+    } else {
+      drawImageCover(context, image, 0, 0, context.canvas.width, context.canvas.height);
+    }
   } else {
-    context.drawImage(image, 0, 0, context.canvas.width, context.canvas.height);
+    drawPossiblyTransformedImage(context, image, 0, 0, context.canvas.width, context.canvas.height, options.transform);
   }
   context.restore();
+}
+
+function getRandomizedStackOverlayTransform(filter, effect) {
+  if (!filter || !isFrameCroppedToPhotoCamera(filter)) {
+    return null;
+  }
+  const seed = stableOverlayIndex(`${state.overlaySelections.stackTransform}|${effect?.raw ?? ""}|${effect?.type ?? ""}`, 1024);
+  return {
+    rotation: [90, 180, 270][seed % 3],
+    flipX: Math.floor(seed / 3) % 2 === 1,
+    flipY: Math.floor(seed / 6) % 2 === 1,
+  };
+}
+
+function drawPossiblyTransformedImage(context, image, x, y, width, height, transform) {
+  if (!transform) {
+    context.drawImage(image, x, y, width, height);
+    return;
+  }
+
+  context.save();
+  context.translate(x + width / 2, y + height / 2);
+  context.rotate((transform.rotation * Math.PI) / 180);
+  context.scale(transform.flipX ? -1 : 1, transform.flipY ? -1 : 1);
+  context.drawImage(image, -width / 2, -height / 2, width, height);
+  context.restore();
+}
+
+function drawTransformedCover(context, image, transform) {
+  const offscreen = document.createElement("canvas");
+  offscreen.width = context.canvas.width;
+  offscreen.height = context.canvas.height;
+  const offscreenContext = offscreen.getContext("2d");
+  if (!offscreenContext) {
+    drawImageCover(context, image, 0, 0, context.canvas.width, context.canvas.height);
+    return;
+  }
+
+  drawImageCover(offscreenContext, image, 0, 0, offscreen.width, offscreen.height);
+  drawPossiblyTransformedImage(context, offscreen, 0, 0, context.canvas.width, context.canvas.height, transform);
 }
 
 function renderBlit(texture) {
@@ -2738,6 +5546,7 @@ function resetControls() {
   applyFilterEffectDefaults(lookSelect.value);
   state.importedEffects.spektraGrain.enabled = SPEKTRA_GRAIN_EFFECT.defaultEnabled;
   state.importedEffects.spektraGrain.preset = SPEKTRA_GRAIN_EFFECT.defaultPreset;
+  state.importedEffects.spektraGrain.mode = SPEKTRA_GRAIN_EFFECT.defaultMode;
   syncIntensityControlState();
   updateEffectControlState();
   syncEffectInputs();
@@ -2761,6 +5570,9 @@ function applyFilterEffectDefaults(filename) {
       state.effects[effectId].enabled = value !== effect.defaultValue;
     }
   }
+
+  state.effects.nomoGrain.value = DEFAULT_NOMO_GRAIN_VALUE;
+  state.effects.nomoGrain.enabled = DEFAULT_NOMO_GRAIN_VALUE !== getEffectById("nomoGrain").defaultValue;
 
   rerollOverlaySelections();
 }
@@ -2802,7 +5614,9 @@ function renderImageAfterSettingsChange() {
   }
 
   state.spektraRenderTimer = window.setTimeout(() => {
-    renderImage({ includeSpektraGrain: true });
+    ensureSpektraProfileLoaded()
+      .then(() => renderImage({ includeSpektraGrain: true }))
+      .catch((error) => console.error(error));
   }, 650);
 }
 
@@ -2900,6 +5714,9 @@ function isCameraSwipeBlockedTarget(target) {
   if (target.closest(".camera-list-drawer")) {
     return false;
   }
+  if (target.closest(".favorite-camera-drawer")) {
+    return false;
+  }
   return Boolean(target.closest("button, select, input, label"));
 }
 
@@ -2909,14 +5726,167 @@ function setCameraGalleryPeek(enabled) {
 
 function setCameraListOpen(open) {
   state.cameraListOpen = Boolean(open && state.cameraActive && isMobileView());
+  if (state.cameraListOpen && state.favoriteCameraDrawerOpen) {
+    setFavoriteCameraDrawerOpen(false);
+  }
   document.body.classList.toggle("camera-list-open", state.cameraListOpen);
   cameraListDrawer.setAttribute("aria-hidden", String(!state.cameraListOpen));
 }
 
+function setFavoriteCameraDrawerOpen(open) {
+  state.favoriteCameraDrawerOpen = Boolean(open && state.cameraActive && isMobileView());
+  if (state.favoriteCameraDrawerOpen && state.cameraListOpen) {
+    setCameraListOpen(false);
+  }
+  document.body.classList.toggle("favorite-camera-drawer-open", state.favoriteCameraDrawerOpen);
+  favoriteCameraDrawer?.setAttribute("aria-hidden", String(!state.favoriteCameraDrawerOpen));
+  if (state.favoriteCameraDrawerOpen) {
+    renderFavoriteCameraDrawer();
+    loadGalleryOnDemand()
+      .then(() => {
+        if (state.favoriteCameraDrawerOpen) {
+          renderFavoriteCameraDrawer();
+        }
+      })
+      .catch((error) => console.error(error));
+  } else {
+    clearFavoriteCameraObjectUrls();
+  }
+}
+
 function syncCameraListSelection() {
-  const selected = lookSelect.value;
+  const selected = state.randomCameraEnabled ? RANDOM_CAMERA_FILENAME : lookSelect.value;
   for (const button of cameraList.querySelectorAll(".camera-list__item")) {
     button.classList.toggle("is-selected", button.dataset.filename === selected);
+  }
+  for (const button of cameraList.querySelectorAll(".camera-list__favorite")) {
+    const favorite = state.favoriteCameraFilenames.has(button.dataset.filename);
+    button.classList.toggle("is-favorite", favorite);
+    button.setAttribute("aria-pressed", String(favorite));
+    button.textContent = favorite ? "★" : "☆";
+  }
+  syncFavoriteCameraSelection();
+}
+
+function syncFavoriteCameraSelection() {
+  if (!favoriteCameraGrid) {
+    return;
+  }
+  for (const card of favoriteCameraGrid.querySelectorAll(".favorite-camera-card")) {
+    const selected = !state.randomCameraEnabled && card.dataset.filename === lookSelect.value;
+    card.classList.toggle("is-selected", selected);
+    card.setAttribute("aria-current", selected ? "true" : "false");
+  }
+}
+
+function toggleFavoriteCamera(filename) {
+  if (!state.filterMap.has(filename)) {
+    return;
+  }
+
+  if (state.favoriteCameraFilenames.has(filename)) {
+    state.favoriteCameraFilenames.delete(filename);
+  } else {
+    state.favoriteCameraFilenames.add(filename);
+  }
+  writeStoredFavoriteCameras();
+  populateCameraDrawerList(state.filters);
+  syncCameraListSelection();
+  renderFavoriteCameraDrawer();
+}
+
+function clearFavoriteCameraObjectUrls() {
+  for (const url of state.favoriteCameraObjectUrls) {
+    URL.revokeObjectURL(url);
+  }
+  state.favoriteCameraObjectUrls = [];
+}
+
+function findLatestGalleryItemForCamera(filter) {
+  if (!filter) {
+    return null;
+  }
+
+  return state.galleryItems.find((item) => {
+    if (item.cameraName === filter.name) {
+      return true;
+    }
+    const filename = String(item.filename ?? "");
+    return Boolean(filter.filename && filename.includes(filter.filename));
+  }) ?? null;
+}
+
+function getFavoriteCameraThumbnailUrl(item) {
+  if (!item) {
+    return "";
+  }
+  if (item.thumbnailFileUrl) {
+    return window.Capacitor?.convertFileSrc?.(item.thumbnailFileUrl) ?? item.thumbnailFileUrl;
+  }
+  if (item.thumbnailBlob) {
+    const url = URL.createObjectURL(item.thumbnailBlob);
+    state.favoriteCameraObjectUrls.push(url);
+    return url;
+  }
+  if (item.fileUrl) {
+    return window.Capacitor?.convertFileSrc?.(item.fileUrl) ?? item.fileUrl;
+  }
+  if (item.blob) {
+    const url = URL.createObjectURL(item.blob);
+    state.favoriteCameraObjectUrls.push(url);
+    return url;
+  }
+  return "";
+}
+
+function renderFavoriteCameraDrawer() {
+  if (!favoriteCameraGrid) {
+    return;
+  }
+
+  clearFavoriteCameraObjectUrls();
+  favoriteCameraGrid.innerHTML = "";
+  const favoriteFilters = state.filters.filter((filter) => state.favoriteCameraFilenames.has(filter.filename));
+
+  if (!favoriteFilters.length) {
+    const empty = document.createElement("p");
+    empty.className = "favorite-camera-grid__empty";
+    empty.textContent = "Star cameras in the camera list.";
+    favoriteCameraGrid.append(empty);
+    return;
+  }
+
+  for (const filter of favoriteFilters) {
+    const item = findLatestGalleryItemForCamera(filter);
+    const thumbnailUrl = getFavoriteCameraThumbnailUrl(item);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `favorite-camera-card${thumbnailUrl ? "" : " favorite-camera-card--empty"}`;
+    card.dataset.filename = filter.filename;
+    const selected = !state.randomCameraEnabled && lookSelect.value === filter.filename;
+    card.classList.toggle("is-selected", selected);
+    card.setAttribute("aria-current", selected ? "true" : "false");
+    card.addEventListener("click", () => {
+      if (state.cameraSwipe.suppressNextListClick) {
+        state.cameraSwipe.suppressNextListClick = false;
+        return;
+      }
+      handleFilterSelection(filter.filename);
+      setFavoriteCameraDrawerOpen(false);
+    });
+
+    if (thumbnailUrl) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.loading = "lazy";
+      image.src = thumbnailUrl;
+      card.append(image);
+    }
+
+    const name = document.createElement("span");
+    name.textContent = filter.name;
+    card.append(name);
+    favoriteCameraGrid.append(card);
   }
 }
 
@@ -2932,9 +5902,17 @@ function beginCameraSwipe(clientX, clientY, pointerId, target, captureTarget) {
   state.cameraSwipe.axis = null;
   state.cameraSwipe.distance = 0;
   state.cameraSwipe.startedInCameraList = target instanceof Element && Boolean(target.closest(".camera-list-drawer"));
+  state.cameraSwipe.startedInFavoriteDrawer = target instanceof Element && Boolean(target.closest(".favorite-camera-drawer"));
+  state.cameraSwipe.horizontalDirection = null;
   workspace.style.transition = "none";
+  cancelNativePreviewOffsetAnimation();
 
-  if (!state.cameraSwipe.startedInCameraList && captureTarget?.setPointerCapture && typeof pointerId === "number") {
+  if (
+    !state.cameraSwipe.startedInCameraList
+    && !state.cameraSwipe.startedInFavoriteDrawer
+    && captureTarget?.setPointerCapture
+    && typeof pointerId === "number"
+  ) {
     captureTarget.setPointerCapture(pointerId);
   }
 
@@ -2951,7 +5929,10 @@ function moveCameraSwipe(clientX, clientY, pointerId, event) {
 
   if (!state.cameraSwipe.axis && Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 10) {
     state.cameraSwipe.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "horizontal" : "vertical";
-    if (state.cameraSwipe.axis === "vertical" && state.cameraListOpen) {
+    if (state.cameraSwipe.axis === "horizontal") {
+      state.cameraSwipe.horizontalDirection = deltaX < 0 ? "left" : "right";
+    }
+    if (state.cameraSwipe.axis === "vertical" && (state.cameraListOpen || state.favoriteCameraDrawerOpen)) {
       cancelCameraSwipe(pointerId, event.currentTarget);
       return;
     }
@@ -2961,7 +5942,15 @@ function moveCameraSwipe(clientX, clientY, pointerId, event) {
   }
 
   if (state.cameraSwipe.axis === "horizontal") {
-    const distance = state.cameraListOpen ? Math.max(0, -deltaX) : Math.max(0, deltaX);
+    const direction = state.cameraSwipe.horizontalDirection ?? (deltaX < 0 ? "left" : "right");
+    let distance = 0;
+    if (state.cameraListOpen) {
+      distance = Math.max(0, -deltaX);
+    } else if (state.favoriteCameraDrawerOpen) {
+      distance = Math.max(0, deltaX);
+    } else {
+      distance = direction === "left" ? Math.max(0, -deltaX) : Math.max(0, deltaX);
+    }
     state.cameraSwipe.distance = distance;
     if (distance > 8) {
       event.preventDefault();
@@ -2981,6 +5970,7 @@ function moveCameraSwipe(clientX, clientY, pointerId, event) {
 
   const eased = Math.min(window.innerHeight, distance * 0.92);
   workspace.style.transform = `translateY(${-eased}px)`;
+  scheduleNativePreviewOffsetUpdate(-eased);
 }
 
 function cancelCameraSwipe(pointerId, captureTarget) {
@@ -2989,9 +5979,13 @@ function cancelCameraSwipe(pointerId, captureTarget) {
   state.cameraSwipe.axis = null;
   state.cameraSwipe.distance = 0;
   state.cameraSwipe.startedInCameraList = false;
+  state.cameraSwipe.startedInFavoriteDrawer = false;
+  state.cameraSwipe.horizontalDirection = null;
   workspace.style.transition = "";
   workspace.style.transform = "";
   setCameraGalleryPeek(false);
+  animateNativePreviewOffsetTo(0, 180);
+  scheduleNativePreviewRectUpdate();
   if (captureTarget?.hasPointerCapture?.(pointerId)) {
     captureTarget.releasePointerCapture(pointerId);
   }
@@ -3003,29 +5997,50 @@ function endCameraSwipe(pointerId, captureTarget) {
   }
 
   const axis = state.cameraSwipe.axis;
-  const shouldOpenCameraList = axis === "horizontal" && !state.cameraListOpen && state.cameraSwipe.distance > Math.min(90, window.innerWidth * 0.22);
-  const shouldCloseCameraList = axis === "horizontal" && state.cameraListOpen && state.cameraSwipe.distance > Math.min(90, window.innerWidth * 0.22);
-  const shouldOpenGallery = axis === "vertical" && state.cameraSwipe.distance > Math.min(140, window.innerHeight * 0.18);
+  const horizontalDirection = state.cameraSwipe.horizontalDirection;
+  const horizontalThreshold = Math.min(90, window.innerWidth * 0.22);
+  const shouldOpenCameraList = axis === "horizontal"
+    && horizontalDirection === "right"
+    && !state.cameraListOpen
+    && !state.favoriteCameraDrawerOpen
+    && state.cameraSwipe.distance > horizontalThreshold;
+  const shouldOpenFavoriteDrawer = axis === "horizontal"
+    && horizontalDirection === "left"
+    && !state.cameraListOpen
+    && !state.favoriteCameraDrawerOpen
+    && state.cameraSwipe.distance > horizontalThreshold;
+  const shouldCloseCameraList = axis === "horizontal" && state.cameraListOpen && state.cameraSwipe.distance > horizontalThreshold;
+  const shouldCloseFavoriteDrawer = axis === "horizontal" && state.favoriteCameraDrawerOpen && state.cameraSwipe.distance > horizontalThreshold;
+  const shouldOpenGallery = axis === "vertical"
+    && !state.cameraListOpen
+    && !state.favoriteCameraDrawerOpen
+    && state.cameraSwipe.distance > Math.min(140, window.innerHeight * 0.18);
   state.cameraSwipe.active = false;
   state.cameraSwipe.pointerId = null;
   state.cameraSwipe.axis = null;
   state.cameraSwipe.startedInCameraList = false;
+  state.cameraSwipe.startedInFavoriteDrawer = false;
+  state.cameraSwipe.horizontalDirection = null;
   if (captureTarget?.hasPointerCapture?.(pointerId)) {
     captureTarget.releasePointerCapture(pointerId);
   }
   workspace.style.transition = "transform 220ms ease";
 
-  if (shouldOpenCameraList || shouldCloseCameraList) {
-    state.cameraSwipe.suppressNextListClick = shouldCloseCameraList && state.cameraSwipe.distance > 8;
+  if (shouldOpenCameraList || shouldCloseCameraList || shouldOpenFavoriteDrawer || shouldCloseFavoriteDrawer) {
+    state.cameraSwipe.suppressNextListClick = (shouldCloseCameraList || shouldCloseFavoriteDrawer) && state.cameraSwipe.distance > 8;
     setCameraListOpen(shouldOpenCameraList);
+    setFavoriteCameraDrawerOpen(shouldOpenFavoriteDrawer);
     workspace.style.transition = "";
     workspace.style.transform = "";
     setCameraGalleryPeek(false);
+    animateNativePreviewOffsetTo(0, 160);
+    scheduleNativePreviewRectUpdate();
     return;
   }
 
   if (shouldOpenGallery) {
     setCameraListOpen(false);
+    setFavoriteCameraDrawerOpen(false);
     workspace.style.transform = "translateY(-100svh)";
     window.setTimeout(() => {
       workspace.style.transition = "";
@@ -3036,9 +6051,11 @@ function endCameraSwipe(pointerId, captureTarget) {
   }
 
   workspace.style.transform = "";
+  animateNativePreviewOffsetTo(0, 220);
   window.setTimeout(() => {
     workspace.style.transition = "";
     setCameraGalleryPeek(false);
+    scheduleNativePreviewRectUpdate();
   }, 220);
 }
 
@@ -3079,9 +6096,75 @@ function handleCameraSwipeTouchEnd(event) {
   endCameraSwipe(touch.identifier, null);
 }
 
-async function selectFilter(filename) {
+function handleGallerySwipeStart(event) {
+  if (
+    !isMobileView()
+    || state.cameraActive
+    || mobileGallery.scrollTop > 0
+    || window.scrollY > 0
+    || state.gallerySwipe.active
+  ) {
+    return;
+  }
+  const touch = firstTouch(event);
+  if (!touch) {
+    return;
+  }
+  state.gallerySwipe.active = true;
+  state.gallerySwipe.pointerId = touch.identifier;
+  state.gallerySwipe.startY = touch.clientY;
+  state.gallerySwipe.startScrollTop = mobileGallery.scrollTop;
+  state.gallerySwipe.distance = 0;
+}
+
+function handleGallerySwipeMove(event) {
+  if (!state.gallerySwipe.active) {
+    return;
+  }
+  const touch = Array.from(event.changedTouches).find((candidate) => candidate.identifier === state.gallerySwipe.pointerId);
+  if (!touch) {
+    return;
+  }
+  const distance = Math.max(0, touch.clientY - state.gallerySwipe.startY);
+  state.gallerySwipe.distance = distance;
+  if (state.gallerySwipe.startScrollTop <= 0 && distance > 8) {
+    event.preventDefault();
+    mobileGallery.style.transform = `translateY(${Math.min(window.innerHeight * 0.35, distance * 0.45)}px)`;
+  }
+}
+
+function handleGallerySwipeEnd() {
+  if (!state.gallerySwipe.active) {
+    return;
+  }
+  const shouldOpenCamera = state.gallerySwipe.distance > Math.min(120, window.innerHeight * 0.16);
+  state.gallerySwipe.active = false;
+  state.gallerySwipe.pointerId = null;
+  state.gallerySwipe.startY = 0;
+  state.gallerySwipe.distance = 0;
+  mobileGallery.style.transform = "";
+  if (shouldOpenCamera) {
+    startCamera().catch((error) => console.error(error));
+  }
+}
+
+async function selectFilter(filename, options = {}) {
+  if (filename === RANDOM_CAMERA_FILENAME) {
+    state.randomCameraEnabled = true;
+    cameraLookSelect.value = RANDOM_CAMERA_FILENAME;
+    syncCameraListSelection();
+    updateMobileCameraState();
+    setStatus("Random Cam enabled. Each shot will pick a different camera preset.");
+    return;
+  }
+
+  if (!options.keepRandomMode) {
+    state.randomCameraEnabled = false;
+  }
+
   lookSelect.value = filename;
-  cameraLookSelect.value = filename;
+  cameraLookSelect.value = state.randomCameraEnabled ? RANDOM_CAMERA_FILENAME : filename;
+  writeStoredSelectedCamera(filename);
   syncCameraListSelection();
   intensitySlider.value = defaults.intensity;
   applyFilterEffectDefaults(filename);
@@ -3095,6 +6178,10 @@ async function selectFilter(filename) {
   }
 
   await ensureLutTexture(filename);
+  if (state.cameraActive && !state.nativeCameraActive && cameraPreview.videoWidth && cameraPreview.videoHeight) {
+    renderLiveCameraFrameNow();
+    startLiveCameraRender();
+  }
   if (!state.cameraActive) {
     await ensureCameraOverlayImages(filename);
     if (state.sourceResolution.width && state.sourceResolution.height) {
@@ -3102,7 +6189,11 @@ async function selectFilter(filename) {
     }
   }
   renderImageAfterSettingsChange();
-  setStatus(`${state.filterMap.get(filename)?.name ?? filename} loaded.`);
+  setStatus(
+    state.randomCameraEnabled
+      ? `Random Cam picked ${state.filterMap.get(filename)?.name ?? filename}.`
+      : `${state.filterMap.get(filename)?.name ?? filename} loaded.`
+  );
 }
 
 function handleFilterSelection(filename) {
@@ -3166,12 +6257,14 @@ function syncEffectInputs() {
 
 function syncImportedEffectInputs() {
   const refs = state.importedEffectInputs.get(SPEKTRA_GRAIN_EFFECT.id);
-  if (!refs) {
-    return;
+  if (refs) {
+    refs.input.checked = state.importedEffects.spektraGrain.enabled;
+    refs.presetSelect.value = state.importedEffects.spektraGrain.preset;
+    refs.modeSelect.value = state.importedEffects.spektraGrain.mode ?? SPEKTRA_GRAIN_EFFECT.defaultMode;
+    refs.presetSelect.disabled = !state.importedEffects.spektraGrain.enabled;
+    refs.modeSelect.disabled = !state.importedEffects.spektraGrain.enabled;
   }
-  refs.input.checked = state.importedEffects.spektraGrain.enabled;
-  refs.presetSelect.value = state.importedEffects.spektraGrain.preset;
-  refs.presetSelect.disabled = !state.importedEffects.spektraGrain.enabled;
+
 }
 
 function formatEffectValue(effect, value) {
@@ -3190,15 +6283,234 @@ function cloneEffectDefaults() {
   return JSON.parse(JSON.stringify(EFFECT_DEFAULTS));
 }
 
+function cloneOverlaySelections(selections) {
+  return {
+    grain: selections?.grain ?? 0,
+    dust: selections?.dust ?? 0,
+    lightLeak: selections?.lightLeak ?? 0,
+    vignette: selections?.vignette ?? 0,
+    stackTransform: selections?.stackTransform ?? 0,
+  };
+}
+
 function getEffectById(effectId) {
   return EFFECT_CATALOG.find((effect) => effect.id === effectId);
 }
 
 function setStatus(message) {
   statusMessage.textContent = message;
+  debugEvent("status", message);
+}
+
+function debugEvent(type, details = null) {
+  const entry = {
+    t: new Date().toISOString(),
+    session: DEBUG_SESSION_ID,
+    type,
+    details,
+  };
+  state.debug.events.push(entry);
+  if (state.debug.events.length > DEBUG_EVENT_LIMIT) {
+    state.debug.events.splice(0, state.debug.events.length - DEBUG_EVENT_LIMIT);
+  }
+  persistDebugHistory();
+}
+
+function getLatestNativeTimingEvent() {
+  for (let index = state.debug.events.length - 1; index >= 0; index -= 1) {
+    const event = state.debug.events[index];
+    if (
+      (event.type === "native-capture-stack:success"
+        || event.type === "native-capture-simple:success"
+        || event.type === "native-stack:success")
+      && event.details?.metrics
+    ) {
+      return event;
+    }
+  }
+  return null;
+}
+
+function buildDebugReport() {
+  const selected = state.filterMap.get(lookSelect.value);
+  const videoTrack = state.cameraStream?.getVideoTracks?.()[0];
+  const trackSettings = videoTrack?.getSettings?.() ?? null;
+  const latestNativeTiming = getLatestNativeTimingEvent();
+  const liveAverage = state.debug.liveFrameCount
+    ? state.debug.liveFrameTotalMs / state.debug.liveFrameCount
+    : 0;
+  const memory = performance.memory
+    ? {
+      usedMB: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+      totalMB: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+      limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024),
+    }
+    : null;
+
+  return JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    location: window.location.href,
+    userAgent: navigator.userAgent,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      dpr: window.devicePixelRatio,
+      mobile: isMobileView(),
+    },
+    camera: {
+      active: state.cameraActive,
+      nativeActive: state.nativeCameraActive,
+      nativeReady: state.nativeCameraReady,
+      facingMode: state.cameraFacingMode,
+      flashEnabled: state.cameraFlashEnabled,
+      cropFactor: getCameraCropFactor(),
+      halfSizeSave: state.halfSizeSave,
+      minimalMode: state.minimalMode,
+      focalLabelEnabled: state.focalLabelEnabled,
+      captureInProgress: state.cameraCaptureInProgress,
+      videoWidth: cameraPreview.videoWidth,
+      videoHeight: cameraPreview.videoHeight,
+      trackSettings,
+    },
+    ui: {
+      theme: state.theme,
+      resolvedTheme: getResolvedTheme(),
+      accentColor: state.accentColor,
+    },
+    renderer: {
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      sourceWidth: state.sourceResolution.width,
+      sourceHeight: state.sourceResolution.height,
+      glMaxTextureSize: gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : null,
+      selectedCamera: selected?.name ?? lookSelect.value,
+      selectedFilename: lookSelect.value,
+      isBnw: Boolean(selected?.isBnw),
+      memory,
+    },
+    livePreview: {
+      frames: state.debug.liveFrameCount,
+      lastMs: Math.round(state.debug.lastLiveFrameMs),
+      avgMs: Math.round(liveAverage),
+      maxMs: Math.round(state.debug.maxLiveFrameMs),
+    },
+    nativeTiming: latestNativeTiming
+      ? {
+        type: latestNativeTiming.type,
+        camera: latestNativeTiming.details?.camera ?? null,
+        at: latestNativeTiming.t,
+        metrics: latestNativeTiming.details.metrics,
+      }
+      : null,
+    debugHistory: {
+      sessionId: DEBUG_SESSION_ID,
+      persisted: true,
+      sessions: state.debug.sessions,
+      lastOpenedAt: state.debug.lastOpenedAt,
+      storedEvents: state.debug.events.length,
+    },
+    saveQueue: {
+      queued: state.cameraSaveQueue.length,
+      pendingCaptures: state.cameraPendingCaptureCount,
+      processing: state.cameraSaveProcessing,
+      captures: state.debug.captureCount,
+      lastCaptureMs: Math.round(state.debug.lastCaptureMs),
+      lastCaptureBytes: state.debug.lastCaptureBytes,
+      saves: state.debug.saveCount,
+      lastSaveMs: Math.round(state.debug.lastSaveMs),
+      maxSaveMs: Math.round(state.debug.maxSaveMs),
+      lastQueueDelayMs: Math.round(state.debug.lastQueueDelayMs),
+    },
+    gallery: {
+      items: state.galleryItems.length,
+      objectUrls: state.galleryObjectUrls.length,
+      rendered: state.galleryRenderedCount,
+      batchSize: GALLERY_RENDER_BATCH_SIZE,
+      nativeOffset: state.nativeGalleryOffset,
+      nativeTotal: state.nativeGalleryTotal,
+      nativeHasMore: state.nativeGalleryHasMore,
+      nativeLoading: state.nativeGalleryLoading,
+      legacyLoaded: state.legacyGalleryLoaded,
+    },
+    effects: {
+      manual: state.effects,
+      imported: state.importedEffects,
+      overlaySelections: state.overlaySelections,
+    },
+    recentEvents: state.debug.events.slice(-80),
+  }, null, 2);
+}
+
+function refreshDebugReport() {
+  if (debugReport) {
+    debugReport.value = buildDebugReport();
+  }
+}
+
+async function copyDebugReport() {
+  refreshDebugReport();
+  if (!debugReport) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(debugReport.value);
+    setStatus("Debug report copied.");
+  } catch {
+    debugReport.focus();
+    debugReport.select();
+    document.execCommand("copy");
+    setStatus("Debug report selected/copied.");
+  }
+}
+
+function buildCameraSettingsReport() {
+  const selected = state.filterMap.get(lookSelect.value);
+  return JSON.stringify({
+    camera: {
+      name: selected?.name ?? lookSelect.value,
+      filename: lookSelect.value,
+      id: selected?.id ?? null,
+      group: selected?.group ?? null,
+      isBnw: Boolean(selected?.isBnw),
+      overlay: getCameraOverlayKey(),
+    },
+    settings: {
+      intensity: Number(intensitySlider.value),
+      cropMode: CAMERA_CROP_MODES[state.cameraCropModeIndex] ?? CAMERA_CROP_MODES[0],
+      theme: state.theme,
+      accentColor: state.accentColor,
+      flashEnabled: state.cameraFlashEnabled,
+      facingMode: state.cameraFacingMode,
+      minimalMode: state.minimalMode,
+      focalLabelEnabled: state.focalLabelEnabled,
+      manualEffects: cloneEffectsState(state.effects),
+      importedEffects: cloneImportedEffectsState(state.importedEffects),
+    },
+  }, null, 2);
+}
+
+async function copyCameraSettingsReport() {
+  const report = buildCameraSettingsReport();
+  try {
+    await navigator.clipboard.writeText(report);
+    setStatus("Camera settings copied.");
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = report;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+    setStatus("Camera settings copied.");
+  }
 }
 
 function disableControls(message) {
+  revealAppUi();
   fileInput.disabled = true;
   lookSelect.disabled = true;
   cameraLookSelect.disabled = true;
@@ -3216,6 +6528,13 @@ function disableControls(message) {
   gallerySettingsButton.disabled = true;
   gallerySaveButton.disabled = true;
   galleryCloseButton.disabled = true;
+  galleryTwoColumnToggle.disabled = true;
+  halfSizeSaveToggle.disabled = true;
+  minimalModeToggle.disabled = true;
+  focalLabelToggle.disabled = true;
+  refreshDebugButton.disabled = true;
+  copyDebugButton.disabled = true;
+  copySettingsButton.disabled = true;
   settingsGalleryButton.disabled = true;
   resetButton.disabled = true;
   toggleEditsButton.disabled = true;
@@ -3250,6 +6569,7 @@ function rerollOverlaySelections() {
   state.overlaySelections.dust = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.dust.length);
   state.overlaySelections.lightLeak = Math.floor(Math.random() * NOMO_OVERLAY_PATHS.lightLeak.length);
   state.overlaySelections.vignette = Math.floor(Math.random() * 997);
+  state.overlaySelections.stackTransform = Math.floor(Math.random() * 9973);
 }
 
 function clamp01(value) {
@@ -3414,16 +6734,11 @@ function generateCustomLut(recipeName) {
 fileInput.addEventListener("change", (event) => loadFile(event.target.files[0]));
 startCameraButton.addEventListener("click", startCamera);
 function handleCameraCaptureClick() {
-  const captureTask = state.cameraActive ? saveCurrentCameraFrame() : captureCameraFrame();
-  captureTask.catch((error) => {
-    console.error(error);
-    setStatus("Failed to capture the camera frame.");
-  });
+  requestCameraCapture({ source: "button" });
 }
 
 capturePhotoButton.addEventListener("click", handleCameraCaptureClick);
 cameraCaptureButton.addEventListener("click", handleCameraCaptureClick);
-cameraCaptureButton.addEventListener("pointerdown", vibrateCapture);
 cameraPreviewGalleryButton.addEventListener("click", () => stopCamera());
 cameraFlashToggleButton.addEventListener("click", () => {
   toggleCameraFlash().catch((error) => {
@@ -3448,8 +6763,86 @@ gallerySettingsButton.addEventListener("click", () => {
 settingsGalleryButton.addEventListener("click", () => {
   state.mobileSettingsOpen = false;
   updateMobileCameraState();
+  loadGalleryOnDemand().catch((error) => console.error(error));
 });
-galleryCloseButton.addEventListener("click", closeGalleryItem);
+galleryTwoColumnToggle.addEventListener("change", () => {
+  state.galleryTwoColumn = galleryTwoColumnToggle.checked;
+  writeStoredGalleryTwoColumn(state.galleryTwoColumn);
+  syncGalleryLayoutSetting();
+});
+themeSelect?.addEventListener("change", () => {
+  state.theme = THEME_VALUES.has(themeSelect.value) ? themeSelect.value : "system";
+  writeStoredTheme(state.theme);
+  syncThemeSetting();
+  setStatus(`Theme set to ${themeSelect.options[themeSelect.selectedIndex]?.textContent ?? state.theme}.`);
+});
+accentSwatches?.addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest(".accent-swatch") : null;
+  if (!button) {
+    return;
+  }
+  state.accentColor = normalizeAccentColor(button.dataset.accent);
+  writeStoredAccentColor(state.accentColor);
+  syncAccentColorSetting();
+  setStatus("Accent color updated.");
+});
+accentColorInput?.addEventListener("input", () => {
+  state.accentColor = normalizeAccentColor(accentColorInput.value);
+  writeStoredAccentColor(state.accentColor);
+  syncAccentColorSetting();
+});
+halfSizeSaveToggle?.addEventListener("change", () => {
+  state.halfSizeSave = halfSizeSaveToggle.checked;
+  writeStoredHalfSizeSave(state.halfSizeSave);
+  syncHalfSizeSaveSetting();
+  setStatus(state.halfSizeSave ? "Half-size camera saves enabled." : "Full-size camera saves enabled.");
+});
+minimalModeToggle?.addEventListener("change", () => {
+  state.minimalMode = minimalModeToggle.checked;
+  writeStoredMinimalMode(state.minimalMode);
+  syncMinimalModeSetting();
+  updateMobileCameraState();
+  setStatus(state.minimalMode ? "Minimal Mode overlay enabled." : "Minimal Mode overlay disabled.");
+});
+focalLabelToggle?.addEventListener("change", () => {
+  state.focalLabelEnabled = focalLabelToggle.checked;
+  writeStoredFocalLabel(state.focalLabelEnabled);
+  syncFocalLabelSetting();
+  setStatus(state.focalLabelEnabled ? "Focal length label enabled." : "Focal length label disabled.");
+});
+refreshDebugButton?.addEventListener("click", refreshDebugReport);
+copyDebugButton?.addEventListener("click", () => {
+  copyDebugReport().catch((error) => {
+    console.error(error);
+    setStatus("Failed to copy debug report.");
+  });
+});
+copySettingsButton?.addEventListener("click", () => {
+  copyCameraSettingsReport().catch((error) => {
+    console.error(error);
+    setStatus("Failed to copy camera settings.");
+  });
+});
+levelGuideToggle.addEventListener("change", () => {
+  state.levelGuideEnabled = levelGuideToggle.checked;
+  writeStoredLevelGuide(state.levelGuideEnabled);
+  syncLevelGuideSetting();
+  syncNativeLevelGuide();
+});
+galleryDeleteButton.addEventListener("click", closeGalleryItem);
+galleryViewerImage.addEventListener("click", (event) => event.stopPropagation());
+galleryViewer.querySelector(".gallery-viewer__actions")?.addEventListener("click", (event) => event.stopPropagation());
+galleryViewer.addEventListener("click", (event) => {
+  if (event.target === galleryViewer) {
+    closeGalleryItem();
+  }
+});
+galleryCloseButton.addEventListener("click", () => {
+  deleteSelectedGalleryItem().catch((error) => {
+    console.error(error);
+    setStatus("Failed to delete selected gallery image.");
+  });
+});
 gallerySaveButton.addEventListener("click", () => {
   saveSelectedGalleryItem().catch((error) => {
     if (error?.name !== "AbortError") {
@@ -3534,8 +6927,41 @@ window.addEventListener("keyup", (event) => {
 resetButton.addEventListener("click", resetControls);
 toggleEditsButton.addEventListener("click", toggleEditsVisibility);
 downloadButton.addEventListener("click", downloadImage);
-window.addEventListener("resize", updateCanvasDisplaySize);
-window.addEventListener("pagehide", stopCamera);
+window.addEventListener("resize", () => {
+  updateCanvasDisplaySize();
+  resyncNativeCameraPreview("resize");
+});
+window.addEventListener("pageshow", () => {
+  resyncNativeCameraPreview("pageshow");
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    resyncNativeCameraPreview("visibility-visible");
+  }
+});
+window.addEventListener("pagehide", () => {
+  debugEvent("session:pagehide", {
+    cameraActive: state.cameraActive,
+    saveProcessing: state.cameraSaveProcessing,
+    queued: state.cameraSaveQueue.length,
+  });
+  stopCamera();
+  persistDebugHistory();
+});
+window.addEventListener("error", (event) => {
+  debugEvent("window:error", {
+    message: event.message,
+    source: event.filename,
+    line: event.lineno,
+    column: event.colno,
+  });
+});
+window.addEventListener("unhandledrejection", (event) => {
+  debugEvent("window:unhandledrejection", {
+    reason: event.reason?.message ?? String(event.reason),
+  });
+});
+installMobileZoomGuards();
 cameraShell.addEventListener("pointerdown", handleCameraSwipeStart);
 cameraShell.addEventListener("pointermove", handleCameraSwipeMove);
 cameraShell.addEventListener("pointerup", handleCameraSwipeEnd);
@@ -3550,6 +6976,11 @@ if (!window.PointerEvent) {
   workspace.addEventListener("touchend", handleCameraSwipeTouchEnd);
   workspace.addEventListener("touchcancel", handleCameraSwipeTouchEnd);
 }
+mobileGallery.addEventListener("touchstart", handleGallerySwipeStart, { passive: true });
+mobileGallery.addEventListener("touchmove", handleGallerySwipeMove, { passive: false });
+mobileGallery.addEventListener("touchend", handleGallerySwipeEnd);
+mobileGallery.addEventListener("touchcancel", handleGallerySwipeEnd);
+mobileGallery.addEventListener("scroll", renderMoreGalleryItemsIfNeeded, { passive: true });
 workspace.addEventListener("wheel", handleWorkspaceWheel, { passive: false });
 canvas.addEventListener("pointerdown", startCanvasPan);
 canvas.addEventListener("pointermove", moveCanvasPan);
