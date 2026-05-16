@@ -1,6 +1,6 @@
 # KONO CAM Android Port Handoff
 
-Last updated: 2026-05-14 12:48 CEST
+Last updated: 2026-05-14 16:58 CEST
 
 Purpose: help a future AI or engineer port KONO CAM to Android without rediscovering the current iOS/web architecture. Keep this file current whenever native camera, gallery, storage, effects, or build/distribution behavior changes.
 
@@ -67,6 +67,7 @@ The Android plugin should implement these methods with the same names and compat
 - `processAndSavePhoto`
 - `listGalleryItems`
 - `writeGalleryItem`
+- `reprocessGalleryItem`
 - `deleteGalleryItem`
 - `saveGalleryItemToPhotos`
 - `savePhoto`
@@ -107,19 +108,24 @@ Current iOS direction:
 
 - Native local gallery lives under app Documents `NativeGallery`.
 - Full-size JPEG is stored as a file.
+- New captures store a separate `originalFileUrl` sidecar file beside the processed JPEG, so gallery preset changes can reprocess from the unedited source.
 - Thumbnail JPEG is generated during write.
 - JS renders metadata and thumbnail URLs, not full-size blobs.
 - Native gallery list is paginated/lazy-loaded.
 - Legacy IndexedDB blob gallery exists but should not be the long-term mobile path.
+- Gallery viewer has a preset dropdown with favorite cameras first. Native `reprocessGalleryItem` overwrites the processed image/thumbnail in place while preserving the original sidecar.
+- While gallery reprocess runs, the web viewer immediately shows a blurred preview from `originalFileUrl`; B&W target presets add grayscale to that preview.
 
 Android target:
 
 - Store local gallery files in `context.filesDir/NativeGallery` or `context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)/NativeGallery`.
 - Store one metadata JSON per image or one indexed JSON database file. Prefer simple file-backed records at first.
+- Store both processed output and original sidecar for every new capture. Metadata should expose `fileUrl`, `thumbnailFileUrl`, and `originalFileUrl`.
 - Generate thumbnail files during save.
 - Return `file://` or Capacitor-convertible URIs to JS for thumbnails and full images.
 - Save public copies to MediaStore under album/relative path `Pictures/KONO CAM`.
 - Never render full-size images in gallery grids.
+- Implement `reprocessGalleryItem` against the original sidecar, not the processed JPEG. For legacy items without originals, fallback to current `fileUrl`.
 
 ## Processing Pipeline
 
@@ -294,3 +300,16 @@ Add entries below with date/time, what changed, why it matters for Android, and 
 
 - Reverted the current app's native preview offset retry loop, automatic swipe-settle offset animation, and CSS overlay overscan multiplier.
 - Keep the idea above as an Android port consideration, but do not assume it is active behavior in the current iOS app.
+
+### 2026-05-14 13:38 CEST - Gallery Original Sidecars And Preset Reprocess
+
+- Gallery schema now includes `originalFileUrl` for native file-backed records.
+- New native captures and native `writeGalleryItem` calls can persist an original sidecar beside the processed JPEG.
+- Added native bridge method `reprocessGalleryItem`, which takes the existing processed file URL, original file URL, LUT/filter/effects payload, and overwrites the processed file plus thumbnail.
+- Android should mirror this with app-private processed/original/thumbnail files and MediaStore save only for final exported copies.
+
+### 2026-05-14 16:58 CEST - Gallery Reprocess Preview State
+
+- During gallery preset reprocess, the viewer should immediately display the original sidecar/current source with a heavy blur.
+- If the selected target preset is B&W, the temporary preview is grayscale plus blur.
+- This is web UI behavior, but Android must still expose stable `originalFileUrl` values so the preview appears instantly without loading full processed blobs.

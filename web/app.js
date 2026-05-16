@@ -39,6 +39,7 @@ const gallerySettingsButton = document.querySelector("#gallerySettingsButton");
 const galleryViewer = document.querySelector("#galleryViewer");
 const galleryViewerImage = document.querySelector("#galleryViewerImage");
 const galleryViewerCamera = document.querySelector("#galleryViewerCamera");
+const galleryPresetSelect = document.querySelector("#galleryPresetSelect");
 const gallerySaveButton = document.querySelector("#gallerySaveButton");
 const galleryCloseButton = document.querySelector("#galleryCloseButton");
 const galleryDeleteButton = document.querySelector("#galleryDeleteButton");
@@ -235,6 +236,8 @@ const state = {
   cameraStream: null,
   cameraActive: false,
   cameraStarting: false,
+  cameraStopping: false,
+  cameraStopPromise: null,
   cameraStartToken: 0,
   nativeCameraActive: false,
   nativeCameraReady: false,
@@ -275,6 +278,8 @@ const state = {
   galleryReadyPromise: null,
   galleryLoadPromise: null,
   galleryLoaded: false,
+  galleryPreloadScheduled: false,
+  galleryPreloadImages: [],
   galleryItems: [],
   galleryObjectUrls: [],
   favoriteCameraObjectUrls: [],
@@ -287,6 +292,8 @@ const state = {
   nativeSpektraPendingListenerReady: false,
   selectedGalleryItem: null,
   selectedGalleryObjectUrl: "",
+  galleryPresetPreviewObjectUrl: "",
+  galleryPresetProcessing: false,
   cameraSaveQueue: [],
   cameraSaveProcessing: false,
   nomoOverlayImages: null,
@@ -348,6 +355,7 @@ const state = {
     startScrollTop: 0,
     distance: 0,
   },
+  restoreCameraOnResume: isMobileView(),
 };
 
 const defaults = {
@@ -1244,10 +1252,11 @@ function bindCameraUi() {
 
 function handleMobileViewportChange(event) {
   if (!event.matches && state.cameraActive) {
-    stopCamera();
+    stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
   }
   if (event.matches) {
-    queueMobileCameraAutostart();
+    state.restoreCameraOnResume = true;
+    restoreCameraModeFromLifecycle("mobile-viewport");
   }
   updateMobileCameraState();
 }
@@ -1556,15 +1565,25 @@ async function canAutostartCameraWithoutPrompt() {
 function updateMobileCameraState() {
   const mobile = isMobileView();
   const cameraSupported = Boolean(isNativeCameraAvailable() || navigator.mediaDevices?.getUserMedia);
-  const canOpen = mobile && cameraSupported && !state.cameraActive && !state.cameraStarting && !lookSelect.disabled;
-  const cameraUiActive = mobile && (state.cameraActive || state.cameraStarting || state.cameraForceOpenUntilStarted);
+  const canOpen = mobile
+    && cameraSupported
+    && !state.cameraActive
+    && !state.cameraStarting
+    && !state.cameraStopping
+    && !lookSelect.disabled;
+  const cameraUiActive = mobile && (
+    state.cameraActive
+    || state.cameraStarting
+    || state.cameraStopping
+    || state.cameraForceOpenUntilStarted
+  );
   const selectedFilter = state.filterMap.get(lookSelect.value);
   const useBnwOverlay = Boolean(selectedFilter?.isBnw);
 
   startCameraButton.disabled = !canOpen;
-  capturePhotoButton.disabled = !mobile || !state.cameraActive;
-  cameraCaptureButton.disabled = !mobile || !state.cameraActive;
-  cameraPreviewGalleryButton.disabled = !mobile || !state.cameraActive;
+  capturePhotoButton.disabled = !mobile || !state.cameraActive || state.cameraStopping;
+  cameraCaptureButton.disabled = !mobile || !state.cameraActive || state.cameraStopping;
+  cameraPreviewGalleryButton.disabled = !mobile || !state.cameraActive || state.cameraStopping;
   cameraFlashToggleButton.disabled = !mobile || !state.cameraActive;
   cameraFacingToggleButton.disabled = !mobile || !state.cameraActive;
   cameraCropToggleButton.disabled = !mobile || !state.cameraActive;
@@ -1572,7 +1591,9 @@ function updateMobileCameraState() {
   cameraSettingsButton.disabled = !mobile || !state.cameraActive;
   cameraLookSelect.disabled = !mobile || lookSelect.disabled;
   cameraLookSelect.value = lookSelect.value;
-  cameraPresetLabel.textContent = state.cameraActive
+  cameraPresetLabel.textContent = state.cameraStopping
+    ? "Closing camera..."
+    : state.cameraActive
     ? `Live preview: ${state.filterMap.get(lookSelect.value)?.name ?? "selected preset"}`
     : "Ready to capture with the selected preset.";
   document.body.classList.toggle("camera-boot", cameraUiActive && !state.cameraActive);
@@ -1592,9 +1613,17 @@ function updateMobileCameraState() {
   document.documentElement.classList.toggle("native-camera-active", mobile && state.nativeCameraActive);
   document.body.classList.toggle(
     "mobile-gallery-active",
-    mobile && !state.cameraActive && !state.cameraStarting && !state.mobileSettingsOpen && !state.cameraForceOpenUntilStarted
+    mobile
+      && !state.cameraActive
+      && !state.cameraStarting
+      && !state.cameraStopping
+      && !state.mobileSettingsOpen
+      && !state.cameraForceOpenUntilStarted
   );
-  document.body.classList.toggle("mobile-settings-active", mobile && !state.cameraActive && !state.cameraStarting && state.mobileSettingsOpen);
+  document.body.classList.toggle(
+    "mobile-settings-active",
+    mobile && !state.cameraActive && !state.cameraStarting && !state.cameraStopping && state.mobileSettingsOpen
+  );
   if (!mobile || !state.cameraActive) {
     setCameraGalleryPeek(false);
     setCameraListOpen(false);
@@ -1733,6 +1762,70 @@ function queueMobileCameraAutostart() {
   }, 0);
 }
 
+function trackCameraStopPromise(promise) {
+  if (!promise) {
+    return;
+  }
+
+  const trackedPromise = Promise.resolve(promise)
+    .catch((error) => {
+      console.error(error);
+      debugEvent("native-camera:stop-error", { message: error?.message ?? String(error) });
+    })
+    .finally(() => {
+      if (state.cameraStopPromise === trackedPromise) {
+        state.cameraStopPromise = null;
+      }
+      state.cameraStopping = false;
+      updateMobileCameraState();
+    });
+
+  state.cameraStopping = true;
+  state.cameraStopPromise = trackedPromise;
+  updateMobileCameraState();
+}
+
+async function waitForCameraStop() {
+  if (!state.cameraStopPromise) {
+    return;
+  }
+  await state.cameraStopPromise.catch(() => {});
+}
+
+function prepareCameraModeForLifecycle(reason = "lifecycle") {
+  if (!isMobileView()) {
+    return;
+  }
+  state.restoreCameraOnResume = true;
+  state.mobileSettingsOpen = false;
+  state.cameraForceOpenUntilStarted = true;
+  resetMobileTransitionState({ closeDrawers: true, resetNativePreviewOffset: true });
+  updateMobileCameraState();
+  debugEvent("camera:lifecycle-restore-armed", { reason });
+}
+
+function restoreCameraModeFromLifecycle(reason = "lifecycle") {
+  if (
+    !isMobileView()
+    || !state.restoreCameraOnResume
+    || state.cameraActive
+    || state.cameraStarting
+    || lookSelect.disabled
+  ) {
+    return;
+  }
+
+  state.cameraForceOpenUntilStarted = true;
+  state.mobileSettingsOpen = false;
+  updateMobileCameraState();
+  debugEvent("camera:lifecycle-restore", { reason });
+  startCamera({ automatic: true }).catch((error) => {
+    console.error(error);
+    state.cameraForceOpenUntilStarted = false;
+    updateMobileCameraState();
+  });
+}
+
 function resetMobileTransitionState(options = {}) {
   state.cameraSwipe.active = false;
   state.cameraSwipe.pointerId = null;
@@ -1755,9 +1848,7 @@ function resetMobileTransitionState(options = {}) {
     setFavoriteCameraDrawerOpen(false);
   }
   if (options.resetNativePreviewOffset) {
-    cancelNativePreviewOffsetAnimation();
-    state.nativePreviewOffsetY = 0;
-    scheduleNativePreviewOffsetUpdate(0);
+    resetNativePreviewOffsetNow();
   }
 }
 
@@ -1788,9 +1879,13 @@ function installMobileZoomGuards() {
   );
 }
 
-async function startCamera() {
+async function startCamera(options = {}) {
   if (!isMobileView()) {
     return;
+  }
+
+  if (state.cameraStopping || state.cameraStopPromise) {
+    await waitForCameraStop();
   }
 
   if (state.cameraActive || state.cameraStarting) {
@@ -1800,9 +1895,12 @@ async function startCamera() {
   const startToken = ++state.cameraStartToken;
   state.cameraStarting = true;
   state.cameraForceOpenUntilStarted = true;
+  state.restoreCameraOnResume = true;
   state.mobileSettingsOpen = false;
+  state.nativePreviewRectLastGood = null;
   resetMobileTransitionState({ closeDrawers: true, resetNativePreviewOffset: true });
   updateMobileCameraState();
+  preloadGalleryInBackground(options.automatic ? "camera-autostart" : "camera-start");
 
   try {
     if (isNativeCameraAvailable() && !USE_WEB_FILTERED_CAMERA_PREVIEW) {
@@ -1850,6 +1948,7 @@ async function startCamera() {
     state.cameraForceOpenUntilStarted = false;
     revealAppUi();
     setStatus("Camera ready. Live preview uses the selected preset.");
+    preloadGalleryInBackground("web-camera-ready");
   } catch (error) {
     console.error(error);
     if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
@@ -1885,6 +1984,7 @@ async function startNativeCamera(startToken = state.cameraStartToken) {
     state.cameraActive = true;
     state.nativeCameraActive = true;
     state.nativeCameraReady = false;
+    state.nativePreviewRectLastGood = null;
     canvas.style.display = "block";
     emptyState.style.display = "none";
     updateMobileCameraState();
@@ -1916,6 +2016,7 @@ async function startNativeCamera(startToken = state.cameraStartToken) {
     state.cameraForceOpenUntilStarted = false;
     revealAppUi();
     setStatus("Native camera ready. Captures use iPhone camera APIs.");
+    preloadGalleryInBackground("native-camera-ready");
   } catch (error) {
     console.error(error);
     state.nativeCameraActive = false;
@@ -1948,6 +2049,7 @@ function stopCamera(options = {}) {
 
   stopLiveCameraRender();
   resetMobileTransitionState({ closeDrawers: true, resetNativePreviewOffset: true });
+  resetNativePreviewOffsetNow();
   if (state.nativePreviewRectFrame) {
     window.cancelAnimationFrame(state.nativePreviewRectFrame);
     state.nativePreviewRectFrame = 0;
@@ -1963,9 +2065,10 @@ function stopCamera(options = {}) {
   state.nativePreviewRectInFlight = false;
   state.nativePreviewOffsetInFlight = false;
   state.nativePreviewOffsetY = 0;
+  state.nativePreviewRectLastGood = null;
 
   if (state.nativeCameraActive) {
-    getNativeBridge()?.stopCamera?.().catch((error) => console.error(error));
+    trackCameraStopPromise(getNativeBridge()?.stopCamera?.());
   }
 
   if (state.cameraStream) {
@@ -1980,9 +2083,12 @@ function stopCamera(options = {}) {
   state.nativeCameraActive = false;
   state.nativeCameraReady = false;
   state.cameraPendingCaptureCount = 0;
-  state.cameraForceOpenUntilStarted = false;
+  state.cameraForceOpenUntilStarted = Boolean(options.keepCameraMode);
   state.cameraTorchSupported = false;
-  state.mobileSettingsOpen = Boolean(options.settings);
+  state.mobileSettingsOpen = Boolean(options.settings) && !options.keepCameraMode;
+  if (options.keepCameraMode) {
+    state.restoreCameraOnResume = true;
+  }
   state.pendingCameraStopOptions = null;
   cameraPreview.srcObject = null;
   cameraShell.hidden = true;
@@ -2001,7 +2107,7 @@ function stopCamera(options = {}) {
     }
   }
   updateMobileCameraState();
-  if (!options.settings) {
+  if (!options.settings && !options.skipGalleryLoad) {
     loadGalleryOnDemand().catch((error) => console.error(error));
   }
 
@@ -2135,6 +2241,22 @@ function scheduleNativePreviewOffsetUpdate(y = 0) {
           scheduleNativePreviewOffsetUpdate(state.nativePreviewOffsetY);
         }
       });
+  });
+}
+
+function resetNativePreviewOffsetNow() {
+  cancelNativePreviewOffsetAnimation();
+  if (state.nativePreviewOffsetFrame) {
+    window.cancelAnimationFrame(state.nativePreviewOffsetFrame);
+    state.nativePreviewOffsetFrame = 0;
+  }
+  state.nativePreviewOffsetY = 0;
+  if (!state.nativeCameraActive) {
+    return;
+  }
+  getNativeBridge()?.setPreviewOffset?.({ y: 0 }).catch((error) => {
+    console.error(error);
+    debugEvent("native-preview-offset:reset-error", { message: error?.message ?? String(error) });
   });
 }
 
@@ -3588,11 +3710,19 @@ async function ensureGalleryReady() {
 }
 
 async function loadGalleryOnDemand(options = {}) {
+  const shouldRender = options.render !== false;
   if (state.galleryLoaded && !options.force) {
+    if (shouldRender && !state.galleryRenderedCount) {
+      renderGallery();
+    }
     return state.galleryItems;
   }
   if (state.galleryLoadPromise && !options.force) {
-    return state.galleryLoadPromise;
+    const items = await state.galleryLoadPromise;
+    if (shouldRender && !state.galleryRenderedCount) {
+      renderGallery();
+    }
+    return items;
   }
 
   state.galleryLoadPromise = (async () => {
@@ -3602,7 +3732,9 @@ async function loadGalleryOnDemand(options = {}) {
     }
     state.galleryItems = await loadCombinedGalleryItems();
     state.galleryLoaded = true;
-    renderGallery();
+    if (shouldRender) {
+      renderGallery();
+    }
     return state.galleryItems;
   })()
     .catch((error) => {
@@ -3615,6 +3747,57 @@ async function loadGalleryOnDemand(options = {}) {
     });
 
   return state.galleryLoadPromise;
+}
+
+function preloadGalleryInBackground(reason = "background") {
+  if (state.galleryLoaded || state.galleryLoadPromise || state.galleryPreloadScheduled) {
+    return;
+  }
+
+  state.galleryPreloadScheduled = true;
+  const run = () => {
+    state.galleryPreloadScheduled = false;
+    if (state.galleryLoaded || state.galleryLoadPromise) {
+      return;
+    }
+    debugEvent("gallery:preload-start", { reason });
+    loadGalleryOnDemand({ render: false })
+      .then((items) => {
+        preloadGalleryThumbnailImages(items);
+        debugEvent("gallery:preload-end", {
+          reason,
+          items: items.length,
+          nativeTotal: state.nativeGalleryTotal,
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+        debugEvent("gallery:preload-error", { reason, message: error?.message ?? String(error) });
+      });
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 1200 });
+  } else {
+    window.setTimeout(run, 350);
+  }
+}
+
+function preloadGalleryThumbnailImages(items, limit = GALLERY_RENDER_BATCH_SIZE) {
+  state.galleryPreloadImages = [];
+  for (const item of items.slice(0, limit)) {
+    const source = item.previewDataUrl
+      || (item.thumbnailFileUrl
+        ? (window.Capacitor?.convertFileSrc?.(item.thumbnailFileUrl) ?? item.thumbnailFileUrl)
+        : "");
+    if (!source) {
+      continue;
+    }
+    const image = new Image();
+    image.decoding = "async";
+    image.src = source;
+    state.galleryPreloadImages.push(image);
+  }
 }
 
 function openGalleryDb() {
@@ -3718,6 +3901,7 @@ function normalizeNativeGalleryItem(nativeItem) {
     ...nativeItem,
     id: nativeItem?.id ?? `${nativeItem?.fileUrl ?? "native"}-${nativeItem?.createdAt ?? Date.now()}`,
     fileUrl: nativeItem?.fileUrl ?? null,
+    originalFileUrl: nativeItem?.originalFileUrl ?? nativeItem?.fileUrl ?? null,
     thumbnailFileUrl: nativeItem?.thumbnailFileUrl ?? nativeItem?.fileUrl ?? null,
     cameraName: normalizeGalleryCameraName(nativeItem?.cameraName, nativeItem?.filename),
     createdAt: Number(nativeItem?.createdAt) || Date.now(),
@@ -3822,15 +4006,19 @@ async function loadMoreGalleryItems() {
   }
 }
 
-async function saveGalleryBlob(blob, filename, cameraName = null) {
+async function saveGalleryBlob(blob, filename, cameraName = null, options = {}) {
   const nativeBridge = getNativeBridge();
   if (nativeBridge?.writeGalleryItem) {
     try {
-      const result = await nativeBridge.writeGalleryItem({
+      const payload = {
         dataUrl: await blobToDataUrl(blob),
         filename,
         cameraName: cameraName ?? "camera",
-      });
+      };
+      if (options.originalBlob) {
+        payload.originalDataUrl = await blobToDataUrl(options.originalBlob);
+      }
+      const result = await nativeBridge.writeGalleryItem(payload);
       if (result?.item) {
         return result.item;
       }
@@ -3868,6 +4056,7 @@ function saveGalleryItemRecord(nativeItem) {
       id: nativeItem.id ?? (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
       filename: nativeItem.filename ?? `native-${Date.now()}.jpg`,
       fileUrl: nativeItem.fileUrl ?? null,
+      originalFileUrl: nativeItem.originalFileUrl ?? nativeItem.fileUrl ?? null,
       thumbnailFileUrl: nativeItem.thumbnailFileUrl ?? nativeItem.fileUrl ?? null,
       cameraName: nativeItem.cameraName ?? null,
       createdAt: Number(nativeItem.createdAt) || Date.now(),
@@ -4198,16 +4387,60 @@ function resolveGalleryCameraName(item) {
   return "";
 }
 
+function getFilterFilenameFromGalleryItem(item) {
+  if (typeof item?.filterFilename === "string" && state.filterMap.has(item.filterFilename)) {
+    return item.filterFilename;
+  }
+  const filename = typeof item?.filename === "string" ? item.filename : "";
+  const match = filename.match(/camera-(\d+)(?:\D|$)/i);
+  return match && state.filterMap.has(`camera-${match[1]}`) ? `camera-${match[1]}` : "";
+}
+
+function getGalleryPresetFilters() {
+  const realFilters = state.filters.filter((filter) => filter.filename && state.filterMap.has(filter.filename));
+  const favoriteFilters = realFilters.filter((filter) => state.favoriteCameraFilenames.has(filter.filename));
+  const favoriteNames = new Set(favoriteFilters.map((filter) => filter.filename));
+  return [
+    ...favoriteFilters,
+    ...realFilters.filter((filter) => !favoriteNames.has(filter.filename)),
+  ];
+}
+
+function syncGalleryPresetSelect(item) {
+  if (!galleryPresetSelect) {
+    return;
+  }
+  galleryPresetSelect.innerHTML = "";
+  const currentFilename = getFilterFilenameFromGalleryItem(item);
+  const favoriteCount = state.favoriteCameraFilenames.size;
+
+  for (const filter of getGalleryPresetFilters()) {
+    const option = document.createElement("option");
+    option.value = filter.filename;
+    option.textContent = state.favoriteCameraFilenames.has(filter.filename) ? `★ ${filter.name}` : filter.name;
+    galleryPresetSelect.append(option);
+  }
+
+  galleryPresetSelect.value = currentFilename || lookSelect.value;
+  if (!galleryPresetSelect.value && galleryPresetSelect.options.length) {
+    galleryPresetSelect.selectedIndex = 0;
+  }
+  galleryPresetSelect.disabled = state.galleryPresetProcessing || !galleryPresetSelect.options.length;
+  galleryPresetSelect.title = favoriteCount ? "Favorite cameras are listed first." : "Add favorite cameras to pin them first.";
+}
+
 async function openGalleryItem(item) {
   state.selectedGalleryItem = item;
+  galleryViewerImage.removeAttribute("src");
+  clearGalleryProcessingPreview();
   if (state.selectedGalleryObjectUrl) {
     URL.revokeObjectURL(state.selectedGalleryObjectUrl);
     state.selectedGalleryObjectUrl = "";
   }
   const cameraName = resolveGalleryCameraName(item);
   galleryViewerCamera.textContent = cameraName ? `Shot with ${cameraName}` : "Camera unavailable";
+  syncGalleryPresetSelect(item);
   galleryViewer.hidden = false;
-  galleryViewerImage.removeAttribute("src");
   const url = getGalleryItemUrl(item);
   if (!url) {
     setStatus("Selected gallery image is unavailable.");
@@ -4221,13 +4454,18 @@ async function openGalleryItem(item) {
 
 function closeGalleryItem() {
   state.selectedGalleryItem = null;
+  galleryViewerImage.removeAttribute("src");
+  clearGalleryProcessingPreview();
   if (state.selectedGalleryObjectUrl) {
     URL.revokeObjectURL(state.selectedGalleryObjectUrl);
     state.selectedGalleryObjectUrl = "";
   }
   galleryViewer.hidden = true;
-  galleryViewerImage.removeAttribute("src");
   galleryViewerCamera.textContent = "";
+  if (galleryPresetSelect) {
+    galleryPresetSelect.innerHTML = "";
+    galleryPresetSelect.disabled = false;
+  }
 }
 
 async function deleteSelectedGalleryItem() {
@@ -4334,6 +4572,236 @@ async function getGalleryItemBlob(item) {
   }
   const response = await fetch(url);
   return response.ok ? response.blob() : null;
+}
+
+function getGalleryOriginalUrl(item) {
+  if (item.originalBlob) {
+    if (state.galleryPresetPreviewObjectUrl) {
+      URL.revokeObjectURL(state.galleryPresetPreviewObjectUrl);
+    }
+    state.galleryPresetPreviewObjectUrl = URL.createObjectURL(item.originalBlob);
+    return state.galleryPresetPreviewObjectUrl;
+  }
+  if (item.originalFileUrl) {
+    return window.Capacitor?.convertFileSrc?.(item.originalFileUrl) ?? item.originalFileUrl;
+  }
+  return getGalleryItemUrl(item);
+}
+
+async function getGalleryOriginalBlob(item) {
+  if (item.originalBlob) {
+    return item.originalBlob;
+  }
+  const sourceUrl = getGalleryOriginalUrl(item);
+  if (!sourceUrl) {
+    return null;
+  }
+  const response = await fetch(sourceUrl);
+  return response.ok ? response.blob() : null;
+}
+
+function clearGalleryProcessingPreview() {
+  galleryViewerImage.classList.remove("is-processing", "is-processing-bnw");
+  if (state.galleryPresetPreviewObjectUrl) {
+    URL.revokeObjectURL(state.galleryPresetPreviewObjectUrl);
+    state.galleryPresetPreviewObjectUrl = "";
+  }
+}
+
+function showGalleryProcessingPreview(item, filter) {
+  clearGalleryProcessingPreview();
+  const originalUrl = getGalleryOriginalUrl(item);
+  if (originalUrl) {
+    galleryViewerImage.src = originalUrl;
+  }
+  galleryViewerImage.classList.add("is-processing");
+  galleryViewerImage.classList.toggle("is-processing-bnw", filter?.groupFilename === "BNW" || Boolean(filter?.isBnw));
+}
+
+function getFilterDefaultEffects(filename) {
+  const effects = cloneEffectDefaults();
+  const filterDefaults = state.filterEffectDefaults.get(filename);
+
+  if (filterDefaults) {
+    for (const [effectId, value] of Object.entries(filterDefaults)) {
+      const effect = getEffectById(effectId);
+      if (!effect || !effects[effectId]) {
+        continue;
+      }
+      effects[effectId].value = value;
+      effects[effectId].enabled = value !== effect.defaultValue;
+    }
+  }
+
+  effects.nomoGrain.value = DEFAULT_NOMO_GRAIN_VALUE;
+  effects.nomoGrain.enabled = DEFAULT_NOMO_GRAIN_VALUE !== getEffectById("nomoGrain").defaultValue;
+  return effects;
+}
+
+function getDefaultImportedEffects() {
+  return {
+    spektraGrain: {
+      enabled: SPEKTRA_GRAIN_EFFECT.defaultEnabled,
+      preset: SPEKTRA_GRAIN_EFFECT.defaultPreset,
+      mode: SPEKTRA_GRAIN_EFFECT.defaultMode,
+    },
+  };
+}
+
+async function applyGalleryPresetToSelectedItem(filename) {
+  const item = state.selectedGalleryItem;
+  const filter = state.filterMap.get(filename);
+  if (!item || !filter || state.galleryPresetProcessing) {
+    return;
+  }
+
+  state.galleryPresetProcessing = true;
+  if (galleryPresetSelect) {
+    galleryPresetSelect.disabled = true;
+  }
+  showGalleryProcessingPreview(item, filter);
+  setStatus(`Applying ${filter.name} to original photo...`);
+
+  try {
+    const originalBlob = await getGalleryOriginalBlob(item);
+    if (!originalBlob) {
+      throw new Error("Original gallery image is unavailable.");
+    }
+
+    const effects = getFilterDefaultEffects(filename);
+    const importedEffects = getDefaultImportedEffects();
+    rerollOverlaySelections();
+    const overlaySelections = cloneOverlaySelections(state.overlaySelections);
+    const cameraName = filter.name ?? "camera";
+    const outputFilename = `analoguecam-${filter.filename}-${Date.now()}.jpg`;
+    const nativeItem = await processGalleryPresetWithNativeStack({
+      item,
+      originalBlob,
+      filename,
+      filter,
+      effects,
+      importedEffects,
+      overlaySelections,
+      outputFilename,
+      cameraName,
+    });
+    const updatedItem = nativeItem ?? await processGalleryPresetWithWebStack({
+      item,
+      originalBlob,
+      filename,
+      filter,
+      effects,
+      importedEffects,
+      overlaySelections,
+      outputFilename,
+      cameraName,
+    });
+
+    replaceGalleryItem(item, updatedItem);
+    state.selectedGalleryItem = updatedItem;
+    await openGalleryItem(updatedItem);
+    renderGallery();
+    setStatus(`Applied ${cameraName} to gallery photo.`);
+  } catch (error) {
+    console.error(error);
+    setStatus("Failed to apply preset to gallery photo.");
+    syncGalleryPresetSelect(item);
+    const fallbackUrl = getGalleryItemUrl(item);
+    if (fallbackUrl) {
+      galleryViewerImage.src = fallbackUrl;
+    }
+  } finally {
+    state.galleryPresetProcessing = false;
+    clearGalleryProcessingPreview();
+    if (galleryPresetSelect) {
+      galleryPresetSelect.disabled = false;
+    }
+  }
+}
+
+async function processGalleryPresetWithNativeStack(job) {
+  const nativeBridge = getNativeBridge();
+  if (
+    !nativeBridge?.reprocessGalleryItem
+    || !job.item.fileUrl
+    || !isNativeFinalStackSaveEligible(job.filename, job.effects, job.importedEffects)
+  ) {
+    return null;
+  }
+
+  const lutBytes = await ensureLutBytes(job.filename);
+  if (!lutBytes) {
+    return null;
+  }
+  const image = await decodeBlobToImage(job.originalBlob);
+  const outputSize = getFilterOutputSize(job.filename, image.naturalWidth, image.naturalHeight, getCameraSaveMaxSide());
+  const isBnWFamily = job.filter?.groupFilename === "BNW";
+  const result = await nativeBridge.reprocessGalleryItem({
+    fileUrl: job.item.fileUrl,
+    originalFileUrl: job.item.originalFileUrl ?? job.item.fileUrl,
+    lutBase64: bytesToBase64(lutBytes),
+    filename: job.outputFilename,
+    cameraName: job.cameraName,
+    intensity: isBnWFamily ? 1 : Number(intensitySlider.value) / 100,
+    width: outputSize.width,
+    height: outputSize.height,
+    filter: makeNativeStackFilterPayload(job.filter),
+    effects: job.effects,
+    importedEffects: cloneImportedEffectsState(job.importedEffects),
+    overlaySelections: job.overlaySelections,
+  });
+  return result?.item ? normalizeNativeGalleryItem(result.item) : null;
+}
+
+async function processGalleryPresetWithWebStack(job) {
+  const previous = snapshotRenderState();
+  try {
+    const image = await decodeBlobToImage(job.originalBlob);
+    lookSelect.value = job.filename;
+    cameraLookSelect.value = job.filename;
+    intensitySlider.value = defaults.intensity;
+    state.effects = cloneEffectsState(job.effects);
+    state.importedEffects = cloneImportedEffectsState(job.importedEffects);
+    state.overlaySelections = cloneOverlaySelections(job.overlaySelections);
+    await ensureLutTexture(job.filename);
+    await ensureCameraOverlayImages(job.filename);
+    fitCanvasToFilterOutputSize(job.filename, image.naturalWidth, image.naturalHeight, getMobileSaveMaxSide(image, {
+      filterFilename: job.filename,
+      effects: job.effects,
+      importedEffects: job.importedEffects,
+      halfSizeSave: state.halfSizeSave,
+    }));
+    uploadSourceTexture(image);
+    state.source = image;
+    state.sourceName = job.outputFilename;
+    state.sourceResolution = { width: image.naturalWidth, height: image.naturalHeight };
+    renderImage({ includeSpektraGrain: true });
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_EXPORT_QUALITY));
+    if (!blob) {
+      throw new Error("Failed to render gallery preset.");
+    }
+    const savedItem = await saveGalleryBlob(blob, job.outputFilename, job.cameraName, { originalBlob: job.originalBlob });
+    savedItem.originalBlob = job.originalBlob;
+    savedItem.originalFileUrl = savedItem.originalFileUrl ?? job.item.originalFileUrl ?? job.item.fileUrl ?? null;
+    if (isNativeGalleryItem(job.item)) {
+      getNativeBridge()?.deleteGalleryItem?.({ fileUrl: job.item.fileUrl }).catch((error) => console.error(error));
+    } else {
+      await deleteGalleryItemRecord(job.item).catch(() => {});
+    }
+    return savedItem;
+  } finally {
+    restoreRenderState(previous);
+  }
+}
+
+function replaceGalleryItem(previousItem, nextItem) {
+  const previousKey = previousItem?.fileUrl || previousItem?.id;
+  const index = state.galleryItems.findIndex((item) => (item.fileUrl || item.id) === previousKey || item.id === previousItem?.id);
+  if (index >= 0) {
+    state.galleryItems[index] = nextItem;
+  } else {
+    state.galleryItems.unshift(nextItem);
+  }
 }
 
 async function saveBlobToNativePhotoLibrary(blob, filename) {
@@ -6042,6 +6510,7 @@ function endCameraSwipe(pointerId, captureTarget) {
     setCameraListOpen(false);
     setFavoriteCameraDrawerOpen(false);
     workspace.style.transform = "translateY(-100svh)";
+    animateNativePreviewOffsetTo(-window.innerHeight, 220);
     window.setTimeout(() => {
       workspace.style.transition = "";
       workspace.style.transform = "";
@@ -6832,6 +7301,13 @@ levelGuideToggle.addEventListener("change", () => {
 galleryDeleteButton.addEventListener("click", closeGalleryItem);
 galleryViewerImage.addEventListener("click", (event) => event.stopPropagation());
 galleryViewer.querySelector(".gallery-viewer__actions")?.addEventListener("click", (event) => event.stopPropagation());
+galleryPresetSelect?.addEventListener("click", (event) => event.stopPropagation());
+galleryPresetSelect?.addEventListener("change", () => {
+  applyGalleryPresetToSelectedItem(galleryPresetSelect.value).catch((error) => {
+    console.error(error);
+    setStatus("Failed to apply selected gallery preset.");
+  });
+});
 galleryViewer.addEventListener("click", (event) => {
   if (event.target === galleryViewer) {
     closeGalleryItem();
@@ -6933,11 +7409,16 @@ window.addEventListener("resize", () => {
 });
 window.addEventListener("pageshow", () => {
   resyncNativeCameraPreview("pageshow");
+  restoreCameraModeFromLifecycle("pageshow");
 });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     resyncNativeCameraPreview("visibility-visible");
+    restoreCameraModeFromLifecycle("visibility-visible");
+    return;
   }
+  prepareCameraModeForLifecycle("visibility-hidden");
+  stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
 });
 window.addEventListener("pagehide", () => {
   debugEvent("session:pagehide", {
@@ -6945,7 +7426,8 @@ window.addEventListener("pagehide", () => {
     saveProcessing: state.cameraSaveProcessing,
     queued: state.cameraSaveQueue.length,
   });
-  stopCamera();
+  prepareCameraModeForLifecycle("pagehide");
+  stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
   persistDebugHistory();
 });
 window.addEventListener("error", (event) => {

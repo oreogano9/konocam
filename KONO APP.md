@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-14 12:59 CEST
+Last updated: 2026-05-16 11:55 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,33 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-05-16 11:55 CEST - Camera Gallery Transition Hardening
+
+- Request: performance-check the weird camera-to-gallery and gallery-to-camera behavior, preload gallery images when camera opens, and always return to camera mode after app background/screen lock.
+- Change: camera startup now schedules a background gallery metadata and first-batch thumbnail preload as soon as camera opening begins, without rendering gallery DOM until gallery mode actually needs it.
+- Change: native camera stop/start now has a stop barrier so gallery-to-camera returns do not race an unfinished native `stopCamera`.
+- Change: upward camera-to-gallery settle now animates the native preview offset with the web overlay, reducing the live-view uncoupling after finger release.
+- Change: app lifecycle handlers now arm camera-mode restore on hidden/pagehide and reopen camera mode on visible/pageshow.
+- Verification: `node --check web/app.js`, `npm run check:web`, and `npm run ios:copy` passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-14 16:58 CEST - Gallery Processing Preview
+
+- Request: while a gallery preset is applying, instantly show a blurred unprocessed preview; if the target preset is B&W, show the preview in blurred B&W.
+- Change: gallery preset reprocessing now swaps the viewer image to the original sidecar/current source immediately before processing starts.
+- Change: the processing state now uses a stronger Gaussian-style CSS blur, dimming, and grayscale for B&W camera presets.
+- Change: preview object URLs are cleaned up when the viewer opens, closes, finishes, or fails processing.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-14 13:38 CEST - Gallery Preset Reprocess
+
+- Request: add a way to change the gallery image preset after taking a picture, with favorite cameras first in the dropdown, applied to the original unedited photo.
+- Change: added a `Preset` dropdown to the gallery image viewer; favorite cameras are pinned first and other cameras follow.
+- Change: new native gallery saves now keep an `originalFileUrl` sidecar next to the processed image, so future preset changes reprocess from the original capture instead of stacking filters on an already edited JPEG.
+- Change: added native `reprocessGalleryItem` to overwrite the processed gallery image and thumbnail in place while preserving the original sidecar.
+- Change: old gallery items without an original sidecar fall back to reprocessing from their current image.
+- Scope note: GitHub/AltStore release was not updated.
 
 ### 2026-05-14 12:59 CEST - AltStore Update Build 2
 

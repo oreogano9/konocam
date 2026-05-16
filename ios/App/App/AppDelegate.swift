@@ -142,6 +142,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "processPhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhoto", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "reprocessGalleryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listGalleryItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeGalleryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteGalleryItem", returnType: CAPPluginReturnPromise),
@@ -610,9 +611,11 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
         let filename = call.getString("filename", "kono-gallery-\(Int(Date().timeIntervalSince1970 * 1000)).jpg")
         let cameraName = call.getString("cameraName", "camera")
+        let originalPayload = call.getString("originalDataUrl")?.components(separatedBy: ",").last
+        let originalData = originalPayload.flatMap { Data(base64Encoded: $0) }
         galleryQueue.async {
             do {
-                let item = try self.writeNativeGalleryItem(data: data, filename: filename, cameraName: cameraName)
+                let item = try self.writeNativeGalleryItem(data: data, filename: filename, cameraName: cameraName, originalData: originalData)
                 DispatchQueue.main.async {
                     call.resolve(["item": item])
                 }
@@ -752,7 +755,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 let galleryItem = try self.writeNativeGalleryItem(
                     data: renderedData,
                     filename: filename,
-                    cameraName: call.getString("cameraName", "camera")
+                    cameraName: call.getString("cameraName", "camera"),
+                    originalData: photoData
                 )
                 let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
                 let photosStart = CACurrentMediaTime()
@@ -791,6 +795,78 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                             "metrics": metrics
                         ])
                     }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    @objc func reprocessGalleryItem(_ call: CAPPluginCall) {
+        guard let fileUrl = call.getString("fileUrl"),
+              let outputURL = URL(string: fileUrl),
+              outputURL.isFileURL,
+              let lutBase64 = call.getString("lutBase64"),
+              let lutData = Data(base64Encoded: lutBase64),
+              let filter = call.getObject("filter"),
+              let effects = call.getObject("effects") else {
+            call.reject("Missing gallery reprocess payload")
+            return
+        }
+
+        let sourceFileUrl = call.getString("originalFileUrl", fileUrl)
+        guard let sourceURL = URL(string: sourceFileUrl), sourceURL.isFileURL else {
+            call.reject("Missing original gallery file")
+            return
+        }
+
+        let filename = call.getString("filename", outputURL.lastPathComponent)
+        let cameraName = call.getString("cameraName", "camera")
+        let intensity = max(0.0, min(1.0, call.getDouble("intensity", 1.0)))
+        let width = max(1, call.getInt("width", 2688))
+        let height = max(1, call.getInt("height", 4032))
+        let overlaySelections = call.getObject("overlaySelections") ?? [:]
+
+        galleryQueue.async {
+            do {
+                let galleryDirectory = try self.nativeGalleryDirectory()
+                let galleryPath = galleryDirectory.standardizedFileURL.path
+                guard outputURL.standardizedFileURL.path.hasPrefix(galleryPath),
+                      sourceURL.standardizedFileURL.path.hasPrefix(galleryPath),
+                      FileManager.default.fileExists(atPath: sourceURL.path) else {
+                    throw NativeCameraError.invalidImage
+                }
+
+                let originalData = try Data(contentsOf: sourceURL)
+                let lutOutput = try self.processPhotoData(originalData, lutData: lutData, intensity: intensity, effects: effects)
+                let stackedData = try self.renderNativeStack(
+                    photoData: lutOutput,
+                    width: width,
+                    height: height,
+                    filter: filter,
+                    effects: effects,
+                    importedEffects: call.getObject("importedEffects"),
+                    overlaySelections: overlaySelections
+                )
+                let spektraResult = try self.applySpektraGrainIfNeeded(stackedData, importedEffects: call.getObject("importedEffects"))
+                let item = try self.updateNativeGalleryItem(
+                    fileURL: outputURL,
+                    data: spektraResult.data,
+                    filename: filename,
+                    cameraName: cameraName,
+                    originalFileURL: sourceURL
+                )
+                DispatchQueue.main.async {
+                    call.resolve([
+                        "item": item,
+                        "metrics": [
+                            "spektraApplied": spektraResult.applied,
+                            "spektraBackend": spektraResult.backend,
+                            "spektraError": spektraResult.error ?? NSNull()
+                        ]
+                    ])
                 }
             } catch {
                 DispatchQueue.main.async {
@@ -2291,7 +2367,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         return directory
     }
 
-    private func writeNativeGalleryItem(data: Data, filename: String, cameraName: String, orientation: String? = nil) throws -> JSObject {
+    private func writeNativeGalleryItem(data: Data, filename: String, cameraName: String, orientation: String? = nil, originalData: Data? = nil) throws -> JSObject {
         let id = UUID().uuidString
         let safeFilename = URL(fileURLWithPath: filename).lastPathComponent.isEmpty
             ? "\(id).jpg"
@@ -2299,9 +2375,13 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         let createdAt = Int(Date().timeIntervalSince1970 * 1000)
         let directory = try nativeGalleryDirectory()
         let fileURL = directory.appendingPathComponent("\(id)-\(safeFilename)")
+        let originalURL = directory.appendingPathComponent("\(id)-original-\(safeFilename)")
         let thumbnailURL = directory.appendingPathComponent("\(id)-thumb.jpg")
         let metadataURL = directory.appendingPathComponent("\(id).json")
         try data.write(to: fileURL, options: [.atomic])
+        if let originalData {
+            try originalData.write(to: originalURL, options: [.atomic])
+        }
         let thumbnailData = makeNativeGalleryThumbnailData(from: data)
         try thumbnailData?.write(to: thumbnailURL, options: [.atomic])
         let pixelSize = imagePixelSize(from: data)
@@ -2309,6 +2389,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             "id": id,
             "filename": safeFilename,
             "fileUrl": fileURL.absoluteString,
+            "originalFileUrl": originalData == nil ? fileURL.absoluteString : originalURL.absoluteString,
             "thumbnailFileUrl": thumbnailData == nil ? fileURL.absoluteString : thumbnailURL.absoluteString,
             "cameraName": cameraName,
             "createdAt": createdAt,
@@ -2320,6 +2401,49 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             "source": "native"
         ]
         if let orientation {
+            item["orientation"] = orientation
+        }
+        let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
+        try metadata.write(to: metadataURL, options: [.atomic])
+        return item
+    }
+
+    private func updateNativeGalleryItem(fileURL: URL, data: Data, filename: String, cameraName: String, originalFileURL: URL) throws -> JSObject {
+        let directory = try nativeGalleryDirectory()
+        let galleryPath = directory.standardizedFileURL.path
+        guard fileURL.standardizedFileURL.path.hasPrefix(galleryPath),
+              originalFileURL.standardizedFileURL.path.hasPrefix(galleryPath) else {
+            throw NativeCameraError.invalidImage
+        }
+
+        let id = fileURL.deletingPathExtension().lastPathComponent.components(separatedBy: "-").first ?? UUID().uuidString
+        let safeFilename = URL(fileURLWithPath: filename).lastPathComponent.isEmpty ? fileURL.lastPathComponent : URL(fileURLWithPath: filename).lastPathComponent
+        let thumbnailURL = directory.appendingPathComponent("\(id)-thumb.jpg")
+        let metadataURL = directory.appendingPathComponent("\(id).json")
+        let previousMetadata = (try? Data(contentsOf: metadataURL))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? JSObject } ?? [:]
+        let createdAt = previousMetadata["createdAt"] as? Int ?? Int(Date().timeIntervalSince1970 * 1000)
+
+        try data.write(to: fileURL, options: [.atomic])
+        let thumbnailData = makeNativeGalleryThumbnailData(from: data)
+        try thumbnailData?.write(to: thumbnailURL, options: [.atomic])
+        let pixelSize = imagePixelSize(from: data)
+        var item: JSObject = [
+            "id": id,
+            "filename": safeFilename,
+            "fileUrl": fileURL.absoluteString,
+            "originalFileUrl": originalFileURL.absoluteString,
+            "thumbnailFileUrl": thumbnailData == nil ? fileURL.absoluteString : thumbnailURL.absoluteString,
+            "cameraName": cameraName,
+            "createdAt": createdAt,
+            "width": pixelSize?.width ?? NSNull(),
+            "height": pixelSize?.height ?? NSNull(),
+            "fileBacked": true,
+            "thumbnailBacked": thumbnailData != nil,
+            "processing": false,
+            "source": "native"
+        ]
+        if let orientation = previousMetadata["orientation"] {
             item["orientation"] = orientation
         }
         let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
@@ -2354,6 +2478,11 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                !fileManager.fileExists(atPath: thumbnailURL.path) {
                 item["thumbnailFileUrl"] = fileUrl
             }
+            if let originalFileUrl = item["originalFileUrl"] as? String,
+               let originalURL = URL(string: originalFileUrl),
+               !fileManager.fileExists(atPath: originalURL.path) {
+                item["originalFileUrl"] = fileUrl
+            }
             items.append(normalizeNativeGalleryItem(item))
         }
 
@@ -2373,6 +2502,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 "id": id,
                 "filename": url.lastPathComponent,
                 "fileUrl": url.absoluteString,
+                "originalFileUrl": url.absoluteString,
                 "thumbnailFileUrl": url.absoluteString,
                 "cameraName": cameraNameFromGalleryFilename(url.lastPathComponent) ?? "Camera",
                 "createdAt": createdAt,
@@ -2403,6 +2533,9 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             normalized["thumbnailBacked"] = false
         } else if normalized["thumbnailBacked"] == nil {
             normalized["thumbnailBacked"] = normalized["thumbnailFileUrl"] as? String != normalized["fileUrl"] as? String
+        }
+        if normalized["originalFileUrl"] == nil || normalized["originalFileUrl"] is NSNull {
+            normalized["originalFileUrl"] = normalized["fileUrl"] ?? NSNull()
         }
         if let width = normalized["width"] as? Int,
            let height = normalized["height"] as? Int,
@@ -2497,11 +2630,29 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         let id = fileURL.deletingPathExtension().lastPathComponent.components(separatedBy: "-").first ?? fileURL.deletingPathExtension().lastPathComponent
+        let originalURL = existingOriginalGalleryURL(directory: directory, id: id, metadataURL: directory.appendingPathComponent("\(id).json"))
         let thumbnailURL = directory.appendingPathComponent("\(id)-thumb.jpg")
         let metadataURL = directory.appendingPathComponent("\(id).json")
-        for url in [fileURL, thumbnailURL, metadataURL] where FileManager.default.fileExists(atPath: url.path) {
+        let urls = [fileURL, thumbnailURL, metadataURL] + (originalURL.map { [$0] } ?? [])
+        for url in urls where FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
+    }
+
+    private func existingOriginalGalleryURL(directory: URL, id: String, metadataURL: URL) -> URL? {
+        if let data = try? Data(contentsOf: metadataURL),
+           let item = try? JSONSerialization.jsonObject(with: data) as? JSObject,
+           let originalFileUrl = item["originalFileUrl"] as? String,
+           let originalURL = URL(string: originalFileUrl),
+           originalURL.isFileURL {
+            return originalURL
+        }
+
+        let prefix = "\(id)-original-"
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
+            return nil
+        }
+        return urls.first { $0.lastPathComponent.hasPrefix(prefix) }
     }
 
     private func configureSession(facingMode: String) throws {
@@ -3673,7 +3824,8 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
                         data: renderedData,
                         filename: request.filename,
                         cameraName: request.cameraName,
-                        orientation: self.orientationName(request.captureOrientation)
+                        orientation: self.orientationName(request.captureOrientation),
+                        originalData: normalizedData
                     )
                     let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
                     let photosStart = CACurrentMediaTime()
