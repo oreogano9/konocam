@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-16 11:55 CEST
+Last updated: 2026-05-21 11:14 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,35 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-05-21 11:14 CEST - Gallery Display Limit Setting
+
+- Request: add a Settings control for how many images the app gallery should show, with Default, double, double again, and Infinite options, then push the app update.
+- Change: Settings now has a `Gallery images` selector with Default 30, Double 60, Double again 120, and Infinite.
+- Change: finite gallery limits cap visible gallery cards and preload enough native gallery records to fill the selected cap.
+- Change: Infinite keeps lazy-loading beyond the finite caps and shows an experimental slowdown warning under the setting.
+- Change: bumped the iOS build number to `4` so AltStore can detect the pushed update.
+- Verification: `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+
+### 2026-05-21 11:07 CEST - Gallery Edit Drafts And Multi-Select Delete
+
+- Request: make gallery preset changes preview-only until Save, and add long-press multi-select deletion for app-gallery items.
+- Change: gallery preset changes now render an in-memory draft preview and no longer write local gallery records, thumbnails, or replacement images while browsing presets.
+- Change: added native `processPhotoStack` as a no-save preview renderer that reuses the native final-stack path and returns a JPEG data URL without writing Photos or local gallery files.
+- Change: viewer Save now exports the current edited draft to the iOS Photos `KONO CAM` album and leaves the app gallery unchanged.
+- Change: added long-press gallery selection mode with selected counts, Cancel, Delete, and a confirmation that selected items are removed only from the app gallery, not from iOS Photos.
+- Change: original sidecar JPEGs stay hidden from native gallery scans, and local deletion continues removing processed, original, thumbnail, and metadata files.
+- Verification: `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-21 10:50 CEST - Gallery Preset Reprocess Fixes
+
+- Request: fix gallery preset editing sometimes showing/saving originals, repair repeated preset changes, and make the preset list match camera-mode order.
+- Change: native gallery listing now ignores `-original-` sidecar JPEGs, so originals used for reprocessing do not appear as normal gallery images.
+- Change: gallery image, thumbnail, and favorite-preview URLs now support cache-busting after in-place native reprocess, so repeated preset changes reload the updated file instead of showing a stale cached image.
+- Change: the gallery preset dropdown now follows the same filter order as camera mode; favorites stay marked with a star but no longer reorder the list.
+- Verification: `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
 
 ### 2026-05-16 11:55 CEST - Camera Gallery Transition Hardening
 

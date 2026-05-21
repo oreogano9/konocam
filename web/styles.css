@@ -299,6 +299,43 @@ button:disabled {
   padding: 0.95rem 1.15rem calc(env(safe-area-inset-bottom) + 1rem);
 }
 
+.gallery-selection-bar {
+  align-items: center;
+  background: var(--ui-surface);
+  border-block: 1px solid var(--ui-line);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.75rem 1.15rem;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.gallery-selection-bar[hidden] {
+  display: none;
+}
+
+.gallery-selection-bar p {
+  color: var(--ui-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.gallery-selection-bar div {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.gallery-selection-bar button {
+  border-radius: 999px;
+  font-size: 0.76rem;
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+}
+
 body.gallery-two-column .mobile-gallery__grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -346,6 +383,28 @@ body.gallery-two-column .mobile-gallery__item img {
   filter: blur(10px) saturate(0.85);
   opacity: 0.78;
   transform: scale(1.035);
+}
+
+.mobile-gallery__item.is-selected img {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 2px var(--ui-accent), 0 8px 22px rgba(0, 0, 0, 0.38);
+}
+
+.mobile-gallery__selection-check {
+  align-items: center;
+  background: var(--ui-accent);
+  border: 2px solid var(--ui-bg);
+  border-radius: 999px;
+  color: #000;
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 900;
+  height: 26px;
+  justify-content: center;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 26px;
 }
 
 .mobile-gallery__processing {
@@ -1233,6 +1292,21 @@ h1 {
 .accent-control__custom input[type="color"]::-webkit-color-swatch {
   border: 0;
   border-radius: 999px;
+}
+
+.settings-warning {
+  background: color-mix(in srgb, var(--ui-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 42%, transparent);
+  border-radius: 10px;
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin: -0.25rem 0 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.settings-warning[hidden] {
+  display: none;
 }
 
 .debug-panel {

@@ -74,6 +74,13 @@
             <button id="gallerySettingsButton" type="button">Settings</button>
           </div>
         </div>
+        <div class="gallery-selection-bar" id="gallerySelectionBar" hidden>
+          <p id="gallerySelectionCount">0 images selected</p>
+          <div>
+            <button id="gallerySelectionCancelButton" type="button">Cancel</button>
+            <button id="gallerySelectionDeleteButton" type="button">Delete</button>
+          </div>
+        </div>
         <p class="mobile-gallery__empty" id="galleryEmpty">No local shots yet.</p>
         <div class="mobile-gallery__grid" id="galleryGrid"></div>
         <div class="gallery-viewer" id="galleryViewer" hidden>
@@ -106,6 +113,18 @@
             <input id="galleryTwoColumnToggle" type="checkbox" />
             <span>Compact gallery grid</span>
           </label>
+          <label class="select-control">
+            Gallery images
+            <select id="galleryDisplayLimitSelect">
+              <option value="default">Default - 30</option>
+              <option value="double">Double - 60</option>
+              <option value="quad">Double again - 120</option>
+              <option value="infinite">Infinite</option>
+            </select>
+          </label>
+          <p class="settings-warning" id="galleryDisplayLimitWarning" hidden>
+            Infinite gallery is experimental and can cause slowdowns on large libraries.
+          </p>
           <label class="select-control">
             Theme
             <select id="themeSelect">

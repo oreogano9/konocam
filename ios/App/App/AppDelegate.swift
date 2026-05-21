@@ -140,6 +140,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "capturePhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "captureAndSavePhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processPhoto", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "processPhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "reprocessGalleryItem", returnType: CAPPluginReturnPromise),
@@ -705,6 +706,78 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func processPhoto(_ call: CAPPluginCall) {
         processPhotoPayload(call, saveToLibrary: false)
+    }
+
+    @objc func processPhotoStack(_ call: CAPPluginCall) {
+        let totalStart = CACurrentMediaTime()
+        guard let dataUrl = call.getString("dataUrl"),
+              let lutBase64 = call.getString("lutBase64"),
+              let filter = call.getObject("filter"),
+              let effects = call.getObject("effects") else {
+            call.reject("Missing native stack payload")
+            return
+        }
+
+        let filename = call.getString("filename", "kono-native-stack-\(Int(Date().timeIntervalSince1970 * 1000)).jpg")
+        let intensity = max(0.0, min(1.0, call.getDouble("intensity", 1.0)))
+        let width = max(1, call.getInt("width", 2688))
+        let height = max(1, call.getInt("height", 4032))
+        let overlaySelections = call.getObject("overlaySelections") ?? [:]
+        let photoPayload = dataUrl.components(separatedBy: ",").last ?? dataUrl
+        let decodeStart = CACurrentMediaTime()
+        guard let photoData = Data(base64Encoded: photoPayload),
+              let lutData = Data(base64Encoded: lutBase64) else {
+            call.reject("Invalid native stack payload")
+            return
+        }
+        let decodeMs = elapsedMs(since: decodeStart)
+
+        cameraQueue.async {
+            do {
+                let coreImageStart = CACurrentMediaTime()
+                let lutOutput = try self.processPhotoData(photoData, lutData: lutData, intensity: intensity, effects: effects)
+                let coreImageMs = self.elapsedMs(since: coreImageStart)
+                let overlayStart = CACurrentMediaTime()
+                let stackedData = try self.renderNativeStack(
+                    photoData: lutOutput,
+                    width: width,
+                    height: height,
+                    filter: filter,
+                    effects: effects,
+                    importedEffects: call.getObject("importedEffects"),
+                    overlaySelections: overlaySelections
+                )
+                let overlayMs = self.elapsedMs(since: overlayStart)
+                let spektraStart = CACurrentMediaTime()
+                let spektraResult = try self.applySpektraGrainIfNeeded(stackedData, importedEffects: call.getObject("importedEffects"))
+                let renderedData = spektraResult.data
+                let spektraMs = self.elapsedMs(since: spektraStart)
+                let dataUrl = "data:image/jpeg;base64,\(renderedData.base64EncodedString())"
+                DispatchQueue.main.async {
+                    call.resolve([
+                        "dataUrl": dataUrl,
+                        "filename": filename,
+                        "saved": false,
+                        "metrics": [
+                            "decodeMs": decodeMs,
+                            "coreImageMs": coreImageMs,
+                            "overlayMs": overlayMs,
+                            "spektraMs": spektraMs,
+                            "totalMs": self.elapsedMs(since: totalStart),
+                            "inputBytes": photoData.count,
+                            "jpegBytes": renderedData.count,
+                            "spektraApplied": spektraResult.applied,
+                            "spektraBackend": spektraResult.backend,
+                            "spektraError": spektraResult.error ?? NSNull()
+                        ]
+                    ])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+            }
+        }
     }
 
     @objc func processAndSavePhotoStack(_ call: CAPPluginCall) {
@@ -2489,7 +2562,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         for url in urls {
             let lowerName = url.lastPathComponent.lowercased()
             guard ["jpg", "jpeg"].contains(url.pathExtension.lowercased()),
-                  !lowerName.contains("-thumb") else {
+                  !lowerName.contains("-thumb"),
+                  !lowerName.contains("-original-") else {
                 continue
             }
             let id = url.deletingPathExtension().lastPathComponent.components(separatedBy: "-").first ?? url.deletingPathExtension().lastPathComponent
