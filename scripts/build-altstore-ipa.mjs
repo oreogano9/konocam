@@ -13,6 +13,7 @@ const ipaPath = path.resolve(process.env.ALTSTORE_IPA_PATH || path.join(distDir,
 const projectPath = process.env.ALTSTORE_XCODE_PROJECT || path.join(repoRoot, "ios", "App", "App.xcodeproj");
 const scheme = process.env.ALTSTORE_SCHEME || "App";
 const configuration = process.env.ALTSTORE_CONFIGURATION || "Release";
+const allowProvisioningUpdates = process.env.ALTSTORE_ALLOW_PROVISIONING_UPDATES === "1";
 
 mkdirSync(distDir, { recursive: true });
 
@@ -22,7 +23,7 @@ if (existsSync(archivePath)) {
   rmSync(archivePath, { recursive: true, force: true });
 }
 
-run("xcodebuild", [
+const archiveArgs = [
   "-project",
   projectPath,
   "-scheme",
@@ -34,7 +35,13 @@ run("xcodebuild", [
   "-archivePath",
   archivePath,
   "archive",
-]);
+];
+
+if (allowProvisioningUpdates) {
+  archiveArgs.push("-allowProvisioningUpdates");
+}
+
+run("xcodebuild", archiveArgs);
 
 const appPath = path.join(archivePath, "Products", "Applications", "App.app");
 if (!existsSync(appPath)) {
