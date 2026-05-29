@@ -144,6 +144,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "processAndSavePhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "reprocessGalleryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "replaceGalleryItemData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listGalleryItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeGalleryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteGalleryItem", returnType: CAPPluginReturnPromise),
@@ -163,6 +164,13 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private var previewOverlayView: UIImageView?
     private var startupSplashView: UIImageView?
     private weak var previewContainer: UIView?
+    private struct NativeGalleryCandidate {
+        let id: String
+        let url: URL
+        let isMetadata: Bool
+        let sortMs: Int
+    }
+    private var nativeGalleryIndexCache: [NativeGalleryCandidate]?
     private var activeInput: AVCaptureDeviceInput?
     private var facingMode = "environment"
     private var flashEnabled = false
@@ -523,7 +531,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 return
             }
-            guard self.pendingCaptureCall == nil && self.pendingStackCapture == nil else {
+            guard self.pendingCaptureCall == nil && self.pendingStackCapture == nil && !self.stackCaptureProcessing else {
                 DispatchQueue.main.async {
                     call.reject("Capture already in progress")
                 }
@@ -577,17 +585,15 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         let limit = max(1, min(120, call.getInt("limit", 30)))
         galleryQueue.async {
             do {
-                let allItems = try self.listNativeGalleryItems()
-                let total = allItems.count
-                let end = min(total, offset + limit)
-                let items = offset < total ? Array(allItems[offset..<end]) : []
+                let page = try self.listNativeGalleryItemsPage(offset: offset, limit: limit)
                 DispatchQueue.main.async {
                     call.resolve([
-                        "items": items,
+                        "items": page.items,
                         "offset": offset,
                         "limit": limit,
-                        "total": total,
-                        "hasMore": end < total
+                        "nextOffset": page.nextOffset,
+                        "total": page.total,
+                        "hasMore": page.hasMore
                     ])
                 }
             } catch {
@@ -648,6 +654,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
                 try self.deleteNativeGalleryFiles(for: url)
+                self.invalidateNativeGalleryIndexCache()
                 DispatchQueue.main.async {
                     call.resolve(["deleted": true])
                 }
@@ -940,6 +947,58 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                             "spektraError": spektraResult.error ?? NSNull()
                         ]
                     ])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    @objc func replaceGalleryItemData(_ call: CAPPluginCall) {
+        guard let fileUrl = call.getString("fileUrl"),
+              let outputURL = URL(string: fileUrl),
+              outputURL.isFileURL,
+              let dataUrl = call.getString("dataUrl") else {
+            call.reject("Missing gallery replacement payload")
+            return
+        }
+
+        let payload = dataUrl.components(separatedBy: ",").last ?? dataUrl
+        guard let data = Data(base64Encoded: payload) else {
+            call.reject("Invalid gallery replacement data")
+            return
+        }
+
+        let originalFileUrl = call.getString("originalFileUrl", fileUrl)
+        guard let originalURL = URL(string: originalFileUrl), originalURL.isFileURL else {
+            call.reject("Missing original gallery file")
+            return
+        }
+
+        let filename = call.getString("filename", outputURL.lastPathComponent)
+        let cameraName = call.getString("cameraName", "camera")
+
+        galleryQueue.async {
+            do {
+                let galleryDirectory = try self.nativeGalleryDirectory()
+                let galleryPath = galleryDirectory.standardizedFileURL.path
+                guard outputURL.standardizedFileURL.path.hasPrefix(galleryPath),
+                      originalURL.standardizedFileURL.path.hasPrefix(galleryPath),
+                      FileManager.default.fileExists(atPath: originalURL.path) else {
+                    throw NativeCameraError.invalidImage
+                }
+
+                let item = try self.updateNativeGalleryItem(
+                    fileURL: outputURL,
+                    data: data,
+                    filename: filename,
+                    cameraName: cameraName,
+                    originalFileURL: originalURL
+                )
+                DispatchQueue.main.async {
+                    call.resolve(["item": item])
                 }
             } catch {
                 DispatchQueue.main.async {
@@ -2478,6 +2537,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
         try metadata.write(to: metadataURL, options: [.atomic])
+        setNativeGallerySortDate(createdAt, for: metadataURL)
+        invalidateNativeGalleryIndexCache()
         return item
     }
 
@@ -2521,10 +2582,68 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
         try metadata.write(to: metadataURL, options: [.atomic])
+        setNativeGallerySortDate(createdAt, for: metadataURL)
+        invalidateNativeGalleryIndexCache()
         return item
     }
 
-    private func listNativeGalleryItems() throws -> [JSObject] {
+    private func listNativeGalleryItemsPage(offset: Int, limit: Int) throws -> (items: [JSObject], total: Int, hasMore: Bool, nextOffset: Int) {
+        let fileManager = FileManager.default
+        let sortedCandidates = try nativeGalleryCandidates()
+        let total = sortedCandidates.count
+        guard offset < total else {
+            return (items: [], total: total, hasMore: false, nextOffset: total)
+        }
+        let end = min(total, offset + limit)
+        let pageCandidates = Array(sortedCandidates[offset..<end])
+        var items: [JSObject] = []
+        for (pageIndex, candidate) in pageCandidates.enumerated() {
+            let galleryOffset = offset + pageIndex
+            if candidate.isMetadata {
+                guard let data = try? Data(contentsOf: candidate.url),
+                      var item = (try? JSONSerialization.jsonObject(with: data)) as? JSObject,
+                      let fileUrl = item["fileUrl"] as? String,
+                      let url = URL(string: fileUrl),
+                      fileManager.fileExists(atPath: url.path) else {
+                    continue
+                }
+                if let thumbnailFileUrl = item["thumbnailFileUrl"] as? String,
+                   let thumbnailURL = URL(string: thumbnailFileUrl),
+                   !fileManager.fileExists(atPath: thumbnailURL.path) {
+                    item["thumbnailFileUrl"] = fileUrl
+                }
+                if let originalFileUrl = item["originalFileUrl"] as? String,
+                   let originalURL = URL(string: originalFileUrl),
+                   !fileManager.fileExists(atPath: originalURL.path) {
+                    item["originalFileUrl"] = fileUrl
+                }
+                item["galleryOffset"] = galleryOffset
+                items.append(normalizeNativeGalleryItem(item))
+            } else {
+                items.append([
+                    "id": candidate.id,
+                    "filename": candidate.url.lastPathComponent,
+                    "fileUrl": candidate.url.absoluteString,
+                    "originalFileUrl": candidate.url.absoluteString,
+                    "thumbnailFileUrl": candidate.url.absoluteString,
+                    "cameraName": cameraNameFromGalleryFilename(candidate.url.lastPathComponent) ?? "Camera",
+                    "createdAt": candidate.sortMs,
+                    "galleryOffset": galleryOffset,
+                    "fileBacked": true,
+                    "thumbnailBacked": false,
+                    "processing": false,
+                    "source": "native-legacy"
+                ])
+            }
+        }
+        return (items: items, total: total, hasMore: end < total, nextOffset: end)
+    }
+
+    private func nativeGalleryCandidates() throws -> [NativeGalleryCandidate] {
+        if let nativeGalleryIndexCache {
+            return nativeGalleryIndexCache
+        }
+
         let directory = try nativeGalleryDirectory()
         let fileManager = FileManager.default
         let urls = try fileManager.contentsOfDirectory(
@@ -2532,31 +2651,16 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles]
         )
-        var items: [JSObject] = []
         let metadataURLs = urls.filter { $0.pathExtension.lowercased() == "json" }
         var metadataIds = Set<String>()
-
+        var candidates: [NativeGalleryCandidate] = []
         for metadataURL in metadataURLs {
-            guard let data = try? Data(contentsOf: metadataURL),
-                  var item = (try? JSONSerialization.jsonObject(with: data)) as? JSObject,
-                  let id = item["id"] as? String,
-                  let fileUrl = item["fileUrl"] as? String,
-                  let url = URL(string: fileUrl),
-                  fileManager.fileExists(atPath: url.path) else {
+            let id = metadataURL.deletingPathExtension().lastPathComponent
+            guard !id.isEmpty else {
                 continue
             }
             metadataIds.insert(id)
-            if let thumbnailFileUrl = item["thumbnailFileUrl"] as? String,
-               let thumbnailURL = URL(string: thumbnailFileUrl),
-               !fileManager.fileExists(atPath: thumbnailURL.path) {
-                item["thumbnailFileUrl"] = fileUrl
-            }
-            if let originalFileUrl = item["originalFileUrl"] as? String,
-               let originalURL = URL(string: originalFileUrl),
-               !fileManager.fileExists(atPath: originalURL.path) {
-                item["originalFileUrl"] = fileUrl
-            }
-            items.append(normalizeNativeGalleryItem(item))
+            candidates.append(NativeGalleryCandidate(id: id, url: metadataURL, isMetadata: true, sortMs: nativeGalleryModificationMs(for: metadataURL)))
         }
 
         for url in urls {
@@ -2570,28 +2674,26 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             if metadataIds.contains(id) {
                 continue
             }
-            let resourceValues = try? url.resourceValues(forKeys: [.contentModificationDateKey])
-            let createdAt = Int((resourceValues?.contentModificationDate ?? Date()).timeIntervalSince1970 * 1000)
-            items.append([
-                "id": id,
-                "filename": url.lastPathComponent,
-                "fileUrl": url.absoluteString,
-                "originalFileUrl": url.absoluteString,
-                "thumbnailFileUrl": url.absoluteString,
-                "cameraName": cameraNameFromGalleryFilename(url.lastPathComponent) ?? "Camera",
-                "createdAt": createdAt,
-                "fileBacked": true,
-                "thumbnailBacked": false,
-                "processing": false,
-                "source": "native-legacy"
-            ])
+            candidates.append(NativeGalleryCandidate(id: id, url: url, isMetadata: false, sortMs: nativeGalleryModificationMs(for: url)))
         }
 
-        return items.sorted {
-            let left = $0["createdAt"] as? Int ?? 0
-            let right = $1["createdAt"] as? Int ?? 0
-            return left > right
-        }
+        let sortedCandidates = candidates.sorted { $0.sortMs > $1.sortMs }
+        nativeGalleryIndexCache = sortedCandidates
+        return sortedCandidates
+    }
+
+    private func invalidateNativeGalleryIndexCache() {
+        nativeGalleryIndexCache = nil
+    }
+
+    private func nativeGalleryModificationMs(for url: URL) -> Int {
+        let resourceValues = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+        return Int((resourceValues?.contentModificationDate ?? Date()).timeIntervalSince1970 * 1000)
+    }
+
+    private func setNativeGallerySortDate(_ createdAt: Int, for url: URL) {
+        let date = Date(timeIntervalSince1970: Double(createdAt) / 1000.0)
+        try? FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
     }
 
     private func normalizeNativeGalleryItem(_ item: JSObject) -> JSObject {
@@ -3903,51 +4005,61 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
                     )
                     let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
                     let photosStart = CACurrentMediaTime()
-                    self.savePhotoData(renderedData) { success, _ in
-                        let metrics: JSObject = [
-                            "captureMs": captureMs,
-                            "normalizeMs": normalizeMs,
-                            "coreImageMs": coreImageMs,
-                            "overlayMs": overlayMs,
-                            "spektraMs": spektraMs,
-                            "galleryWriteMs": galleryWriteMs,
+                    let metrics: JSObject = [
+                        "captureMs": captureMs,
+                        "normalizeMs": normalizeMs,
+                        "coreImageMs": coreImageMs,
+                        "overlayMs": overlayMs,
+                        "spektraMs": spektraMs,
+                        "galleryWriteMs": galleryWriteMs,
+                        "photosSaveMs": NSNull(),
+                        "photosSavePending": true,
+                        "totalMs": self.elapsedMs(since: request.startedAt),
+                        "inputBytes": data.count,
+                        "normalizedBytes": normalizedData.count,
+                        "jpegBytes": renderedData.count,
+                        "spektraApplied": spektraResult.applied,
+                        "spektraPreset": spektraResult.preset,
+                        "spektraMode": spektraResult.applied ? spektraResult.mode : "",
+                        "spektraBackend": spektraResult.backend,
+                        "spektraFullPipelineApplied": spektraResult.fullPipelineApplied,
+                        "spektraFullPipeline": spektraResult.fullPipelineApplied ? "kodak_gold_200_to_kodak_portra_endura_32_lut" : "",
+                        "spektraGlare": spektraResult.applied ? [
+                            "active": true,
+                            "percent": 0.25,
+                            "roughness": 0.70,
+                            "blur": 0.50
+                        ] : NSNull(),
+                        "spektraError": spektraResult.error ?? NSNull(),
+                        "orientationSource": request.captureOrientationSource,
+                        "deviceOrientation": request.captureDeviceOrientation,
+                        "gravityX": request.captureGravityX ?? NSNull(),
+                        "gravityY": request.captureGravityY ?? NSNull(),
+                        "gravityZ": request.captureGravityZ ?? NSNull()
+                    ]
+                    DispatchQueue.main.async {
+                        request.call.resolve([
+                            "item": galleryItem,
+                            "filename": request.filename,
+                            "saved": false,
+                            "photosSavePending": true,
+                            "width": outputSize.width,
+                            "height": outputSize.height,
+                            "orientation": self.orientationName(request.captureOrientation),
+                            "metrics": metrics
+                        ])
+                    }
+                    self.stackCaptureProcessing = false
+                    self.savePhotoData(renderedData) { success, error in
+                        let event: JSObject = [
+                            "filename": request.filename,
+                            "cameraName": request.cameraName,
+                            "saved": success,
                             "photosSaveMs": self.elapsedMs(since: photosStart),
-                            "totalMs": self.elapsedMs(since: request.startedAt),
-                            "inputBytes": data.count,
-                            "normalizedBytes": normalizedData.count,
-                            "jpegBytes": renderedData.count,
-                            "spektraApplied": spektraResult.applied,
-                            "spektraPreset": spektraResult.preset,
-                            "spektraMode": spektraResult.applied ? spektraResult.mode : "",
-                            "spektraBackend": spektraResult.backend,
-                            "spektraFullPipelineApplied": spektraResult.fullPipelineApplied,
-                            "spektraFullPipeline": spektraResult.fullPipelineApplied ? "kodak_gold_200_to_kodak_portra_endura_32_lut" : "",
-                            "spektraGlare": spektraResult.applied ? [
-                                "active": true,
-                                "percent": 0.25,
-                                "roughness": 0.70,
-                                "blur": 0.50
-                            ] : NSNull(),
-                            "spektraError": spektraResult.error ?? NSNull(),
-                            "orientationSource": request.captureOrientationSource,
-                            "deviceOrientation": request.captureDeviceOrientation,
-                            "gravityX": request.captureGravityX ?? NSNull(),
-                            "gravityY": request.captureGravityY ?? NSNull(),
-                            "gravityZ": request.captureGravityZ ?? NSNull()
+                            "error": error?.localizedDescription ?? NSNull()
                         ]
                         DispatchQueue.main.async {
-                            request.call.resolve([
-                                "item": galleryItem,
-                                "filename": request.filename,
-                                "saved": success,
-                                "width": outputSize.width,
-                                "height": outputSize.height,
-                                "orientation": self.orientationName(request.captureOrientation),
-                                "metrics": metrics
-                            ])
-                        }
-                        self.cameraQueue.async {
-                            self.stackCaptureProcessing = false
+                            self.notifyListeners("nativePhotoSaveComplete", data: event)
                         }
                     }
                 } catch {

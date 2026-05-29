@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-21 11:14 CEST
+Last updated: 2026-05-29 23:59 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,89 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-05-29 23:59 CEST - AltStore Build 5 Publish Prep
+
+- Request: push the current capture performance/reliability changes when possible.
+- Change: bumped the iOS build number from `4` to `5` so AltStore can detect the update.
+- Change: preparing a GitHub commit and AltStore release publish to `oreogano9/konocam`.
+- Verification: latest local checks before publish: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+
+### 2026-05-29 23:56 CEST - Random Cam Native Capture Prep
+
+- Request: continue improving capture snappiness without changing camera behavior.
+- Change: Random Cam shots on the native camera path now use a capture-only filter selection branch that applies the picked camera/settings and loads LUT bytes, but skips unnecessary WebGL preview texture upload and render work before native capture.
+- Change: added a debug event for this capture-only filter selection path so reports can distinguish Random Cam prep from normal visible filter loading.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 23:50 CEST - Overlay Decode Cache
+
+- Request: keep improving capture/app snappiness without changing behavior.
+- Change: overlay image loading now uses shared path-level image and promise caches, so startup warm-up, foreground rendering, and camera save processing do not decode the same overlay PNGs concurrently.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 23:48 CEST - Background Photos Export For Native Captures
+
+- Request: keep making capture feel snappier and safer without changing the visible camera behavior too much.
+- Change: native final-stack captures now resolve after the processed JPEG and local app-gallery item are written, instead of blocking the next queued shot on iOS Photos album export.
+- Change: iOS Photos export now continues in the background and emits a `nativePhotoSaveComplete` event with success/failure timing for debug history and status feedback.
+- Change: capture status now explicitly says when a shot is already saved to the local gallery and still exporting to Photos in the background.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 23:37 CEST - Capture Asset Warm-Up
+
+- Request: keep improving image capture snappiness and reliability without changing behavior too much.
+- Change: the selected camera's LUT bytes and overlay assets now warm in the background when the app initializes and when the web/native camera becomes ready, reducing first-shot capture prep work.
+- Change: background overlay warm-up is cache-only and no longer mutates the currently active overlay, so late preload completions cannot switch the active camera overlay after the user changes cameras.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 23:30 CEST - Shutter Queue Reliability Guard
+
+- Request: improve capture reliability so repeated shutter presses feel safe and do not give false feedback.
+- Change: queued shutter captures now keep their pending count until the delayed queued capture actually starts, preventing a queued shot from disappearing during the short drain delay.
+- Change: queued capture draining now uses a single scheduled drain flag, avoiding overlapping drain timers when capture state changes quickly.
+- Change: the native final-stack capture bridge now rejects new capture requests while a previous stack capture is still processing, not only while the camera JPEG is pending.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 23:13 CEST - Camera UI Churn Reduction
+
+- Request: improve performance across the app and keep behavior stable.
+- Change: native preview offset updates now round to half-pixel precision, skip duplicate offsets, and avoid overlapping `setPreviewOffset` bridge calls while a previous call is still in flight.
+- Change: camera drawer selection syncing now uses a cache key for the selected camera and favorites set, avoiding repeated full button scans during frequent camera-state updates.
+- Change: queued shutter taps now vibrate when the queued capture actually starts instead of when it is only accepted into the pending queue, reducing false “vibrated but no shot started yet” feedback.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-29 22:53 CEST - Virtualized Infinite Gallery Pass
+
+- Request: after saving an edited gallery photo, make the gallery switch to the newly saved filter preview.
+- Request: make infinite gallery possible without gallery performance collapsing as the image count grows.
+- Change: edited-gallery Save now replaces the local app-gallery item, then reloads the viewer from the saved gallery file instead of leaving the temporary draft preview attached.
+- Change: native gallery listing now pages lightweight file candidates first and parses only the requested metadata page, reducing startup and infinite-scroll work for large galleries.
+- Change: native gallery page requests now reuse a cached sorted gallery index instead of rescanning and resorting the NativeGallery directory on every scroll page.
+- Change: the native gallery index cache invalidates after gallery writes, replacements, and deletes so new captures and deleted files stay reflected.
+- Change: native pagination now returns `nextOffset`, so stale metadata can be skipped without trapping the JS loader on the same page.
+- Change: native gallery items now carry `galleryOffset` values so the web gallery can discard and later reload pages while keeping scroll math stable.
+- Change: infinite gallery mode now uses a bounded virtual thumbnail window with top/bottom spacers instead of appending DOM cards forever.
+- Change: infinite gallery mode now caps the loaded JS metadata window at 240 records, loading previous/next native pages as the user scrolls near the window edges.
+- Change: new captures and Spektra pending previews now enter the gallery through the same front-insert path, keeping offsets and native totals consistent with the bounded metadata window.
+- Change: gallery thumbnails now use async/low-priority image decoding, fixed thumbnail aspect, scroll-frame batching, and CSS containment to reduce gallery scroll pressure.
+- Verification: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
+
+### 2026-05-26 01:36 CEST - Saved Gallery Edits Update Local Preview
+
+- Request: after editing an existing gallery photo and tapping Save, switch the app-gallery image to the newly saved filter preview.
+- Change: edited gallery Save still exports the draft to the iOS Photos `KONO CAM` album, but now also replaces the local app-gallery processed image and thumbnail with that saved draft.
+- Change: added native `replaceGalleryItemData` so file-backed gallery records can be updated in place without creating duplicate local gallery items.
+- Change: IndexedDB-backed gallery records now update their blob, thumbnail, filename, camera name, and inferred filter when the edited draft is saved.
+- Verification: `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Scope note: GitHub/AltStore release was not updated.
 
 ### 2026-05-21 11:14 CEST - Gallery Display Limit Setting
 
