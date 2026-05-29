@@ -22,8 +22,9 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 
 - Request: push the current capture performance/reliability changes when possible.
 - Change: bumped the iOS build number from `4` to `5` so AltStore can detect the update.
-- Change: preparing a GitHub commit and AltStore release publish to `oreogano9/konocam`.
+- Change: pushed the current `main` branch to `oreogano9/konocam` and published GitHub release `altstore-v1.0-5`.
 - Verification: latest local checks before publish: `node --check web/app.js`, `npm run check:web`, `npm run ios:copy`, and unsigned iOS Debug build passed.
+- Verification: `ALTSTORE_ALLOW_PROVISIONING_UPDATES=1 npm run altstore:ipa`, `npm run altstore:github`, and `gh release view` passed; generated source reports version `1.0` build `5` with a 138,768,241-byte IPA.
 
 ### 2026-05-29 23:56 CEST - Random Cam Native Capture Prep
 
