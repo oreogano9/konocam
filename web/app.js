@@ -134,6 +134,8 @@ const GALLERY_VIRTUAL_MIN_ITEMS = 90;
 const GALLERY_VIRTUAL_OVERSCAN_ROWS = 4;
 const GALLERY_METADATA_WINDOW_SIZE = 240;
 const GALLERY_THUMBNAIL_ASPECT_RATIO = 0.72;
+const GALLERY_THUMBNAIL_PRELOAD_ROWS = 5;
+const GALLERY_THUMBNAIL_PRELOAD_MAX = 48;
 const GALLERY_THUMBNAIL_MAX_SIDE = 480;
 const GALLERY_THUMBNAIL_QUALITY = 0.76;
 const DEBUG_EVENT_LIMIT = 220;
@@ -3989,10 +3991,14 @@ function preloadGalleryInBackground(reason = "background") {
 function preloadGalleryThumbnailImages(items, limit = GALLERY_RENDER_BATCH_SIZE) {
   state.galleryPreloadImages = [];
   for (const item of items.slice(0, limit)) {
-    const source = item.previewDataUrl
+    let source = item.previewDataUrl
       || (item.thumbnailFileUrl
         ? getGalleryFileUrl(item.thumbnailFileUrl, item.cacheBust)
         : "");
+    if (!source && item.thumbnailBlob) {
+      source = URL.createObjectURL(item.thumbnailBlob);
+      state.galleryObjectUrls.push(source);
+    }
     if (!source) {
       continue;
     }
@@ -4001,6 +4007,20 @@ function preloadGalleryThumbnailImages(items, limit = GALLERY_RENDER_BATCH_SIZE)
     image.src = source;
     state.galleryPreloadImages.push(image);
   }
+}
+
+function preloadGalleryWindowThumbnails(items, windowInfo) {
+  if (!items.length || !windowInfo) {
+    return;
+  }
+  const columns = Math.max(1, getGalleryGridColumnCount());
+  const preloadRadius = columns * GALLERY_THUMBNAIL_PRELOAD_ROWS;
+  const start = Math.max(0, windowInfo.start - preloadRadius);
+  const end = Math.min(items.length, windowInfo.end + preloadRadius);
+  if (end <= start) {
+    return;
+  }
+  preloadGalleryThumbnailImages(items.slice(start, end), GALLERY_THUMBNAIL_PRELOAD_MAX);
 }
 
 function openGalleryDb() {
@@ -4632,6 +4652,7 @@ function renderGallery(options = {}) {
     galleryGrid.append(createGallerySpacer(windowInfo.bottomHeight, "bottom"));
   }
 
+  preloadGalleryWindowThumbnails(visibleItems, windowInfo);
   updateGallerySelectionUi();
   if (state.favoriteCameraDrawerOpen) {
     renderFavoriteCameraDrawer();
@@ -4642,6 +4663,7 @@ function createGalleryCard(item) {
   const itemKey = getGalleryItemKey(item);
   const card = document.createElement("article");
   card.className = "mobile-gallery__item";
+  applyGalleryCardAspectRatio(card, item);
   card.classList.toggle("is-landscape", isGalleryItemLandscape(item));
   card.classList.toggle("is-processing", Boolean(item.processing));
   card.classList.toggle("is-selected", state.gallerySelectedItemKeys.has(itemKey));
@@ -4687,6 +4709,7 @@ function createGalleryCard(item) {
     if (!item.height && image.naturalHeight) {
       item.height = image.naturalHeight;
     }
+    applyGalleryCardAspectRatio(card, item);
     card.classList.toggle("is-landscape", isGalleryItemLandscape(item));
   });
   image.addEventListener("error", () => handleGalleryImageError(item, card));
@@ -4724,7 +4747,7 @@ function getGalleryRenderWindow(items) {
   }
 
   const columns = getGalleryGridColumnCount();
-  const rowHeight = getGalleryVirtualRowHeight(columns);
+  const rowHeight = getGalleryVirtualRowHeight(columns, items);
   const totalRows = Math.ceil(totalItems / columns);
   const gridTop = galleryGrid.offsetTop || 0;
   const scrollTop = Math.max(0, mobileGallery.scrollTop - gridTop);
@@ -4777,7 +4800,7 @@ function getGalleryGridGapPx() {
   return Number.parseFloat(styles.rowGap || styles.gap || "0") || 0;
 }
 
-function getGalleryVirtualRowHeight(columns = getGalleryGridColumnCount()) {
+function getGalleryVirtualRowHeight(columns = getGalleryGridColumnCount(), items = getGalleryVisibleItems()) {
   const measuredItem = galleryGrid.querySelector(".mobile-gallery__item");
   if (measuredItem) {
     const height = measuredItem.getBoundingClientRect().height;
@@ -4791,7 +4814,7 @@ function getGalleryVirtualRowHeight(columns = getGalleryGridColumnCount()) {
   const horizontalPadding = (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
   const gridWidth = Math.max(1, (galleryGrid.clientWidth || mobileGallery.clientWidth || window.innerWidth || 390) - horizontalPadding);
   const itemWidth = Math.max(1, (gridWidth - gap * Math.max(0, columns - 1)) / columns);
-  return (itemWidth / GALLERY_THUMBNAIL_ASPECT_RATIO) + gap;
+  return (itemWidth / getGalleryEstimatedAspectRatio(items)) + gap;
 }
 
 function refreshGalleryVirtualWindowIfNeeded() {
@@ -4842,6 +4865,33 @@ function isGalleryItemLandscape(item) {
     return width > height;
   }
   return isLandscapeCaptureOrientation(item?.orientation);
+}
+
+function getGalleryItemAspectRatio(item) {
+  const width = Number(item?.width);
+  const height = Number(item?.height);
+  if (width > 0 && height > 0) {
+    if (isLandscapeCaptureOrientation(item?.orientation) && width < height) {
+      return height / width;
+    }
+    return width / height;
+  }
+  return isLandscapeCaptureOrientation(item?.orientation)
+    ? 1 / GALLERY_THUMBNAIL_ASPECT_RATIO
+    : GALLERY_THUMBNAIL_ASPECT_RATIO;
+}
+
+function getGalleryEstimatedAspectRatio(items) {
+  const sample = items.slice(0, Math.min(items.length, GALLERY_RENDER_BATCH_SIZE));
+  if (!sample.length) {
+    return GALLERY_THUMBNAIL_ASPECT_RATIO;
+  }
+  const total = sample.reduce((sum, item) => sum + getGalleryItemAspectRatio(item), 0);
+  return Math.max(0.25, Math.min(2.2, total / sample.length));
+}
+
+function applyGalleryCardAspectRatio(card, item) {
+  card.style.setProperty("--gallery-item-aspect", getGalleryItemAspectRatio(item).toFixed(4));
 }
 
 function handleGalleryImageError(item, card) {
@@ -8061,6 +8111,7 @@ galleryTwoColumnToggle.addEventListener("change", () => {
   state.galleryTwoColumn = galleryTwoColumnToggle.checked;
   writeStoredGalleryTwoColumn(state.galleryTwoColumn);
   syncGalleryLayoutSetting();
+  renderGallery();
 });
 galleryDisplayLimitSelect?.addEventListener("change", () => {
   state.galleryDisplayLimit = GALLERY_DISPLAY_LIMIT_VALUES.has(galleryDisplayLimitSelect.value)

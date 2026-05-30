@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-29 23:59 CEST
+Last updated: 2026-05-30 10:22 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,14 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-05-30 10:22 CEST - Gallery Thumbnail Preload And Landscape Cards
+
+- Request: make gallery images feel loaded ahead of scrolling, support compact/normal and Infinite mode, and fix landscape images appearing as vertical previews.
+- Change: gallery cards now use per-image aspect ratios from saved width/height/orientation metadata instead of forcing every thumbnail into a portrait ratio.
+- Change: gallery rendering now preloads thumbnail images around the current virtual/rendered window, including nearby rows before and after the visible range.
+- Change: switching compact/normal gallery layout now re-renders the gallery so virtual measurements and preloads match the active column count.
+- Scope note: iOS Photos originals are unchanged; this only affects app-gallery thumbnail presentation and preload behavior.
 
 ### 2026-05-29 23:59 CEST - AltStore Build 5 Publish Prep
 
