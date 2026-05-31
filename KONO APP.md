@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-30 10:22 CEST
+Last updated: 2026-05-31 09:58 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,45 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-05-30 22:14 CEST - Camera Gallery Transition Smoothing
+
+- Request: make camera-to-gallery and gallery-to-camera transitions feel as smooth and snappy as possible, especially right after taking a photo.
+- Change: camera gallery button now uses the same slide-up transition path as camera swipe, instead of instantly stopping the camera.
+- Change: the gallery button stays usable while a capture is finishing; if Gallery is requested during that window, the camera UI now slides away immediately and the gallery becomes visible/interactable while capture finalization continues.
+- Change: capture start now primes gallery metadata and thumbnail cache in the background, so the common shoot-then-open-gallery path has less work left to do.
+- Change: camera-to-gallery peek mode now keeps the gallery layer visible behind the sliding camera layer instead of revealing a blank hidden background.
+- Change: after opening gallery, the native camera now stays warm behind the gallery for a short grace window; returning quickly cancels teardown and slides the already-running camera back instead of restarting iOS camera.
+- Change: gallery swipe-back is allowed during the keep-warm window even though the camera is technically still active behind the gallery.
+- Change: warm gallery entry/return now clears inline gallery transforms, so a partial pull-down swipe cannot leave the next gallery open visually offset.
+- Change: warm return cleanup is token-guarded so a stale timeout cannot clear a newer camera/gallery transition.
+- Change: haptic level guide is stopped during warm-gallery mode even though the camera session remains alive behind the gallery.
+- Change: hardware/button capture requests are ignored during warm-gallery mode, preventing hidden captures while browsing the gallery.
+- Change: camera controls are disabled while warm-gallery mode is active, so the UI follows the visible Gallery state rather than the hidden live camera session.
+- Change: copied debug reports now explicitly include warm-gallery state, camera/gallery transition flags, gallery dirty/hidden-render flags, and whether the gallery surface is visible.
+- Change: copied debug reports now include compact transition performance counters for warm gallery opens, warm returns, cold returns, and their latest timings.
+- Change: warm gallery open timing now covers the shoot-then-gallery path where Gallery is tapped while capture finalization is still running.
+- Change: `npm run check:web` now also runs a static camera/gallery transition invariant check, protecting the keep-warm, deferred-gallery, hidden-capture block, level-guide block, and debug-report fields from accidental removal.
+- Change: the transition invariant check now verifies warm-open start-time tracking and deferred-capture warm-open counting.
+- Change: the warm return path emits `gallery-camera-transition:warm-start` and `gallery-camera-transition:warm-end`; delayed teardown emits `camera-gallery-transition:warm-stop`.
+- Change: gallery opening now warms/renders the gallery window after the slide has had a paint frame, avoiding synchronous gallery render work on the first transition frame.
+- Change: gallery background/pre-capture loading now schedules a hidden first-window render once metadata is loaded, so the first gallery open has less DOM work left to do.
+- Change: gallery rendering now builds cards in a document fragment, swaps them into the grid once, and marks the first visible thumbnails as eager/high-priority during render.
+- Change: capture completion no longer forces a full gallery DOM render while camera mode is still active; new/finished items mark the gallery dirty and render when the gallery surface is visible or during an idle hidden render.
+- Change: visible gallery updates that land during a camera/gallery transition or active capture are now rendered on the next animation frame instead of synchronously inside the capture callback.
+- Change: once the deferred capture finishes, the native camera is stopped behind the already-visible gallery instead of blocking the initial gallery transition.
+- Change: slow gallery renders now emit `gallery:render-slow` debug events with duration, rendered count, virtual state, and surface visibility.
+- Change: copied debug reports now include whether a gallery frame render is scheduled, and frame-rendered updates emit `gallery:frame-render`.
+- Change: gallery-to-camera now starts camera boot while the gallery layer slides away, reducing the hard visual snap when returning to camera.
+- Change: gallery-to-camera return layer now sits above the camera layer and keeps an opaque gallery background even when native camera mode turns the normal gallery background transparent.
+- Change: gallery-to-camera cleanup now waits for native preview readiness when using the native camera, with a bounded fallback, instead of revealing a half-started camera shell.
+- Change: gallery-to-camera now keeps the gallery cover stationary while the native camera boots, then runs the reverse slide only once the native preview is ready or the bounded fallback fires.
+- Change: if gallery-to-camera has to wait beyond the slide duration for native preview readiness, debug reports now include `gallery-camera-transition:waiting-native`.
+- Change: gallery-to-camera reverse slide start now emits `gallery-camera-transition:reveal-start`, including whether it was native-ready or timeout-driven.
+- Change: camera/gallery transition timers are now tokenized and cleaned up, so stale callbacks from a previous swipe/tap cannot clear transforms during a newer transition.
+- Change: transition transforms now use compositor-friendly `translate3d(...)` plus temporary `will-change` hints during camera/gallery handoff.
+- Change: camera/gallery transition start/end timings now emit debug events, making real-device transition delays visible in copied debug reports.
+- Scope note: native camera start/stop still depends on iOS camera session timing; this pass reduces web UI and gallery-render jank around that native work.
 
 ### 2026-05-30 10:22 CEST - Gallery Thumbnail Preload And Landscape Cards
 

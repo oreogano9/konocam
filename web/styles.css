@@ -1152,8 +1152,45 @@ h1 {
     display: block;
   }
 
+  body.gallery-camera-returning .mobile-gallery {
+    background: var(--ui-bg);
+    display: block;
+    inset: 0;
+    pointer-events: none;
+    position: fixed;
+    will-change: transform;
+    z-index: 40;
+  }
+
   body.camera-mode-active.camera-gallery-peek .mobile-gallery {
-    display: none;
+    background: var(--ui-bg);
+    display: block;
+    inset: 0;
+    min-height: 100svh;
+    overflow: hidden;
+    pointer-events: none;
+    position: fixed;
+    z-index: 6;
+  }
+
+  body.camera-mode-active.camera-gallery-deferred .mobile-gallery {
+    overflow: auto;
+    pointer-events: auto;
+  }
+
+  body.camera-mode-active.camera-gallery-deferred .image-workspace {
+    pointer-events: none;
+  }
+
+  body.camera-mode-active.camera-gallery-peek .image-workspace,
+  body.gallery-camera-returning .mobile-gallery {
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+
+  body.native-camera-active.gallery-camera-returning .mobile-gallery,
+  body.native-camera-active.camera-gallery-peek .mobile-gallery {
+    background: var(--ui-bg);
   }
 
   body.mobile-gallery-active .image-workspace,
@@ -1390,6 +1427,10 @@ h1 {
   body.camera-boot .mobile-gallery,
   body.camera-boot #processedCanvas {
     display: none;
+  }
+
+  body.gallery-camera-returning.camera-boot .mobile-gallery {
+    display: block;
   }
 
   body.camera-mode-active .camera-device-frame {
