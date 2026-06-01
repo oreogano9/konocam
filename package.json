@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "KONO CAM analogue camera simulator for web and iOS.",
   "scripts": {
-    "check:web": "node --check web/app.js && node scripts/check-camera-gallery-transitions.mjs",
+    "check:web": "node --check web/app.js && node scripts/check-camera-gallery-transitions.mjs && node scripts/check-long-press-modes.mjs",
     "ios:copy": "cap copy ios && node scripts/patch-ios-capacitor-config.mjs",
     "ios:sync": "cap sync ios && node scripts/patch-ios-capacitor-config.mjs",
     "ios:open": "cap open ios",

@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-05-31 09:58 CEST
+Last updated: 2026-06-01 19:00 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -18,6 +18,32 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 
 ## Devlog
 
+### 2026-06-01 09:33 CEST - Long Press Shutter Modes
+
+- Request: make long-press shutter configurable between GIF mode and out-of-focus mode.
+- Change: Settings now includes `Long press shutter` with `GIF mode` and `Out of focus mode`; GIF mode exposes timing values from 0.5s through 10s and a Boomerang loop toggle, while out-of-focus mode exposes closest/far focus lock.
+- Change: the shutter button now distinguishes tap capture from long press; long press suppresses the follow-up click so it does not also take a still photo.
+- Change: shutter long-press now explicitly prevents WebView default pointer behavior, context menus, iOS callout, and text selection on the shutter controls.
+- Change: normal shutter taps are now handled on pointer-up, with follow-up clicks suppressed, so iOS can no longer break tap capture by suppressing synthetic clicks after long-press gesture prevention.
+- Change: shutter pointer-capture release is now guarded for WebView quirks, and cancelled/left long-press gestures suppress stray follow-up clicks instead of risking accidental still captures.
+- Change: native iPhone bridge now has `captureAndSaveGifStack`, sampling native preview frames, applying the current camera LUT/effects/overlay/Spektra stack, encoding a GIF, writing it to local app gallery, and saving it to the KONO CAM Photos album.
+- Change: GIF recording now acts as a full capture lock in the web UI: shutter buttons report busy, stop/gallery actions are blocked, and swipe gestures cannot open drawers or gallery while the GIF is recording.
+- Change: GIF capture now resets stale preview frames on camera start/stop, ignores stale video frames, and waits for actual distinct fresh frames up to a bounded deadline instead of counting empty frame attempts or repeating the same frame.
+- Change: native GIF metrics now report accepted frame count, target frame count, frame attempts, deadline status, GIF bytes, Spektra status, and timing so copied debug reports can prove what happened on-device.
+- Change: GIF saves now pass the generated `.gif` filename into Photos resource creation, and Photos fallback paths preserve a matching original filename alongside the GIF UTI.
+- Change: native bridge now has `setFocusLock`, using closest lens position by default or far lens position when selected.
+- Change: focus lock now explicitly requires custom lens-position support before resolving closest/far, so unsupported cameras fail clearly instead of pretending the lens moved.
+- Change: focus lock now resolves from AVCapture's completion handler and reports both target and actual lens position in debug evidence.
+- Change: native focus now resets to continuous autofocus on camera start/switch, after still captures, and before GIF recording, so an intentional out-of-focus lock does not leak into unrelated later shots or GIFs.
+- Change: copied debug reports now include `lastGifCapture` and `lastFocusLock`, including lens-position support and GIF frame/deadline metrics.
+- Change: GIF debug metrics now include output frame count, normal-loop GIF byte size, and loop mode, so a phone debug report can prove whether boomerang actually expanded the encoded GIF frames.
+- Change: local GIF gallery items carry GIF metadata and show a Boomerang toggle in the viewer; native `setGalleryGifBoomerang` can apply/remove boomerang on saved local GIFs using the preserved normal-loop sidecar.
+- Change: gallery GIF boomerang edits now return and persist debug evidence for source frame count, output frame count, GIF bytes, normal-loop bytes, and loop mode, making apply/remove test results visible in copied debug reports.
+- Change: the gallery viewer now clears the previous GIF `src` before loading the cache-busted updated GIF, making boomerang apply/remove more reliable in the preview.
+- Publish prep: AltStore build number bumped to `7`, with release notes for long-press GIF/focus modes.
+- Verification: `npm run check:web` now includes `scripts/check-long-press-modes.mjs`; latest local gates passed on 2026-06-01 19:00 CEST: `npm run check:web`, `npm run ios:copy`, and `xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build`.
+- Scope note: implementation is compile/static-verified, but completion is still unproven until real iPhone testing confirms animated GIF save/playback in the KONO CAM Photos album, current camera effects in the GIF frames, gallery boomerang apply/remove, and closest/far lens behavior.
+
 ### 2026-05-30 22:14 CEST - Camera Gallery Transition Smoothing
 
 - Request: make camera-to-gallery and gallery-to-camera transitions feel as smooth and snappy as possible, especially right after taking a photo.
@@ -26,6 +52,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Change: capture start now primes gallery metadata and thumbnail cache in the background, so the common shoot-then-open-gallery path has less work left to do.
 - Change: camera-to-gallery peek mode now keeps the gallery layer visible behind the sliding camera layer instead of revealing a blank hidden background.
 - Change: after opening gallery, the native camera now stays warm behind the gallery for a short grace window; returning quickly cancels teardown and slides the already-running camera back instead of restarting iOS camera.
+- Change: warm gallery-to-camera return is now marked as an active camera/gallery transition, so gallery DOM renders are deferred during the reverse slide as well as the camera-to-gallery slide.
 - Change: gallery swipe-back is allowed during the keep-warm window even though the camera is technically still active behind the gallery.
 - Change: warm gallery entry/return now clears inline gallery transforms, so a partial pull-down swipe cannot leave the next gallery open visually offset.
 - Change: warm return cleanup is token-guarded so a stale timeout cannot clear a newer camera/gallery transition.
@@ -47,7 +74,20 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Change: slow gallery renders now emit `gallery:render-slow` debug events with duration, rendered count, virtual state, and surface visibility.
 - Change: copied debug reports now include whether a gallery frame render is scheduled, and frame-rendered updates emit `gallery:frame-render`.
 - Change: gallery-to-camera now starts camera boot while the gallery layer slides away, reducing the hard visual snap when returning to camera.
+- Change: gallery swipe-back now prewarms cold camera boot once the pull-down intent is clear, so release-to-camera can reuse startup work already in progress.
+- Change: camera startup now preserves the active gallery pull-down/prewarm token instead of resetting it, so release can commit the already-started return and cancel can still stop it safely.
+- Change: cancelled gallery pull-downs stop the prewarmed camera boot and restore the gallery, preventing accidental hidden camera sessions after a partial swipe.
+- Change: gallery DOM updates requested during the camera-to-gallery slide now wait until the slide ends, preventing freshly captured items from forcing grid replacement mid-animation.
+- Change: first-time gallery load renders and hidden preload renders now use the same transition-safe path, so initial gallery population cannot rebuild the grid during the camera slide either.
+- Change: selection, virtual-window, delete/edit, and gallery settings re-renders now use the transition-safe gallery render helper, leaving only the helper's internal scheduled renders as direct gallery DOM replacements.
+- Change: copied debug reports now include whether a transition-end gallery render is scheduled, and that render emits `gallery:transition-end-render`.
+- Change: copied debug reports now include transition-end gallery render count, wait time, and render duration, making real-device shoot-to-gallery jank easier to confirm or rule out.
+- Change: visible gallery updates requested while capture finalization is still active now wait for capture end before replacing the gallery grid, avoiding a post-shot grid rebuild while the user is entering Gallery.
+- Change: gallery frame renders that were queued before a slide/capture state change now re-check transition and capture state at execution time, then defer if needed instead of racing the animation.
+- Change: the mobile gallery surface and grid now use CSS containment so delayed grid replacements stay isolated from the camera/app shell as much as possible.
+- Change: `npm run check:web` now verifies the gallery containment CSS in addition to the camera/gallery JS transition invariants.
 - Change: gallery-to-camera return layer now sits above the camera layer and keeps an opaque gallery background even when native camera mode turns the normal gallery background transparent.
+- Change: cold gallery-to-camera return cover now blocks gallery DOM renders too, so grid updates cannot run while the return cover/reveal is active.
 - Change: gallery-to-camera cleanup now waits for native preview readiness when using the native camera, with a bounded fallback, instead of revealing a half-started camera shell.
 - Change: gallery-to-camera now keeps the gallery cover stationary while the native camera boots, then runs the reverse slide only once the native preview is ready or the bounded fallback fires.
 - Change: if gallery-to-camera has to wait beyond the slide duration for native preview readiness, debug reports now include `gallery-camera-transition:waiting-native`.
@@ -55,6 +95,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Change: camera/gallery transition timers are now tokenized and cleaned up, so stale callbacks from a previous swipe/tap cannot clear transforms during a newer transition.
 - Change: transition transforms now use compositor-friendly `translate3d(...)` plus temporary `will-change` hints during camera/gallery handoff.
 - Change: camera/gallery transition start/end timings now emit debug events, making real-device transition delays visible in copied debug reports.
+- Verification: `npm run check:web`, `npm run ios:copy`, and unsigned generic iOS Debug build passed after the latest transition/render deferral changes.
 - Scope note: native camera start/stop still depends on iOS camera session timing; this pass reduces web UI and gallery-render jank around that native work.
 
 ### 2026-05-30 10:22 CEST - Gallery Thumbnail Preload And Landscape Cards

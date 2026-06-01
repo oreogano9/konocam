@@ -139,6 +139,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "stopLevelGuide", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "capturePhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "captureAndSavePhotoStack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "captureAndSaveGifStack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setFocusLock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processPhoto", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processPhotoStack", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "processAndSavePhotoStack", returnType: CAPPluginReturnPromise),
@@ -148,6 +150,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "listGalleryItems", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeGalleryItem", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteGalleryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setGalleryGifBoomerang", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveGalleryItemToPhotos", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "savePhoto", returnType: CAPPluginReturnPromise)
     ]
@@ -157,6 +160,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private let galleryQueue = DispatchQueue(label: "app.konocam.native-gallery", qos: .utility)
     private let captureSession = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
+    private let videoOutput = AVCaptureVideoDataOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var previewShellView: UIView?
     private var previewWindowView: UIView?
@@ -180,6 +184,9 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private var pendingCaptureOrientation: AVCaptureVideoOrientation = .portrait
     private var pendingStackCapture: NativeStackCapture?
     private var stackCaptureProcessing = false
+    private var latestVideoPixelBuffer: CVPixelBuffer?
+    private var latestVideoFrameAt = Date.distantPast
+    private var gifCaptureProcessing = false
     private var lastCaptureVideoOrientation: AVCaptureVideoOrientation = .portrait
     private let ciContext = CIContext(options: [.workingColorSpace: CGColorSpace(name: CGColorSpace.sRGB) as Any])
     private lazy var spektraMetalRenderer: SpektraMetalRenderer? = try? SpektraMetalRenderer()
@@ -241,6 +248,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                     self.facingMode = requestedFacingMode ?? self.facingMode
                     self.flashEnabled = requestedFlashEnabled
                     self.previewCropFactor = CGFloat(max(1.0, requestedCropFactor))
+                    self.latestVideoPixelBuffer = nil
+                    self.latestVideoFrameAt = Date.distantPast
                     try self.configureSession(facingMode: self.facingMode)
                     self.captureSession.startRunning()
                     self.startCaptureOrientationUpdates()
@@ -266,6 +275,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             if self.captureSession.isRunning {
                 self.captureSession.stopRunning()
             }
+            self.latestVideoPixelBuffer = nil
+            self.latestVideoFrameAt = Date.distantPast
             self.stopCaptureOrientationUpdates()
             DispatchQueue.main.async {
                 self.setCaptureEventInteractionEnabled(false)
@@ -557,6 +568,113 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    @objc func setFocusLock(_ call: CAPPluginCall) {
+        let distance = call.getString("distance", "closest")
+        cameraQueue.async {
+            guard let device = self.activeInput?.device else {
+                DispatchQueue.main.async {
+                    call.reject("Native camera is not running")
+                }
+                return
+            }
+
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                guard device.isFocusModeSupported(.locked) else {
+                    DispatchQueue.main.async {
+                        call.reject("Focus lock is not supported on this camera")
+                    }
+                    return
+                }
+                guard device.isLockingFocusWithCustomLensPositionSupported else {
+                    DispatchQueue.main.async {
+                        call.reject("Custom lens-position focus lock is not supported on this camera")
+                    }
+                    return
+                }
+                let normalizedDistance = distance == "far" ? "far" : "closest"
+                let targetLensPosition: Float = normalizedDistance == "far" ? 1.0 : 0.0
+                device.setFocusModeLocked(lensPosition: targetLensPosition) { _ in
+                    let actualLensPosition = device.lensPosition
+                    DispatchQueue.main.async {
+                        call.resolve([
+                            "locked": true,
+                            "distance": normalizedDistance,
+                            "lensPosition": targetLensPosition,
+                            "targetLensPosition": targetLensPosition,
+                            "actualLensPosition": actualLensPosition,
+                            "customLensPositionSupported": true
+                        ])
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    @objc func captureAndSaveGifStack(_ call: CAPPluginCall) {
+        guard let lutBase64 = call.getString("lutBase64"),
+              let lutData = Data(base64Encoded: lutBase64),
+              let filter = call.getObject("filter"),
+              let effects = call.getObject("effects") else {
+            call.reject("Missing native GIF stack payload")
+            return
+        }
+
+        let captureOrientation = currentCaptureVideoOrientationResult()
+        let request = NativeGifCapture(
+            call: call,
+            startedAt: CACurrentMediaTime(),
+            lutData: lutData,
+            filename: call.getString("filename", "kono-native-gif-\(Int(Date().timeIntervalSince1970 * 1000)).gif"),
+            cameraName: call.getString("cameraName", "camera"),
+            intensity: max(0.0, min(1.0, call.getDouble("intensity", 1.0))),
+            width: max(1, call.getInt("width", 480)),
+            height: max(1, call.getInt("height", 720)),
+            cropFactor: CGFloat(max(1.0, call.getDouble("cropFactor", 1.0))),
+            mirrored: call.getBool("mirrored", false),
+            filter: filter,
+            effects: effects,
+            importedEffects: call.getObject("importedEffects") ?? [:],
+            overlaySelections: call.getObject("overlaySelections") ?? [:],
+            durationSeconds: max(0.5, min(10.0, call.getDouble("durationSeconds", 2.0))),
+            fps: max(2.0, min(8.0, call.getDouble("fps", 6.0))),
+            boomerang: call.getBool("boomerang", false),
+            captureOrientation: captureOrientation.orientation,
+            captureOrientationSource: captureOrientation.source
+        )
+
+        cameraQueue.async {
+            guard self.captureSession.isRunning else {
+                DispatchQueue.main.async {
+                    call.reject("Native camera is not running")
+                }
+                return
+            }
+            guard !self.gifCaptureProcessing && self.pendingCaptureCall == nil && self.pendingStackCapture == nil && !self.stackCaptureProcessing else {
+                DispatchQueue.main.async {
+                    call.reject("Capture already in progress")
+                }
+                return
+            }
+            self.gifCaptureProcessing = true
+            let focusResetMode = self.resetFocusToAutofocusIfNeeded()
+            self.collectGifFrames(
+                request: request,
+                frames: [],
+                targetCount: max(1, Int((request.durationSeconds * request.fps).rounded())),
+                frameIndex: 0,
+                lastFrameAt: .distantPast,
+                deadline: Date().addingTimeInterval(request.durationSeconds + 1.5),
+                focusResetMode: focusResetMode
+            )
+        }
+    }
+
     @objc func savePhoto(_ call: CAPPluginCall) {
         guard let dataUrl = call.getString("dataUrl") else {
             call.reject("Missing dataUrl")
@@ -661,6 +779,90 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             } catch {
                 DispatchQueue.main.async {
                     call.resolve(["deleted": false])
+                }
+            }
+        }
+    }
+
+    @objc func setGalleryGifBoomerang(_ call: CAPPluginCall) {
+        guard let fileUrl = call.getString("fileUrl"),
+              let outputURL = URL(string: fileUrl),
+              outputURL.isFileURL else {
+            call.reject("Missing GIF gallery file")
+            return
+        }
+
+        let originalFileUrl = call.getString("originalFileUrl", fileUrl)
+        let requestedOriginalURL = URL(string: originalFileUrl)
+        let boomerang = call.getBool("boomerang", false)
+
+        galleryQueue.async {
+            do {
+                let directory = try self.nativeGalleryDirectory()
+                let galleryPath = directory.standardizedFileURL.path
+                guard outputURL.standardizedFileURL.path.hasPrefix(galleryPath),
+                      FileManager.default.fileExists(atPath: outputURL.path) else {
+                    throw NativeCameraError.invalidImage
+                }
+
+                let id = outputURL.deletingPathExtension().lastPathComponent.components(separatedBy: "-").first ?? UUID().uuidString
+                let fallbackOriginalURL = directory.appendingPathComponent("\(id)-original-\(outputURL.lastPathComponent)")
+                var originalURL = requestedOriginalURL?.isFileURL == true ? requestedOriginalURL! : fallbackOriginalURL
+                if originalURL.standardizedFileURL.path == outputURL.standardizedFileURL.path
+                    || !originalURL.standardizedFileURL.path.hasPrefix(galleryPath)
+                    || !FileManager.default.fileExists(atPath: originalURL.path) {
+                    originalURL = fallbackOriginalURL
+                }
+                if !FileManager.default.fileExists(atPath: originalURL.path) {
+                    let currentData = try Data(contentsOf: outputURL)
+                    try currentData.write(to: originalURL, options: [.atomic])
+                }
+
+                let originalData = try Data(contentsOf: originalURL)
+                let decoded = try self.gifFrameImages(from: originalData)
+                let outputData: Data
+                if boomerang {
+                    outputData = try self.makeGifData(frames: decoded.frames, frameDelay: decoded.delay, boomerang: true)
+                } else {
+                    outputData = originalData
+                }
+                let outputFrameCount = boomerang && decoded.frames.count > 1
+                    ? decoded.frames.count + max(0, decoded.frames.count - 2)
+                    : decoded.frames.count
+
+                let metadataURL = directory.appendingPathComponent("\(id).json")
+                let previousMetadata = (try? Data(contentsOf: metadataURL))
+                    .flatMap { try? JSONSerialization.jsonObject(with: $0) as? JSObject } ?? [:]
+                let cameraName = previousMetadata["cameraName"] as? String ?? self.cameraNameFromGalleryFilename(outputURL.lastPathComponent) ?? "camera"
+                let item = try self.updateNativeGalleryItem(
+                    fileURL: outputURL,
+                    data: outputData,
+                    filename: outputURL.lastPathComponent,
+                    cameraName: cameraName,
+                    originalFileURL: originalURL,
+                    extraMetadata: [
+                        "mediaType": "gif",
+                        "gifBoomerang": boomerang,
+                        "gifFrameCount": decoded.frames.count,
+                        "gifOutputFrameCount": outputFrameCount
+                    ]
+                )
+                DispatchQueue.main.async {
+                    call.resolve([
+                        "item": item,
+                        "metrics": [
+                            "frameCount": decoded.frames.count,
+                            "outputFrameCount": outputFrameCount,
+                            "gifBytes": outputData.count,
+                            "normalGifBytes": originalData.count,
+                            "boomerang": boomerang,
+                            "loopMode": boomerang ? "boomerang" : "normal"
+                        ]
+                    ])
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
                 }
             }
         }
@@ -1382,6 +1584,237 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         return data
     }
 
+    private func collectGifFrames(request: NativeGifCapture, frames: [Data], targetCount: Int, frameIndex: Int, lastFrameAt: Date, deadline: Date, focusResetMode: String) {
+        var nextFrames = frames
+        var nextLastFrameAt = lastFrameAt
+        if let frame = latestNormalizedVideoFrameData(request: request, after: lastFrameAt) {
+            nextFrames.append(frame.data)
+            nextLastFrameAt = frame.capturedAt
+        }
+
+        if nextFrames.count >= targetCount || Date() >= deadline {
+            processGifCapture(request: request, frames: nextFrames, targetCount: targetCount, frameAttempts: frameIndex + 1, deadlineReached: Date() >= deadline, focusResetMode: focusResetMode)
+            return
+        }
+
+        let delay = max(0.08, 1.0 / request.fps)
+        cameraQueue.asyncAfter(deadline: .now() + delay) {
+            self.collectGifFrames(request: request, frames: nextFrames, targetCount: targetCount, frameIndex: frameIndex + 1, lastFrameAt: nextLastFrameAt, deadline: deadline, focusResetMode: focusResetMode)
+        }
+    }
+
+    private func latestNormalizedVideoFrameData(request: NativeGifCapture, after lastFrameAt: Date) -> (data: Data, capturedAt: Date)? {
+        let capturedAt = latestVideoFrameAt
+        guard capturedAt > lastFrameAt, Date().timeIntervalSince(capturedAt) < 0.75 else {
+            return nil
+        }
+        guard let pixelBuffer = latestVideoPixelBuffer else {
+            return nil
+        }
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+            return nil
+        }
+        let image = UIImage(cgImage: cgImage)
+        guard let jpegData = image.jpegData(compressionQuality: 0.92) else {
+            return nil
+        }
+        guard let data = try? normalizedCaptureData(
+            from: jpegData,
+            width: request.width,
+            height: request.height,
+            cropFactor: request.cropFactor,
+            mirrored: request.mirrored,
+            orientation: request.captureOrientation
+        ) else {
+            return nil
+        }
+        return (data, capturedAt)
+    }
+
+    private func processGifCapture(request: NativeGifCapture, frames: [Data], targetCount: Int, frameAttempts: Int, deadlineReached: Bool, focusResetMode: String) {
+        cameraQueue.async {
+            defer {
+                self.gifCaptureProcessing = false
+            }
+
+            do {
+                guard !frames.isEmpty else {
+                    throw NativeCameraError.invalidImage
+                }
+
+                var renderedFrames: [CGImage] = []
+                var spektraApplied = false
+                let coreImageStart = CACurrentMediaTime()
+                var coreImageMs = 0
+                var overlayMs = 0
+                var spektraMs = 0
+                for frameData in frames {
+                    let lutOutput = try self.processPhotoData(
+                        frameData,
+                        lutData: request.lutData,
+                        intensity: request.intensity,
+                        effects: request.effects
+                    )
+                    let overlayStart = CACurrentMediaTime()
+                    let stackedData = try self.renderNativeStack(
+                        photoData: lutOutput,
+                        width: request.width,
+                        height: request.height,
+                        filter: request.filter,
+                        effects: request.effects,
+                        importedEffects: request.importedEffects,
+                        overlaySelections: request.overlaySelections
+                    )
+                    overlayMs += self.elapsedMs(since: overlayStart)
+                    let spektraStart = CACurrentMediaTime()
+                    let spektraResult = try self.applySpektraGrainIfNeeded(stackedData, importedEffects: request.importedEffects)
+                    spektraMs += self.elapsedMs(since: spektraStart)
+                    spektraApplied = spektraApplied || spektraResult.applied
+                    guard let source = CGImageSourceCreateWithData(spektraResult.data as CFData, nil),
+                          let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+                        throw NativeCameraError.invalidImage
+                    }
+                    renderedFrames.append(cgImage)
+                }
+                coreImageMs = self.elapsedMs(since: coreImageStart) - overlayMs - spektraMs
+
+                let delay = max(0.08, 1.0 / request.fps)
+                let normalGifData = try self.makeGifData(frames: renderedFrames, frameDelay: delay, boomerang: false)
+                let outputGifData = request.boomerang
+                    ? try self.makeGifData(frames: renderedFrames, frameDelay: delay, boomerang: true)
+                    : normalGifData
+                let outputFrameCount = request.boomerang && renderedFrames.count > 1
+                    ? renderedFrames.count + max(0, renderedFrames.count - 2)
+                    : renderedFrames.count
+                let galleryWriteStart = CACurrentMediaTime()
+                let item = try self.writeNativeGalleryItem(
+                    data: outputGifData,
+                    filename: request.filename,
+                    cameraName: request.cameraName,
+                    originalData: normalGifData,
+                    extraMetadata: [
+                        "mediaType": "gif",
+                        "gifBoomerang": request.boomerang,
+                        "gifDurationSeconds": request.durationSeconds,
+                        "gifFrameCount": renderedFrames.count,
+                        "gifOutputFrameCount": outputFrameCount
+                    ]
+                )
+                let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
+                let photosStart = CACurrentMediaTime()
+                self.savePhotoData(outputGifData, filename: request.filename) { success, _ in
+                    let metrics: JSObject = [
+                        "captureMs": self.elapsedMs(since: request.startedAt),
+                        "coreImageMs": max(0, coreImageMs),
+                        "overlayMs": overlayMs,
+                        "spektraMs": spektraMs,
+                        "galleryWriteMs": galleryWriteMs,
+                        "photosSaveMs": self.elapsedMs(since: photosStart),
+                        "totalMs": self.elapsedMs(since: request.startedAt),
+                        "gifBytes": outputGifData.count,
+                        "normalGifBytes": normalGifData.count,
+                        "frameCount": renderedFrames.count,
+                        "outputFrameCount": outputFrameCount,
+                        "targetFrameCount": targetCount,
+                        "frameAttempts": frameAttempts,
+                        "deadlineReached": deadlineReached,
+                        "fps": request.fps,
+                        "boomerang": request.boomerang,
+                        "loopMode": request.boomerang ? "boomerang" : "normal",
+                        "focusResetMode": focusResetMode,
+                        "spektraApplied": spektraApplied,
+                        "orientationSource": request.captureOrientationSource
+                    ]
+                    DispatchQueue.main.async {
+                        request.call.resolve([
+                            "item": item,
+                            "filename": request.filename,
+                            "saved": success,
+                            "width": request.width,
+                            "height": request.height,
+                            "mediaType": "gif",
+                            "boomerang": request.boomerang,
+                            "frameCount": renderedFrames.count,
+                            "outputFrameCount": outputFrameCount,
+                            "metrics": metrics
+                        ])
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    request.call.reject(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func makeGifData(frames: [CGImage], frameDelay: Double, boomerang: Bool) throws -> Data {
+        guard !frames.isEmpty else {
+            throw NativeCameraError.invalidImage
+        }
+        let sequence: [CGImage]
+        if boomerang, frames.count > 1 {
+            let reversed = Array(frames.dropLast().dropFirst().reversed())
+            sequence = frames + reversed
+        } else {
+            sequence = frames
+        }
+        let mutableData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(mutableData, "com.compuserve.gif" as CFString, sequence.count, nil) else {
+            throw NativeCameraError.invalidImage
+        }
+        let gifProperties: CFDictionary = [
+            kCGImagePropertyGIFDictionary: [
+                kCGImagePropertyGIFLoopCount: 0
+            ]
+        ] as CFDictionary
+        CGImageDestinationSetProperties(destination, gifProperties)
+        let frameProperties: CFDictionary = [
+            kCGImagePropertyGIFDictionary: [
+                kCGImagePropertyGIFDelayTime: frameDelay,
+                kCGImagePropertyGIFUnclampedDelayTime: frameDelay
+            ]
+        ] as CFDictionary
+        for frame in sequence {
+            CGImageDestinationAddImage(destination, frame, frameProperties)
+        }
+        guard CGImageDestinationFinalize(destination) else {
+            throw NativeCameraError.invalidImage
+        }
+        return mutableData as Data
+    }
+
+    private func gifFrameImages(from data: Data) throws -> (frames: [CGImage], delay: Double) {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            throw NativeCameraError.invalidImage
+        }
+        let count = CGImageSourceGetCount(source)
+        guard count > 0 else {
+            throw NativeCameraError.invalidImage
+        }
+        var frames: [CGImage] = []
+        var delay = 0.16
+        for index in 0..<count {
+            if let image = CGImageSourceCreateImageAtIndex(source, index, nil) {
+                frames.append(image)
+            }
+            if index == 0,
+               let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any],
+               let gifProperties = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
+                if let unclamped = gifProperties[kCGImagePropertyGIFUnclampedDelayTime] as? NSNumber {
+                    delay = max(0.02, unclamped.doubleValue)
+                } else if let clamped = gifProperties[kCGImagePropertyGIFDelayTime] as? NSNumber {
+                    delay = max(0.02, clamped.doubleValue)
+                }
+            }
+        }
+        guard !frames.isEmpty else {
+            throw NativeCameraError.invalidImage
+        }
+        return (frames, delay)
+    }
+
     private func drawBasicOverlayIfNeeded(_ base: UIImage, paths: [String], selection: Int, alpha: Double, blendMode: CGBlendMode, flipXY: Bool = false) -> UIImage {
         guard alpha > 0, let overlay = loadStackImage(paths, selection: selection) else {
             return base
@@ -1652,6 +2085,28 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         var captureGravityY: Double?
         var captureGravityZ: Double?
         var captureDeviceOrientation: String = "unknown"
+    }
+
+    private struct NativeGifCapture {
+        let call: CAPPluginCall
+        let startedAt: CFTimeInterval
+        let lutData: Data
+        let filename: String
+        let cameraName: String
+        let intensity: Double
+        let width: Int
+        let height: Int
+        let cropFactor: CGFloat
+        let mirrored: Bool
+        let filter: JSObject
+        let effects: JSObject
+        let importedEffects: JSObject
+        let overlaySelections: JSObject
+        let durationSeconds: Double
+        let fps: Double
+        let boomerang: Bool
+        let captureOrientation: AVCaptureVideoOrientation
+        let captureOrientationSource: String
     }
 
     private struct CaptureOrientationResult {
@@ -2376,13 +2831,13 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         return reflected >= size ? period - 1 - reflected : reflected
     }
 
-    private func savePhotoData(_ data: Data, completion: @escaping (Bool, Error?) -> Void) {
+    private func savePhotoData(_ data: Data, filename: String? = nil, completion: @escaping (Bool, Error?) -> Void) {
         let saveToAlbum = {
-            self.savePhotoDataToKonoAlbum(data) { success, error in
+            self.savePhotoDataToKonoAlbum(data, filename: filename) { success, error in
                 if success {
                     completion(true, nil)
                 } else {
-                    self.savePhotoDataWithAddOnlyFallback(data, completion: completion)
+                    self.savePhotoDataWithAddOnlyFallback(data, filename: filename, completion: completion)
                 }
             }
         }
@@ -2396,11 +2851,11 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                     if status == .authorized || status == .limited {
                         saveToAlbum()
                     } else {
-                        self.savePhotoDataWithAddOnlyFallback(data, completion: completion)
+                        self.savePhotoDataWithAddOnlyFallback(data, filename: filename, completion: completion)
                     }
                 }
             default:
-                savePhotoDataWithAddOnlyFallback(data, completion: completion)
+                savePhotoDataWithAddOnlyFallback(data, filename: filename, completion: completion)
             }
         } else {
             switch PHPhotoLibrary.authorizationStatus() {
@@ -2420,11 +2875,11 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func savePhotoDataToKonoAlbum(_ data: Data, completion: @escaping (Bool, Error?) -> Void) {
+    private func savePhotoDataToKonoAlbum(_ data: Data, filename: String? = nil, completion: @escaping (Bool, Error?) -> Void) {
         let existingAlbum = fetchKonoPhotoAlbum()
         PHPhotoLibrary.shared().performChanges({
             let assetRequest = PHAssetCreationRequest.forAsset()
-            assetRequest.addResource(with: .photo, data: data, options: nil)
+            assetRequest.addResource(with: .photo, data: data, options: self.photoResourceOptions(for: data, filename: filename))
             guard let placeholder = assetRequest.placeholderForCreatedAsset else {
                 return
             }
@@ -2441,9 +2896,9 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func savePhotoDataWithAddOnlyFallback(_ data: Data, completion: @escaping (Bool, Error?) -> Void) {
+    private func savePhotoDataWithAddOnlyFallback(_ data: Data, filename: String? = nil, completion: @escaping (Bool, Error?) -> Void) {
         let saveToRecents = {
-            self.savePhotoDataToRecents(data, completion: completion)
+            self.savePhotoDataToRecents(data, filename: filename, completion: completion)
         }
 
         if #available(iOS 14, *) {
@@ -2466,13 +2921,48 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func savePhotoDataToRecents(_ data: Data, completion: @escaping (Bool, Error?) -> Void) {
+    private func savePhotoDataToRecents(_ data: Data, filename: String? = nil, completion: @escaping (Bool, Error?) -> Void) {
         PHPhotoLibrary.shared().performChanges({
             let request = PHAssetCreationRequest.forAsset()
-            request.addResource(with: .photo, data: data, options: nil)
+            request.addResource(with: .photo, data: data, options: self.photoResourceOptions(for: data, filename: filename))
         }) { success, error in
             completion(success, error)
         }
+    }
+
+    private func photoResourceOptions(for data: Data, filename: String? = nil) -> PHAssetResourceCreationOptions {
+        let options = PHAssetResourceCreationOptions()
+        let isGif = isGifData(data)
+        options.uniformTypeIdentifier = isGif ? "com.compuserve.gif" : "public.jpeg"
+        options.originalFilename = normalizedPhotoResourceFilename(filename, isGif: isGif)
+        return options
+    }
+
+    private func normalizedPhotoResourceFilename(_ filename: String?, isGif: Bool) -> String {
+        let fallback = isGif ? "kono-cam.gif" : "kono-cam.jpg"
+        guard let filename, !filename.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return fallback
+        }
+        let sanitized = URL(fileURLWithPath: filename).lastPathComponent
+        guard !sanitized.isEmpty else {
+            return fallback
+        }
+        if isGif, sanitized.lowercased().hasSuffix(".gif") {
+            return sanitized
+        }
+        if !isGif, sanitized.lowercased().hasSuffix(".jpg") || sanitized.lowercased().hasSuffix(".jpeg") {
+            return sanitized
+        }
+        return sanitized + (isGif ? ".gif" : ".jpg")
+    }
+
+    private func isGifData(_ data: Data) -> Bool {
+        guard data.count >= 6 else {
+            return false
+        }
+        let signature = data.prefix(6)
+        return signature.elementsEqual([0x47, 0x49, 0x46, 0x38, 0x37, 0x61])
+            || signature.elementsEqual([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
     }
 
     private func fetchKonoPhotoAlbum() -> PHAssetCollection? {
@@ -2499,7 +2989,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         return directory
     }
 
-    private func writeNativeGalleryItem(data: Data, filename: String, cameraName: String, orientation: String? = nil, originalData: Data? = nil) throws -> JSObject {
+    private func writeNativeGalleryItem(data: Data, filename: String, cameraName: String, orientation: String? = nil, originalData: Data? = nil, extraMetadata: JSObject = [:]) throws -> JSObject {
         let id = UUID().uuidString
         let safeFilename = URL(fileURLWithPath: filename).lastPathComponent.isEmpty
             ? "\(id).jpg"
@@ -2535,6 +3025,9 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         if let orientation {
             item["orientation"] = orientation
         }
+        for (key, value) in extraMetadata {
+            item[key] = value
+        }
         let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
         try metadata.write(to: metadataURL, options: [.atomic])
         setNativeGallerySortDate(createdAt, for: metadataURL)
@@ -2542,7 +3035,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         return item
     }
 
-    private func updateNativeGalleryItem(fileURL: URL, data: Data, filename: String, cameraName: String, originalFileURL: URL) throws -> JSObject {
+    private func updateNativeGalleryItem(fileURL: URL, data: Data, filename: String, cameraName: String, originalFileURL: URL, extraMetadata: JSObject = [:]) throws -> JSObject {
         let directory = try nativeGalleryDirectory()
         let galleryPath = directory.standardizedFileURL.path
         guard fileURL.standardizedFileURL.path.hasPrefix(galleryPath),
@@ -2579,6 +3072,9 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         ]
         if let orientation = previousMetadata["orientation"] {
             item["orientation"] = orientation
+        }
+        for (key, value) in extraMetadata {
+            item[key] = value
         }
         let metadata = try JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys])
         try metadata.write(to: metadataURL, options: [.atomic])
@@ -2665,7 +3161,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
         for url in urls {
             let lowerName = url.lastPathComponent.lowercased()
-            guard ["jpg", "jpeg"].contains(url.pathExtension.lowercased()),
+            guard ["jpg", "jpeg", "gif"].contains(url.pathExtension.lowercased()),
                   !lowerName.contains("-thumb"),
                   !lowerName.contains("-original-") else {
                 continue
@@ -2732,6 +3228,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         let name = trimmed
             .replacingOccurrences(of: ".jpg", with: "")
             .replacingOccurrences(of: ".jpeg", with: "")
+            .replacingOccurrences(of: ".gif", with: "")
         let parts = name.components(separatedBy: "-")
         guard parts.count >= 3 else {
             return nil
@@ -2855,6 +3352,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         captureSession.addInput(input)
         activeInput = input
+        _ = resetFocusToAutofocusIfNeeded()
 
         if !captureSession.outputs.contains(photoOutput) {
             guard captureSession.canAddOutput(photoOutput) else {
@@ -2864,8 +3362,27 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             captureSession.addOutput(photoOutput)
         }
 
+        if !captureSession.outputs.contains(videoOutput) {
+            videoOutput.alwaysDiscardsLateVideoFrames = true
+            videoOutput.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            guard captureSession.canAddOutput(videoOutput) else {
+                captureSession.commitConfiguration()
+                throw NativeCameraError.invalidSession
+            }
+            captureSession.addOutput(videoOutput)
+            videoOutput.setSampleBufferDelegate(self, queue: cameraQueue)
+        }
+
         if let connection = photoOutput.connection(with: .video), connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
+        }
+        if let connection = videoOutput.connection(with: .video), connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
+        if let connection = videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
+            connection.isVideoMirrored = false
         }
 
         captureSession.commitConfiguration()
@@ -3094,6 +3611,47 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             "width": 2688,
             "height": 4032
         ]
+    }
+
+    private func resetFocusToAutofocusIfNeeded() -> String {
+        guard let device = activeInput?.device else {
+            return ""
+        }
+        let mode: AVCaptureDevice.FocusMode?
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+            mode = .continuousAutoFocus
+        } else if device.isFocusModeSupported(.autoFocus) {
+            mode = .autoFocus
+        } else {
+            mode = nil
+        }
+        guard let mode else {
+            return ""
+        }
+        guard device.focusMode != mode else {
+            return focusModeName(mode)
+        }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            device.focusMode = mode
+            return focusModeName(mode)
+        } catch {
+            return ""
+        }
+    }
+
+    private func focusModeName(_ mode: AVCaptureDevice.FocusMode) -> String {
+        switch mode {
+        case .locked:
+            return "locked"
+        case .autoFocus:
+            return "autoFocus"
+        case .continuousAutoFocus:
+            return "continuousAutoFocus"
+        @unknown default:
+            return "unknown"
+        }
     }
 
     private func currentVideoOrientation() -> AVCaptureVideoOrientation {
@@ -3924,9 +4482,20 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
+extension KonoNativeBridgePlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return
+        }
+        latestVideoPixelBuffer = pixelBuffer
+        latestVideoFrameAt = Date()
+    }
+}
+
 extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error {
+            _ = resetFocusToAutofocusIfNeeded()
             DispatchQueue.main.async {
                 self.pendingCaptureCall?.reject(error.localizedDescription)
                 self.pendingStackCapture?.call.reject(error.localizedDescription)
@@ -3937,6 +4506,7 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
         }
 
         guard let data = photo.fileDataRepresentation() else {
+            _ = resetFocusToAutofocusIfNeeded()
             DispatchQueue.main.async {
                 self.pendingCaptureCall?.reject("Native camera did not return JPEG data")
                 self.pendingStackCapture?.call.reject("Native camera did not return JPEG data")
@@ -4004,6 +4574,7 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
                         originalData: normalizedData
                     )
                     let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
+                    let focusResetMode = self.resetFocusToAutofocusIfNeeded()
                     let photosStart = CACurrentMediaTime()
                     let metrics: JSObject = [
                         "captureMs": captureMs,
@@ -4033,6 +4604,7 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
                         "spektraError": spektraResult.error ?? NSNull(),
                         "orientationSource": request.captureOrientationSource,
                         "deviceOrientation": request.captureDeviceOrientation,
+                        "focusResetMode": focusResetMode,
                         "gravityX": request.captureGravityX ?? NSNull(),
                         "gravityY": request.captureGravityY ?? NSNull(),
                         "gravityZ": request.captureGravityZ ?? NSNull()
@@ -4064,6 +4636,7 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
                     }
                 } catch {
                     self.stackCaptureProcessing = false
+                    _ = self.resetFocusToAutofocusIfNeeded()
                     DispatchQueue.main.async {
                         request.call.reject(error.localizedDescription)
                     }
@@ -4073,13 +4646,15 @@ extension KonoNativeBridgePlugin: AVCapturePhotoCaptureDelegate {
         }
 
         let orientedData = normalizedJpegData(from: data)
+        let focusResetMode = resetFocusToAutofocusIfNeeded()
         let dataUrl = "data:image/jpeg;base64,\(orientedData.base64EncodedString())"
         DispatchQueue.main.async {
             self.pendingCaptureCall?.resolve([
                 "dataUrl": dataUrl,
                 "filename": "native-capture-\(Int(Date().timeIntervalSince1970 * 1000)).jpg",
                 "mirrored": self.pendingCaptureMirrored,
-                "orientation": self.orientationName(self.pendingCaptureOrientation)
+                "orientation": self.orientationName(self.pendingCaptureOrientation),
+                "focusResetMode": focusResetMode
             ])
             self.pendingCaptureCall = nil
         }

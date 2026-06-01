@@ -13,7 +13,7 @@
     "localizedDescription": "KONO CAM - Don't think, take photos",
     "category": "photo-video",
     "tintColor": "#C28538",
-    "releaseNotes": "Smoother camera/gallery transitions, faster shoot-then-gallery handoff, and improved gallery thumbnail loading.",
+    "releaseNotes": "Adds long-press shutter modes for GIF capture and out-of-focus locking, including GIF timing, boomerang mode, and gallery boomerang edits.",
     "minOSVersion": "15.0"
   },
   "files": {

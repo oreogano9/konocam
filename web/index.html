@@ -93,6 +93,10 @@
             <span>Preset</span>
             <select id="galleryPresetSelect"></select>
           </label>
+          <label class="gallery-preset-control gallery-gif-control" id="galleryGifBoomerangControl" for="galleryGifBoomerangToggle" hidden>
+            <span>Boomerang</span>
+            <input id="galleryGifBoomerangToggle" type="checkbox" />
+          </label>
           <div class="gallery-viewer__actions">
             <button id="gallerySaveButton" type="button">Save</button>
             <button id="galleryCloseButton" type="button">Delete</button>
@@ -159,6 +163,44 @@
             <input id="levelGuideToggle" type="checkbox" />
             <span>Haptic level guide</span>
           </label>
+          <label class="select-control">
+            Long press shutter
+            <select id="shutterLongPressActionSelect">
+              <option value="gif">GIF mode</option>
+              <option value="focus">Out of focus mode</option>
+            </select>
+          </label>
+          <div class="settings-subpanel" id="gifLongPressSettings">
+            <label class="select-control">
+              GIF timing
+              <select id="gifDurationSelect">
+                <option value="0.5">0.5 sec</option>
+                <option value="1">1 sec</option>
+                <option value="2">2 sec</option>
+                <option value="3">3 sec</option>
+                <option value="4">4 sec</option>
+                <option value="5">5 sec</option>
+                <option value="6">6 sec</option>
+                <option value="7">7 sec</option>
+                <option value="8">8 sec</option>
+                <option value="9">9 sec</option>
+                <option value="10">10 sec</option>
+              </select>
+            </label>
+            <label class="settings-toggle">
+              <input id="gifBoomerangToggle" type="checkbox" />
+              <span>Boomerang loop</span>
+            </label>
+          </div>
+          <div class="settings-subpanel" id="focusLongPressSettings">
+            <label class="select-control">
+              Focus lock
+              <select id="focusDistanceSelect">
+                <option value="closest">Closest focus</option>
+                <option value="far">Far focus</option>
+              </select>
+            </label>
+          </div>
         </section>
 
         <details class="advanced-settings-panel">

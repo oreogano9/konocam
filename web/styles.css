@@ -236,6 +236,7 @@ button:disabled {
 
 .mobile-gallery {
   background: var(--ui-bg);
+  contain: paint;
   color: var(--ui-text);
   display: none;
   min-width: 0;
@@ -293,6 +294,7 @@ button:disabled {
 }
 
 .mobile-gallery__grid {
+  contain: layout paint style;
   display: grid;
   gap: 0.5rem;
   grid-template-columns: 1fr;
@@ -556,6 +558,13 @@ body.gallery-two-column .mobile-gallery__item img {
   text-transform: none;
 }
 
+.gallery-gif-control input {
+  accent-color: var(--ui-accent);
+  height: 1.1rem;
+  margin-left: auto;
+  width: 1.1rem;
+}
+
 .gallery-viewer__actions {
   display: grid;
   gap: 0.75rem;
@@ -730,6 +739,8 @@ body.native-camera-active .image-workspace::before {
 
 .camera-body-shutter {
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   appearance: none;
   background: transparent;
   border: 0;
@@ -743,6 +754,8 @@ body.native-camera-active .image-workspace::before {
   pointer-events: auto;
   position: absolute;
   top: 2.1%;
+  touch-action: manipulation;
+  user-select: none;
   width: 19.5%;
   z-index: 4;
 }
@@ -1264,6 +1277,19 @@ h1 {
   accent-color: var(--ui-accent);
   height: 1.2rem;
   width: 1.2rem;
+}
+
+.settings-subpanel {
+  background: color-mix(in srgb, var(--ui-surface-soft) 76%, transparent);
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem;
+}
+
+.settings-subpanel[hidden] {
+  display: none;
 }
 
 .accent-control {
