@@ -828,6 +828,9 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Gallery viewer behavior: `×` closes, `Delete` deletes, backdrop tap closes.
 - Native gallery records now include full-size file URL, thumbnail file URL, camera name, and created timestamp sidecar metadata.
 - Native gallery records can now include `mediaType: video`, movie duration metadata, generated JPEG video thumbnails, and movie pixel dimensions.
+- Long-press video mode now samples native camera frames, runs them through the current camera LUT/effects/native overlay stack, encodes the processed frames as a `.mov`, writes a local native gallery item, and saves the video to Photos.
+- Gallery grid layout now uses row-major CSS grid placement instead of newspaper-style CSS columns, so items load horizontally across rows.
+- Gallery viewer reveal now handles cached images/GIFs and video metadata loads so opening a gallery item does not stay on the transparent placeholder layer.
 - Random Cam camera selection and random preset capture behavior.
 - Right-to-left camera-mode swipe opens a rotated favorites drawer with square favorite-camera cards and each camera’s latest matching shot thumbnail.
 - Favorite drawer cards show the current selected favorite camera with a white rounded outline.
@@ -867,7 +870,8 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Gallery cards now render 480px thumbnail blobs instead of full-size blobs/files. Full-size gallery images are loaded only when an item is opened or saved.
 - Base64/dataUrl bridge traffic still exists for older fallback paths and selected-gallery save paths.
 - WebGL renderer still exists for desktop/import, previews, and fallback exports.
-- Long-press video mode records native camera video without applying the per-camera still-photo LUT/frame/effect stack per frame. Filtered video would require a separate real-time or post-process AVAsset/Metal pipeline.
+- Long-press video mode is filtered but not true real-time full-rate video filtering; it samples frames at a capped rate/size and post-processes them through the still-photo stack before encoding.
+- Spektra is skipped for video frames for now; running full Spektra per frame would be too slow without a dedicated optimized Metal video path.
 
 ## Suggested Next Implementations
 
@@ -887,7 +891,8 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - iCloud/Obsidian note path currently inaccessible to Codex due macOS privacy permissions.
 - `AppDelegate.swift` is doing too much: bridge, camera, CoreImage, haptics, motion, Photos, gallery file writes. It should eventually be split.
 - Heavy overlay cameras can still be expensive at full size.
-- Long-press video currently depends on `AVCaptureMovieFileOutput` being addable to the active session. If a device/session combo refuses movie output, still-photo startup should keep working and video mode should reject.
+- Long-press video now depends on the live video data output used for preview frame sampling; if no fresh frames are collected, video mode rejects without writing a broken gallery item.
+- Filtered video can be CPU/queue-heavy because every sampled frame runs the still-photo stack and overlay compositor before video encoding.
 - Spektra Grain should be much faster when `spektraBackend` reports `metal`; debug `spektraMs` should still be watched because fallback can still use Swift CPU.
 - During camera swipe, JS sends native preview offset updates during drag, but the Android-targeted automatic settle/overlay overscan experiment was reverted.
 - Any future app change should update this note, and preferably the canonical Obsidian note once accessible.

@@ -191,6 +191,8 @@ const JPEG_EXPORT_QUALITY = 0.98;
 const SHUTTER_LONG_PRESS_MS = 520;
 const GIF_CAPTURE_FPS = 12;
 const GIF_CAPTURE_MAX_SIDE = 960;
+const VIDEO_CAPTURE_FPS = 12;
+const VIDEO_CAPTURE_MAX_SIDE = 960;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
   0.24, 0.68, 0.08, 0.0,
@@ -3420,6 +3422,25 @@ async function startNativeVideoRecording() {
   const startedAt = performance.now();
   const shotFilterFilename = await resolveShotFilterFilename().catch(() => lookSelect.value);
   const selected = state.filterMap.get(shotFilterFilename);
+  const filter = state.filterMap.get(shotFilterFilename);
+  if (!filter || !isNativeFinalStackSaveEligible(shotFilterFilename, state.effects, state.importedEffects)) {
+    state.videoCaptureInProgress = false;
+    state.videoCaptureStopPending = false;
+    updateMobileCameraState();
+    setStatus("Video mode is unavailable for this camera effect.");
+    return false;
+  }
+  const lutBytes = await ensureLutBytes(shotFilterFilename);
+  if (!lutBytes) {
+    state.videoCaptureInProgress = false;
+    state.videoCaptureStopPending = false;
+    updateMobileCameraState();
+    setStatus("Video mode could not load this camera effect.");
+    return false;
+  }
+  const isBnWFamily = selected?.groupFilename === "BNW";
+  const outputSize = getFilterOutputSize(shotFilterFilename, MOBILE_CAPTURE_WIDTH, MOBILE_CAPTURE_HEIGHT, VIDEO_CAPTURE_MAX_SIDE);
+  rerollOverlaySelections();
   const filename = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.mov`;
   if (state.videoCaptureStopPending) {
     state.videoCaptureInProgress = false;
@@ -3429,8 +3450,19 @@ async function startNativeVideoRecording() {
   }
   setStatus("Recording video...");
   const startPromise = nativeBridge.startVideoRecording({
+    lutBase64: bytesToBase64(lutBytes),
     filename,
     cameraName: selected?.name ?? "camera",
+    intensity: isBnWFamily ? 1 : Number(intensitySlider.value) / 100,
+    width: outputSize.width,
+    height: outputSize.height,
+    cropFactor: getCameraCropFactor(),
+    mirrored: state.cameraFacingMode === "user",
+    filter: makeNativeStackFilterPayload(filter),
+    effects: cloneEffectsState(state.effects),
+    importedEffects: cloneImportedEffectsState(state.importedEffects),
+    overlaySelections: cloneOverlaySelections(state.overlaySelections ?? {}),
+    fps: VIDEO_CAPTURE_FPS,
   });
   state.videoCaptureStartPromise = startPromise;
 
@@ -5660,10 +5692,6 @@ function getGalleryGridColumnCount() {
     return state.galleryTwoColumn ? 3 : 2;
   }
   const styles = window.getComputedStyle(galleryGrid);
-  const cssColumnCount = Number.parseInt(styles.columnCount, 10);
-  if (Number.isFinite(cssColumnCount) && cssColumnCount > 0) {
-    return cssColumnCount;
-  }
   const template = styles.gridTemplateColumns;
   const columns = template && template !== "none" ? template.split(" ").filter(Boolean).length : 1;
   return Math.max(1, columns || 1);
@@ -5671,7 +5699,7 @@ function getGalleryGridColumnCount() {
 
 function getGalleryGridGapPx() {
   const styles = window.getComputedStyle(galleryGrid);
-  return Number.parseFloat(styles.rowGap || styles.columnGap || styles.gap || "0") || 0;
+  return Number.parseFloat(styles.rowGap || styles.gap || "0") || 0;
 }
 
 function getGalleryVirtualRowHeight(columns = getGalleryGridColumnCount(), items = getGalleryVisibleItems()) {
@@ -5923,6 +5951,15 @@ function handleGalleryViewerImageError(item, token) {
   setStatus("Selected gallery image is unavailable.");
 }
 
+function revealGalleryViewerForToken(token, options = {}) {
+  if (token !== state.selectedGalleryLoadToken) {
+    return;
+  }
+  if (options.showOnLoad) {
+    galleryViewer.hidden = false;
+  }
+}
+
 function showGalleryViewerItem(item, options = {}) {
   if (state.selectedGalleryObjectUrl) {
     URL.revokeObjectURL(state.selectedGalleryObjectUrl);
@@ -5933,7 +5970,7 @@ function showGalleryViewerItem(item, options = {}) {
   galleryViewerImage.removeAttribute("src");
   galleryViewerImage.classList.remove("is-processing", "is-processing-bnw");
   if (galleryViewerVideo) {
-    galleryViewerVideo.onloadeddata = null;
+    galleryViewerVideo.onloadedmetadata = null;
     galleryViewerVideo.onerror = null;
     galleryViewerVideo.pause();
     galleryViewerVideo.removeAttribute("src");
@@ -5954,31 +5991,30 @@ function showGalleryViewerItem(item, options = {}) {
     galleryViewerImage.hidden = true;
     galleryViewerVideo.hidden = false;
     galleryViewerVideo.dataset.loadToken = String(loadToken);
-    galleryViewerVideo.onloadeddata = () => {
-      if (loadToken !== state.selectedGalleryLoadToken) {
-        return;
-      }
-      galleryViewerVideo.onloadeddata = null;
-      if (options.showOnLoad) {
-        galleryViewer.hidden = false;
-      }
+    galleryViewerVideo.onloadedmetadata = () => {
+      galleryViewerVideo.onloadedmetadata = null;
+      revealGalleryViewerForToken(loadToken, options);
     };
     galleryViewerVideo.onerror = () => handleGalleryViewerImageError(item, loadToken);
     galleryViewerVideo.src = url;
     galleryViewerVideo.load();
+    window.setTimeout(() => revealGalleryViewerForToken(loadToken, options), 500);
     return true;
   }
   galleryViewerImage.onload = () => {
-    if (loadToken !== state.selectedGalleryLoadToken) {
-      return;
-    }
     galleryViewerImage.onload = null;
-    if (options.showOnLoad) {
-      galleryViewer.hidden = false;
-    }
+    revealGalleryViewerForToken(loadToken, options);
   };
   galleryViewerImage.onerror = () => handleGalleryViewerImageError(item, loadToken);
   galleryViewerImage.src = url;
+  if (galleryViewerImage.complete && galleryViewerImage.naturalWidth > 0) {
+    window.setTimeout(() => revealGalleryViewerForToken(loadToken, options), 0);
+  }
+  window.setTimeout(() => {
+    if (galleryViewerImage.complete && galleryViewerImage.naturalWidth > 0) {
+      revealGalleryViewerForToken(loadToken, options);
+    }
+  }, 500);
   return true;
 }
 
@@ -6082,6 +6118,8 @@ async function openGalleryItem(item) {
   galleryViewerImage.removeAttribute("src");
   if (galleryViewerVideo) {
     galleryViewerVideo.pause();
+    galleryViewerVideo.onloadedmetadata = null;
+    galleryViewerVideo.onerror = null;
     galleryViewerVideo.removeAttribute("src");
     galleryViewerVideo.load();
     galleryViewerVideo.hidden = true;
@@ -6107,7 +6145,7 @@ function closeGalleryItem() {
   galleryViewerImage.removeAttribute("src");
   galleryViewerImage.hidden = false;
   if (galleryViewerVideo) {
-    galleryViewerVideo.onloadeddata = null;
+    galleryViewerVideo.onloadedmetadata = null;
     galleryViewerVideo.onerror = null;
     galleryViewerVideo.pause();
     galleryViewerVideo.removeAttribute("src");

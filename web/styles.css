@@ -295,9 +295,9 @@ button:disabled {
 
 .mobile-gallery__grid {
   contain: layout paint style;
-  column-count: 2;
-  column-gap: 0.5rem;
-  display: block;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 0.95rem 1.15rem calc(env(safe-area-inset-bottom) + 1rem);
 }
 
@@ -339,7 +339,7 @@ button:disabled {
 }
 
 body.gallery-two-column .mobile-gallery__grid {
-  column-count: 3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .mobile-gallery__item {
@@ -349,8 +349,7 @@ body.gallery-two-column .mobile-gallery__grid {
   contain: content;
   content-visibility: auto;
   contain-intrinsic-size: 390px 540px;
-  break-inside: avoid;
-  margin: 0 0 0.5rem;
+  margin: 0;
   overflow: hidden;
   position: relative;
 }
@@ -373,8 +372,6 @@ body.gallery-two-column .mobile-gallery__item img {
 }
 
 .mobile-gallery__spacer {
-  break-inside: avoid;
-  column-span: all;
   display: block;
   grid-column: 1 / -1;
   pointer-events: none;

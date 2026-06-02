@@ -163,7 +163,6 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private let captureSession = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let movieOutput = AVCaptureMovieFileOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var previewShellView: UIView?
     private var previewWindowView: UIView?
@@ -190,14 +189,12 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private var latestVideoPixelBuffer: CVPixelBuffer?
     private var latestVideoFrameAt = Date.distantPast
     private var gifCaptureProcessing = false
-    private var videoRecordingStartCall: CAPPluginCall?
-    private var videoRecordingStopCall: CAPPluginCall?
-    private var videoRecordingStartedAt: CFTimeInterval = 0
-    private var videoRecordingFilename = ""
-    private var videoRecordingCameraName = "camera"
-    private var videoRecordingOrientation: AVCaptureVideoOrientation = .portrait
-    private var videoRecordingOrientationSource = "unknown"
-    private var videoRecordingURL: URL?
+    private var activeVideoCapture: NativeVideoCapture?
+    private var videoCaptureFrames: [Data] = []
+    private var videoCaptureFrameAttempts = 0
+    private var videoCaptureLastFrameAt = Date.distantPast
+    private var videoCaptureFocusResetMode = ""
+    private var videoCaptureProcessing = false
     private var lastCaptureVideoOrientation: AVCaptureVideoOrientation = .portrait
     private let ciContext = CIContext(options: [.workingColorSpace: CGColorSpace(name: CGColorSpace.sRGB) as Any])
     private lazy var spektraMetalRenderer: SpektraMetalRenderer? = try? SpektraMetalRenderer()
@@ -277,7 +274,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func stopCamera(_ call: CAPPluginCall) {
         cameraQueue.async {
-            guard self.pendingCaptureCall == nil && self.pendingStackCapture == nil && !self.stackCaptureProcessing && !self.movieOutput.isRecording else {
+            guard self.pendingCaptureCall == nil && self.pendingStackCapture == nil && !self.stackCaptureProcessing && self.activeVideoCapture == nil && !self.videoCaptureProcessing else {
                 DispatchQueue.main.async {
                     call.reject("Cannot stop camera while capture is in progress")
                 }
@@ -687,8 +684,34 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func startVideoRecording(_ call: CAPPluginCall) {
-        let filename = call.getString("filename", "kono-video-\(Int(Date().timeIntervalSince1970 * 1000)).mov")
-        let cameraName = call.getString("cameraName", "camera")
+        guard let lutBase64 = call.getString("lutBase64"),
+              let lutData = Data(base64Encoded: lutBase64),
+              let filter = call.getObject("filter"),
+              let effects = call.getObject("effects") else {
+            call.reject("Missing native video stack payload")
+            return
+        }
+
+        let captureOrientation = currentCaptureVideoOrientationResult()
+        let request = NativeVideoCapture(
+            startedAt: CACurrentMediaTime(),
+            lutData: lutData,
+            filename: call.getString("filename", "kono-video-\(Int(Date().timeIntervalSince1970 * 1000)).mov"),
+            cameraName: call.getString("cameraName", "camera"),
+            intensity: max(0.0, min(1.0, call.getDouble("intensity", 1.0))),
+            width: max(1, call.getInt("width", 480)),
+            height: max(1, call.getInt("height", 720)),
+            cropFactor: CGFloat(max(1.0, call.getDouble("cropFactor", 1.0))),
+            mirrored: call.getBool("mirrored", false),
+            filter: filter,
+            effects: effects,
+            importedEffects: call.getObject("importedEffects") ?? [:],
+            overlaySelections: call.getObject("overlaySelections") ?? [:],
+            fps: max(2.0, min(12.0, call.getDouble("fps", 12.0))),
+            captureOrientation: captureOrientation.orientation,
+            captureOrientationSource: captureOrientation.source
+        )
+
         cameraQueue.async {
             guard self.captureSession.isRunning else {
                 DispatchQueue.main.async {
@@ -696,13 +719,8 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 return
             }
-            guard self.captureSession.outputs.contains(self.movieOutput), let connection = self.movieOutput.connection(with: .video) else {
-                DispatchQueue.main.async {
-                    call.reject("Native video recording is unavailable")
-                }
-                return
-            }
-            guard !self.movieOutput.isRecording,
+            guard self.activeVideoCapture == nil,
+                  !self.videoCaptureProcessing,
                   !self.gifCaptureProcessing,
                   self.pendingCaptureCall == nil,
                   self.pendingStackCapture == nil,
@@ -713,39 +731,39 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
-            let orientation = self.currentCaptureVideoOrientationResult()
-            if connection.isVideoOrientationSupported {
-                connection.videoOrientation = orientation.orientation
+            self.activeVideoCapture = request
+            self.videoCaptureFrames = []
+            self.videoCaptureFrameAttempts = 0
+            self.videoCaptureLastFrameAt = .distantPast
+            self.videoCaptureFocusResetMode = self.resetFocusToAutofocusIfNeeded()
+            self.collectVideoRecordingFrames()
+            DispatchQueue.main.async {
+                call.resolve([
+                    "recording": true,
+                    "orientation": self.orientationName(request.captureOrientation),
+                    "orientationSource": request.captureOrientationSource
+                ])
             }
-            if connection.isVideoMirroringSupported {
-                connection.isVideoMirrored = self.facingMode == "user"
-            }
-
-            let safeFilename = URL(fileURLWithPath: filename).lastPathComponent
-            let outputURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("mov")
-            self.videoRecordingStartCall = call
-            self.videoRecordingStartedAt = CACurrentMediaTime()
-            self.videoRecordingFilename = safeFilename.isEmpty ? "kono-video-\(Int(Date().timeIntervalSince1970 * 1000)).mov" : safeFilename
-            self.videoRecordingCameraName = cameraName
-            self.videoRecordingOrientation = orientation.orientation
-            self.videoRecordingOrientationSource = orientation.source
-            self.videoRecordingURL = outputURL
-            self.movieOutput.startRecording(to: outputURL, recordingDelegate: self)
         }
     }
 
     @objc func stopVideoRecording(_ call: CAPPluginCall) {
         cameraQueue.async {
-            guard self.movieOutput.isRecording else {
+            guard let request = self.activeVideoCapture else {
                 DispatchQueue.main.async {
                     call.resolve(["recording": false, "saved": false])
                 }
                 return
             }
-            self.videoRecordingStopCall = call
-            self.movieOutput.stopRecording()
+            let frames = self.videoCaptureFrames
+            let frameAttempts = self.videoCaptureFrameAttempts
+            let focusResetMode = self.videoCaptureFocusResetMode
+            self.activeVideoCapture = nil
+            self.videoCaptureFrames = []
+            self.videoCaptureFrameAttempts = 0
+            self.videoCaptureLastFrameAt = .distantPast
+            self.videoCaptureFocusResetMode = ""
+            self.processVideoCapture(request: request, frames: frames, frameAttempts: frameAttempts, focusResetMode: focusResetMode, call: call)
         }
     }
 
@@ -1683,6 +1701,28 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func latestNormalizedVideoFrameData(request: NativeGifCapture, after lastFrameAt: Date) -> (data: Data, capturedAt: Date)? {
+        return latestNormalizedVideoFrameData(
+            width: request.width,
+            height: request.height,
+            cropFactor: request.cropFactor,
+            mirrored: request.mirrored,
+            orientation: request.captureOrientation,
+            after: lastFrameAt
+        )
+    }
+
+    private func latestNormalizedVideoFrameData(request: NativeVideoCapture, after lastFrameAt: Date) -> (data: Data, capturedAt: Date)? {
+        return latestNormalizedVideoFrameData(
+            width: request.width,
+            height: request.height,
+            cropFactor: request.cropFactor,
+            mirrored: request.mirrored,
+            orientation: request.captureOrientation,
+            after: lastFrameAt
+        )
+    }
+
+    private func latestNormalizedVideoFrameData(width: Int, height: Int, cropFactor: CGFloat, mirrored: Bool, orientation: AVCaptureVideoOrientation, after lastFrameAt: Date) -> (data: Data, capturedAt: Date)? {
         let capturedAt = latestVideoFrameAt
         guard capturedAt > lastFrameAt, Date().timeIntervalSince(capturedAt) < 0.75 else {
             return nil
@@ -1700,15 +1740,263 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         guard let data = try? normalizedCaptureData(
             from: jpegData,
-            width: request.width,
-            height: request.height,
-            cropFactor: request.cropFactor,
-            mirrored: request.mirrored,
-            orientation: request.captureOrientation
+            width: width,
+            height: height,
+            cropFactor: cropFactor,
+            mirrored: mirrored,
+            orientation: orientation
         ) else {
             return nil
         }
         return (data, capturedAt)
+    }
+
+    private func collectVideoRecordingFrames() {
+        guard let request = activeVideoCapture else {
+            return
+        }
+
+        if let frame = latestNormalizedVideoFrameData(request: request, after: videoCaptureLastFrameAt) {
+            videoCaptureFrames.append(frame.data)
+            videoCaptureLastFrameAt = frame.capturedAt
+        }
+        videoCaptureFrameAttempts += 1
+
+        let delay = max(0.08, 1.0 / request.fps)
+        cameraQueue.asyncAfter(deadline: .now() + delay) {
+            self.collectVideoRecordingFrames()
+        }
+    }
+
+    private func processVideoCapture(request: NativeVideoCapture, frames: [Data], frameAttempts: Int, focusResetMode: String, call: CAPPluginCall) {
+        videoCaptureProcessing = true
+        cameraQueue.async {
+            defer {
+                self.videoCaptureProcessing = false
+            }
+
+            do {
+                guard !frames.isEmpty else {
+                    throw NativeCameraError.invalidImage
+                }
+
+                let outputSize = self.orientedOutputSize(
+                    width: request.width,
+                    height: request.height,
+                    orientation: request.captureOrientation
+                )
+                var renderedFrames: [CGImage] = []
+                let coreImageStart = CACurrentMediaTime()
+                var coreImageMs = 0
+                var overlayMs = 0
+                for frameData in frames {
+                    let lutOutput = try self.processPhotoData(
+                        frameData,
+                        lutData: request.lutData,
+                        intensity: request.intensity,
+                        effects: request.effects
+                    )
+                    let overlayStart = CACurrentMediaTime()
+                    let stackedData = try self.renderNativeStack(
+                        photoData: lutOutput,
+                        width: outputSize.width,
+                        height: outputSize.height,
+                        filter: request.filter,
+                        effects: request.effects,
+                        importedEffects: request.importedEffects,
+                        overlaySelections: request.overlaySelections
+                    )
+                    overlayMs += self.elapsedMs(since: overlayStart)
+                    guard let source = CGImageSourceCreateWithData(stackedData as CFData, nil),
+                          let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+                        throw NativeCameraError.invalidImage
+                    }
+                    renderedFrames.append(cgImage)
+                }
+                coreImageMs = self.elapsedMs(since: coreImageStart) - overlayMs
+
+                let encodeStart = CACurrentMediaTime()
+                let outputURL = try self.makeVideoFile(frames: renderedFrames, fps: request.fps)
+                let encodeMs = self.elapsedMs(since: encodeStart)
+                let videoData = try Data(contentsOf: outputURL)
+                let galleryWriteStart = CACurrentMediaTime()
+                let item = try self.writeNativeGalleryItem(
+                    data: videoData,
+                    filename: request.filename,
+                    cameraName: request.cameraName,
+                    orientation: self.orientationName(request.captureOrientation),
+                    extraMetadata: [
+                        "mediaType": "video",
+                        "videoDurationMs": Int((Double(renderedFrames.count) / request.fps) * 1000.0),
+                        "orientationSource": request.captureOrientationSource,
+                        "videoFiltered": true
+                    ]
+                )
+                let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
+                let photosStart = CACurrentMediaTime()
+                self.saveVideoFile(outputURL, filename: request.filename) { success, saveError in
+                    try? FileManager.default.removeItem(at: outputURL)
+                    let metrics: JSObject = [
+                        "captureMs": self.elapsedMs(since: request.startedAt),
+                        "coreImageMs": coreImageMs,
+                        "overlayMs": overlayMs,
+                        "encodeMs": encodeMs,
+                        "galleryWriteMs": galleryWriteMs,
+                        "photosSaveMs": self.elapsedMs(since: photosStart),
+                        "videoBytes": videoData.count,
+                        "frameCount": renderedFrames.count,
+                        "frameAttempts": frameAttempts,
+                        "fps": request.fps,
+                        "filtered": true,
+                        "focusResetMode": focusResetMode,
+                        "orientationSource": request.captureOrientationSource,
+                        "spektraSkippedForVideo": true
+                    ]
+                    DispatchQueue.main.async {
+                        if success {
+                            call.resolve([
+                                "item": item,
+                                "filename": request.filename,
+                                "saved": true,
+                                "recording": false,
+                                "durationMs": Int((Double(renderedFrames.count) / request.fps) * 1000.0),
+                                "width": outputSize.width,
+                                "height": outputSize.height,
+                                "orientation": self.orientationName(request.captureOrientation),
+                                "metrics": metrics
+                            ])
+                        } else if let saveError {
+                            call.reject(saveError.localizedDescription)
+                        } else {
+                            call.resolve([
+                                "item": item,
+                                "filename": request.filename,
+                                "saved": false,
+                                "recording": false,
+                                "durationMs": Int((Double(renderedFrames.count) / request.fps) * 1000.0),
+                                "width": outputSize.width,
+                                "height": outputSize.height,
+                                "orientation": self.orientationName(request.captureOrientation),
+                                "metrics": metrics
+                            ])
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func makeVideoFile(frames: [CGImage], fps: Double) throws -> URL {
+        guard let first = frames.first else {
+            throw NativeCameraError.invalidImage
+        }
+
+        let width = first.width
+        let height = first.height
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mov")
+        if FileManager.default.fileExists(atPath: outputURL.path) {
+            try FileManager.default.removeItem(at: outputURL)
+        }
+
+        let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
+        let bitrate = max(2_500_000, min(12_000_000, width * height * 4))
+        let settings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: bitrate,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ]
+        ]
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        input.expectsMediaDataInRealTime = false
+        guard writer.canAdd(input) else {
+            throw NativeCameraError.invalidImage
+        }
+        writer.add(input)
+
+        let attributes: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height,
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        ]
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: attributes)
+
+        guard writer.startWriting() else {
+            throw writer.error ?? NativeCameraError.invalidImage
+        }
+        writer.startSession(atSourceTime: .zero)
+
+        let timescale = CMTimeScale(max(1, Int32(round(fps))))
+        for (index, frame) in frames.enumerated() {
+            while !input.isReadyForMoreMediaData {
+                Thread.sleep(forTimeInterval: 0.004)
+            }
+            let presentationTime = CMTime(value: CMTimeValue(index), timescale: timescale)
+            let pixelBuffer = try makePixelBuffer(from: frame, width: width, height: height)
+            guard adaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
+                throw writer.error ?? NativeCameraError.invalidImage
+            }
+        }
+
+        input.markAsFinished()
+        let semaphore = DispatchSemaphore(value: 0)
+        writer.finishWriting {
+            semaphore.signal()
+        }
+        semaphore.wait()
+        guard writer.status == .completed else {
+            throw writer.error ?? NativeCameraError.invalidImage
+        }
+        return outputURL
+    }
+
+    private func makePixelBuffer(from image: CGImage, width: Int, height: Int) throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        ]
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32ARGB,
+            attributes as CFDictionary,
+            &pixelBuffer
+        )
+        guard status == kCVReturnSuccess, let pixelBuffer else {
+            throw NativeCameraError.invalidImage
+        }
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer {
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
+        }
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer),
+              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+              ) else {
+            throw NativeCameraError.invalidImage
+        }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return pixelBuffer
     }
 
     private func processGifCapture(request: NativeGifCapture, frames: [Data], targetCount: Int, frameAttempts: Int, deadlineReached: Bool, focusResetMode: String) {
@@ -2190,6 +2478,25 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         let durationSeconds: Double
         let fps: Double
         let boomerang: Bool
+        let captureOrientation: AVCaptureVideoOrientation
+        let captureOrientationSource: String
+    }
+
+    private struct NativeVideoCapture {
+        let startedAt: CFTimeInterval
+        let lutData: Data
+        let filename: String
+        let cameraName: String
+        let intensity: Double
+        let width: Int
+        let height: Int
+        let cropFactor: CGFloat
+        let mirrored: Bool
+        let filter: JSObject
+        let effects: JSObject
+        let importedEffects: JSObject
+        let overlaySelections: JSObject
+        let fps: Double
         let captureOrientation: AVCaptureVideoOrientation
         let captureOrientationSource: String
     }
@@ -3606,11 +3913,6 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             videoOutput.setSampleBufferDelegate(self, queue: cameraQueue)
         }
 
-        if !captureSession.outputs.contains(movieOutput), captureSession.canAddOutput(movieOutput) {
-            captureSession.addOutput(movieOutput)
-            movieOutput.movieFragmentInterval = .invalid
-        }
-
         if let connection = photoOutput.connection(with: .video), connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
         }
@@ -3620,10 +3922,6 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         if let connection = videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
             connection.isVideoMirrored = false
         }
-        if let connection = movieOutput.connection(with: .video), connection.isVideoOrientationSupported {
-            connection.videoOrientation = .portrait
-        }
-
         captureSession.commitConfiguration()
     }
 
@@ -4728,110 +5026,6 @@ extension KonoNativeBridgePlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
         latestVideoPixelBuffer = pixelBuffer
         latestVideoFrameAt = Date()
-    }
-}
-
-extension KonoNativeBridgePlugin: AVCaptureFileOutputRecordingDelegate {
-    func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
-        let orientation = videoRecordingOrientation
-        let source = videoRecordingOrientationSource
-        DispatchQueue.main.async {
-            self.videoRecordingStartCall?.resolve([
-                "recording": true,
-                "orientation": self.orientationName(orientation),
-                "orientationSource": source
-            ])
-            self.videoRecordingStartCall = nil
-        }
-    }
-
-    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        let stopCall = videoRecordingStopCall
-        let startCall = videoRecordingStartCall
-        let startedAt = videoRecordingStartedAt
-        let filename = videoRecordingFilename
-        let cameraName = videoRecordingCameraName
-        let orientation = videoRecordingOrientation
-        let orientationSource = videoRecordingOrientationSource
-        videoRecordingStopCall = nil
-        videoRecordingStartCall = nil
-        videoRecordingURL = nil
-
-        if let error {
-            try? FileManager.default.removeItem(at: outputFileURL)
-            DispatchQueue.main.async {
-                startCall?.reject(error.localizedDescription)
-                stopCall?.reject(error.localizedDescription)
-            }
-            return
-        }
-
-        let durationMs = elapsedMs(since: startedAt)
-        galleryQueue.async {
-            do {
-                let data = try Data(contentsOf: outputFileURL)
-                let galleryWriteStart = CACurrentMediaTime()
-                let item = try self.writeNativeGalleryItem(
-                    data: data,
-                    filename: filename,
-                    cameraName: cameraName,
-                    orientation: self.orientationName(orientation),
-                    extraMetadata: [
-                        "mediaType": "video",
-                        "videoDurationMs": durationMs,
-                        "orientationSource": orientationSource
-                    ]
-                )
-                let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
-                let photosStart = CACurrentMediaTime()
-                self.saveVideoFile(outputFileURL, filename: filename) { success, saveError in
-                    try? FileManager.default.removeItem(at: outputFileURL)
-                    DispatchQueue.main.async {
-                        if success {
-                            stopCall?.resolve([
-                                "item": item,
-                                "filename": filename,
-                                "saved": true,
-                                "recording": false,
-                                "durationMs": durationMs,
-                                "width": item["width"] ?? NSNull(),
-                                "height": item["height"] ?? NSNull(),
-                                "orientation": self.orientationName(orientation),
-                                "metrics": [
-                                    "videoBytes": data.count,
-                                    "durationMs": durationMs,
-                                    "galleryWriteMs": galleryWriteMs,
-                                    "photosSaveMs": self.elapsedMs(since: photosStart),
-                                    "orientationSource": orientationSource
-                                ]
-                            ])
-                        } else if let saveError {
-                            stopCall?.reject(saveError.localizedDescription)
-                        } else {
-                            stopCall?.resolve([
-                                "item": item,
-                                "filename": filename,
-                                "saved": false,
-                                "recording": false,
-                                "durationMs": durationMs,
-                                "metrics": [
-                                    "videoBytes": data.count,
-                                    "durationMs": durationMs,
-                                    "galleryWriteMs": galleryWriteMs,
-                                    "photosSaveMs": self.elapsedMs(since: photosStart),
-                                    "orientationSource": orientationSource
-                                ]
-                            ])
-                        }
-                    }
-                }
-            } catch {
-                try? FileManager.default.removeItem(at: outputFileURL)
-                DispatchQueue.main.async {
-                    stopCall?.reject(error.localizedDescription)
-                }
-            }
-        }
     }
 }
 

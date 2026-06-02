@@ -13,7 +13,7 @@
     "localizedDescription": "KONO CAM - Don't think, take photos",
     "category": "photo-video",
     "tintColor": "#C28538",
-    "releaseNotes": "Adds long-press shutter video mode. Hold the shutter to record, release to stop, then save the native video to the KONO CAM album and local gallery.",
+    "releaseNotes": "Applies the current camera effect to long-press videos, loads gallery items horizontally, and fixes gallery previews for photos, GIFs, and videos.",
     "minOSVersion": "15.0"
   },
   "files": {

@@ -36,9 +36,9 @@ const checks = [
     pattern: /"orientation": self\.orientationName\(request\.captureOrientation\)[\s\S]*"width": outputSize\.width,[\s\S]*"height": outputSize\.height,/,
   },
   {
-    name: "gallery viewer only shows initial overlay after selected media loads",
+    name: "gallery viewer reveals cached images/GIFs and videos without getting stuck",
     source: appSource,
-    pattern: /function showGalleryViewerItem\(item, options = \{\}\)[\s\S]*galleryViewerImage\.onload = \(\) => \{[\s\S]*if \(options\.showOnLoad\) \{[\s\S]*galleryViewer\.hidden = false;[\s\S]*\}[\s\S]*async function openGalleryItem\(item\)[\s\S]*if \(!showGalleryViewerItem\(item, \{ showOnLoad: true \}\)\) \{/,
+    pattern: /function revealGalleryViewerForToken\(token, options = \{\}\)[\s\S]*galleryViewer\.hidden = false;[\s\S]*galleryViewerVideo\.onloadedmetadata = \(\) => \{[\s\S]*revealGalleryViewerForToken\(loadToken, options\);[\s\S]*window\.setTimeout\(\(\) => revealGalleryViewerForToken\(loadToken, options\), 500\);[\s\S]*galleryViewerImage\.complete && galleryViewerImage\.naturalWidth > 0[\s\S]*revealGalleryViewerForToken\(loadToken, options\)/,
   },
   {
     name: "gallery viewer recovers from image and GIF load failures",
@@ -51,34 +51,34 @@ const checks = [
     pattern: /function showGalleryViewerItem\(item, options = \{\}\)[\s\S]*URL\.revokeObjectURL\(state\.selectedGalleryObjectUrl\);[\s\S]*galleryViewerImage\.onload = null;[\s\S]*galleryViewerImage\.onerror = null;[\s\S]*galleryViewerImage\.removeAttribute\("src"\);[\s\S]*galleryViewerImage\.dataset\.loadToken = String\(loadToken\);[\s\S]*galleryViewerImage\.src = url;/,
   },
   {
-    name: "gallery grid uses CSS columns for adaptive packing",
+    name: "gallery grid uses CSS grid for horizontal row-major loading",
     source: stylesSource,
-    pattern: /\.mobile-gallery__grid \{[\s\S]*column-count: 2;[\s\S]*column-gap: 0\.5rem;[\s\S]*display: block;/,
+    pattern: /\.mobile-gallery__grid \{[\s\S]*display: grid;[\s\S]*gap: 0\.5rem;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
   },
   {
-    name: "gallery three-column setting maps to packed CSS columns",
+    name: "gallery three-column setting maps to CSS grid columns",
     source: stylesSource,
-    pattern: /body\.gallery-two-column \.mobile-gallery__grid \{[\s\S]*column-count: 3;[\s\S]*\}/,
+    pattern: /body\.gallery-two-column \.mobile-gallery__grid \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*\}/,
   },
   {
-    name: "gallery cards avoid breaking across packed columns",
+    name: "gallery cards are clean grid items",
     source: stylesSource,
-    pattern: /\.mobile-gallery__item \{[\s\S]*break-inside: avoid;[\s\S]*margin: 0 0 0\.5rem;/,
+    pattern: /\.mobile-gallery__item \{[\s\S]*contain: content;[\s\S]*margin: 0;/,
   },
   {
-    name: "virtual gallery spacers span packed columns",
+    name: "virtual gallery spacers span all grid columns",
     source: stylesSource,
-    pattern: /\.mobile-gallery__spacer \{[\s\S]*break-inside: avoid;[\s\S]*column-span: all;/,
+    pattern: /\.mobile-gallery__spacer \{[\s\S]*display: block;[\s\S]*grid-column: 1 \/ -1;/,
   },
   {
-    name: "gallery column measurement reads CSS column count",
+    name: "gallery column measurement reads CSS grid columns",
     source: appSource,
-    pattern: /function getGalleryGridColumnCount\(\)[\s\S]*const styles = window\.getComputedStyle\(galleryGrid\);[\s\S]*const cssColumnCount = Number\.parseInt\(styles\.columnCount, 10\);[\s\S]*return cssColumnCount;/,
+    pattern: /function getGalleryGridColumnCount\(\)[\s\S]*const styles = window\.getComputedStyle\(galleryGrid\);[\s\S]*const template = styles\.gridTemplateColumns;[\s\S]*return Math\.max\(1, columns \|\| 1\);/,
   },
   {
-    name: "virtual gallery row math reads CSS column gap",
+    name: "virtual gallery row math reads CSS grid row gap",
     source: appSource,
-    pattern: /function getGalleryGridGapPx\(\)[\s\S]*styles\.columnGap/,
+    pattern: /function getGalleryGridGapPx\(\)[\s\S]*Number\.parseFloat\(styles\.rowGap \|\| styles\.gap \|\| "0"\)/,
   },
 ];
 
