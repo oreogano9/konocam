@@ -1,6 +1,6 @@
 # KONO APP
 
-Last updated: 2026-06-01 19:00 CEST
+Last updated: 2026-06-02 17:55 CEST
 
 Canonical requested note path:
 `/Users/konradparada/Library/Mobile Documents/iCloud~md~obsidian/Documents/Greenhouse/Dev/KONO APP.md`
@@ -17,6 +17,18 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Desktop/import workflows still use the web renderer.
 
 ## Devlog
+
+### 2026-06-02 17:35 CEST - Gallery Viewer And GIF Layout Fixes
+
+- Request: fix gallery viewer glitches when opening images/GIFs, fix horizontal GIFs stretching vertical, improve GIF framerate, and make the gallery adapt so mixed image sizes do not leave visual gaps.
+- Change: gallery viewer now waits for the selected image/GIF load event before showing the initial overlay, invalidates stale selected-media loads when closed, and closes back to the gallery with a status/debug event if the current selected image/GIF fails to load instead of leaving an empty dim overlay.
+- Change: GIF capture now requests 12fps, raises the output max side from 720px to 960px, and the native bridge defaults/clamps to 12fps instead of clamping to 8fps.
+- Change: native GIF frame normalization now uses 0.98 JPEG quality instead of 0.92 before applying the final camera stack, reducing pre-encoder quality loss.
+- Change: native GIF rendering now uses the same orientation-swapped output size logic as still captures, so landscape GIF frames are rendered and reported as landscape instead of being processed through portrait dimensions.
+- Change: gallery modes now use CSS columns with `break-inside: avoid` cards for a continuous packed collection; Infinite gallery mode keeps virtualization but its spacer blocks span all columns.
+- Change: virtual gallery row estimates now read CSS `columnGap`, so Infinite-mode loading math matches the packed-column layout more closely.
+- Verification: added `scripts/check-gallery-viewer-gif-layout.mjs` to `npm run check:web`; latest `node --check web/app.js`, `node --check scripts/check-gallery-viewer-gif-layout.mjs`, `npm run check:web`, `npm run ios:copy`, `git diff --check`, and unsigned iOS Debug build passed on 2026-06-02 17:55 CEST.
+- Scope note: device behavior still needs real iPhone confirmation for landscape GIF playback and the exact gallery packing feel with the user's local library.
 
 ### 2026-06-01 09:33 CEST - Long Press Shutter Modes
 
@@ -803,6 +815,8 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Native iOS status bar is hidden in the Capacitor app so clock/wifi/battery do not overlay app UI.
 - Native camera controls: capture, flash, camera switch, crop factor, haptics, screen brightness for selfie flash, hardware volume shutter, level-guide haptics.
 - Shutter taps now use an accepted-capture queue: button and hardware shutter presses vibrate only when the shot starts or is queued, and rapid accepted shots are serialized.
+- Long press shutter can now be set to `Video mode`: holding the shutter starts native iPhone video recording, releasing/canceling/backgrounding stops it, and the completed `.mov` is saved to the local app gallery plus the `KONO CAM` Photos album.
+- Gallery can now open native video items with an inline video viewer; video gallery items are excluded from still-photo preset reprocessing.
 - Optional live viewfinder focal-length label can show the current crop mode as `28mm`, `35mm`, or `50mm`; it defaults off.
 - Native camera preview now uses a Swift clipped preview-window view plus `setPreviewOffset` for gallery-swipe tracking, instead of resizing the preview layer on every swipe frame.
 - Hardware shutter uses Apple’s official `AVCaptureEventInteraction` on iOS 17.2+ and falls back to the older volume-observer workaround on older iOS.
@@ -813,6 +827,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Native gallery deletion is native-first for file-backed records and avoids unnecessary IndexedDB transactions.
 - Gallery viewer behavior: `×` closes, `Delete` deletes, backdrop tap closes.
 - Native gallery records now include full-size file URL, thumbnail file URL, camera name, and created timestamp sidecar metadata.
+- Native gallery records can now include `mediaType: video`, movie duration metadata, generated JPEG video thumbnails, and movie pixel dimensions.
 - Random Cam camera selection and random preset capture behavior.
 - Right-to-left camera-mode swipe opens a rotated favorites drawer with square favorite-camera cards and each camera’s latest matching shot thumbnail.
 - Favorite drawer cards show the current selected favorite camera with a white rounded outline.
@@ -852,6 +867,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Gallery cards now render 480px thumbnail blobs instead of full-size blobs/files. Full-size gallery images are loaded only when an item is opened or saved.
 - Base64/dataUrl bridge traffic still exists for older fallback paths and selected-gallery save paths.
 - WebGL renderer still exists for desktop/import, previews, and fallback exports.
+- Long-press video mode records native camera video without applying the per-camera still-photo LUT/frame/effect stack per frame. Filtered video would require a separate real-time or post-process AVAsset/Metal pipeline.
 
 ## Suggested Next Implementations
 
@@ -871,6 +887,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - iCloud/Obsidian note path currently inaccessible to Codex due macOS privacy permissions.
 - `AppDelegate.swift` is doing too much: bridge, camera, CoreImage, haptics, motion, Photos, gallery file writes. It should eventually be split.
 - Heavy overlay cameras can still be expensive at full size.
+- Long-press video currently depends on `AVCaptureMovieFileOutput` being addable to the active session. If a device/session combo refuses movie output, still-photo startup should keep working and video mode should reject.
 - Spektra Grain should be much faster when `spektraBackend` reports `metal`; debug `spektraMs` should still be watched because fallback can still use Swift CPU.
 - During camera swipe, JS sends native preview offset updates during drag, but the Android-targeted automatic settle/overlay overscan experiment was reverted.
 - Any future app change should update this note, and preferably the canonical Obsidian note once accessible.

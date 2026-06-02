@@ -106,7 +106,7 @@ const checks = [
   },
   {
     name: "camera controls disable during warm gallery",
-    pattern: /const cameraControlsActive = state\.cameraActive && !state\.cameraGalleryDeferred && !state\.gifCaptureInProgress;/,
+    pattern: /const cameraControlsActive = state\.cameraActive && !state\.cameraGalleryDeferred && !state\.gifCaptureInProgress && !state\.videoCaptureInProgress;/,
   },
   {
     name: "debug report exposes warm gallery state",

@@ -38,6 +38,7 @@ const galleryCameraButton = document.querySelector("#galleryCameraButton");
 const gallerySettingsButton = document.querySelector("#gallerySettingsButton");
 const galleryViewer = document.querySelector("#galleryViewer");
 const galleryViewerImage = document.querySelector("#galleryViewerImage");
+const galleryViewerVideo = document.querySelector("#galleryViewerVideo");
 const galleryViewerCamera = document.querySelector("#galleryViewerCamera");
 const galleryPresetSelect = document.querySelector("#galleryPresetSelect");
 const galleryGifBoomerangControl = document.querySelector("#galleryGifBoomerangControl");
@@ -180,7 +181,7 @@ const CAMERA_EFFECT_DEFAULT_OVERRIDES = {
 const DEFAULT_NOMO_GRAIN_VALUE = 10;
 const LEVEL_ZONE_VALUES = new Set(["precise", "normal", "wide"]);
 const THEME_VALUES = new Set(["system", "light", "dark"]);
-const SHUTTER_LONG_PRESS_ACTION_VALUES = new Set(["gif", "focus"]);
+const SHUTTER_LONG_PRESS_ACTION_VALUES = new Set(["gif", "video", "focus"]);
 const GIF_DURATION_VALUES = new Set(["0.5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
 const FOCUS_DISTANCE_VALUES = new Set(["closest", "far"]);
 const THEME_MEDIA_QUERY = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -188,8 +189,8 @@ const DEFAULT_ACCENT_COLOR = "#c28538";
 const ACCENT_SWATCH_VALUES = new Set(["#c28538", "#d56642", "#7f9a76", "#6f92a8", "#b66f8d"]);
 const JPEG_EXPORT_QUALITY = 0.98;
 const SHUTTER_LONG_PRESS_MS = 520;
-const GIF_CAPTURE_FPS = 6;
-const GIF_CAPTURE_MAX_SIDE = 720;
+const GIF_CAPTURE_FPS = 12;
+const GIF_CAPTURE_MAX_SIDE = 960;
 const COLOR_MATRIX = new Float32Array([
   0.24, 0.68, 0.08, 0.0,
   0.24, 0.68, 0.08, 0.0,
@@ -285,6 +286,10 @@ const state = {
   cameraForceOpenUntilStarted: isMobileView(),
   cameraCaptureInProgress: false,
   gifCaptureInProgress: false,
+  videoCaptureInProgress: false,
+  videoNativeRecordingActive: false,
+  videoCaptureStartPromise: null,
+  videoCaptureStopPending: false,
   cameraPendingCaptureCount: 0,
   cameraPendingDrainScheduled: false,
   randomCameraEnabled: false,
@@ -351,6 +356,7 @@ const state = {
   nativePhotoSaveListenerReady: false,
   selectedGalleryItem: null,
   selectedGalleryObjectUrl: "",
+  selectedGalleryLoadToken: 0,
   galleryPresetPreviewObjectUrl: "",
   galleryPresetProcessing: false,
   galleryPresetRenderToken: 0,
@@ -647,6 +653,7 @@ function createEmptyDebugHistory() {
     lastGalleryTransitionEndRenderWaitMs: 0,
     lastGalleryTransitionEndRenderMs: 0,
     lastGifCapture: null,
+    lastVideoCapture: null,
     lastGalleryGifBoomerang: null,
     lastFocusLock: null,
   };
@@ -712,6 +719,7 @@ function persistDebugHistory(debug = state?.debug) {
       lastGalleryTransitionEndRenderWaitMs: debug.lastGalleryTransitionEndRenderWaitMs,
       lastGalleryTransitionEndRenderMs: debug.lastGalleryTransitionEndRenderMs,
       lastGifCapture: debug.lastGifCapture ?? null,
+      lastVideoCapture: debug.lastVideoCapture ?? null,
       lastGalleryGifBoomerang: debug.lastGalleryGifBoomerang ?? null,
       lastFocusLock: debug.lastFocusLock ?? null,
     }));
@@ -1405,6 +1413,12 @@ function bindCameraUi() {
 
 function handleMobileViewportChange(event) {
   if (!event.matches && state.cameraActive) {
+    if (state.videoCaptureInProgress) {
+      stopNativeVideoRecording("viewport-change").finally(() => {
+        stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
+      });
+      return;
+    }
     stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
   }
   if (event.matches) {
@@ -1722,6 +1736,7 @@ function syncGalleryDisplayLimitSetting() {
   if (!GALLERY_DISPLAY_LIMIT_VALUES.has(state.galleryDisplayLimit)) {
     state.galleryDisplayLimit = "default";
   }
+  document.body.classList.toggle("gallery-infinite-mode", state.galleryDisplayLimit === "infinite");
   if (galleryDisplayLimitSelect) {
     galleryDisplayLimitSelect.value = state.galleryDisplayLimit;
   }
@@ -1881,7 +1896,7 @@ function updateMobileCameraState() {
     || state.cameraStopping
     || state.cameraForceOpenUntilStarted
   );
-  const cameraControlsActive = state.cameraActive && !state.cameraGalleryDeferred && !state.gifCaptureInProgress;
+  const cameraControlsActive = state.cameraActive && !state.cameraGalleryDeferred && !state.gifCaptureInProgress && !state.videoCaptureInProgress;
   const selectedFilter = state.filterMap.get(lookSelect.value);
   const useBnwOverlay = Boolean(selectedFilter?.isBnw);
 
@@ -1898,6 +1913,8 @@ function updateMobileCameraState() {
   cameraLookSelect.value = lookSelect.value;
   cameraPresetLabel.textContent = state.cameraStopping
     ? "Closing camera..."
+    : state.videoCaptureInProgress
+    ? "Recording video..."
     : state.gifCaptureInProgress
     ? "Recording GIF..."
     : state.cameraGalleryDeferred
@@ -1965,7 +1982,7 @@ function getCameraOverlayKey(useBnwOverlay = Boolean(state.filterMap.get(lookSel
 }
 
 function updateCameraCaptureLock() {
-  const locked = state.cameraCaptureInProgress || state.gifCaptureInProgress;
+  const locked = state.cameraCaptureInProgress || state.gifCaptureInProgress || state.videoCaptureInProgress;
   capturePhotoButton.setAttribute("aria-busy", String(locked));
   cameraCaptureButton.setAttribute("aria-busy", String(locked));
   cameraFacingToggleButton.disabled = cameraFacingToggleButton.disabled || locked;
@@ -2437,6 +2454,12 @@ function stopCamera(options = {}) {
   state.cameraStarting = false;
   if (state.gifCaptureInProgress && !options.force) {
     setStatus("Recording GIF. Wait for it to finish.");
+    updateMobileCameraState();
+    return;
+  }
+  if (state.videoCaptureInProgress && !options.force) {
+    stopNativeVideoRecording("stop-camera").catch((error) => console.error(error));
+    setStatus("Stopping video recording before closing camera.");
     updateMobileCameraState();
     return;
   }
@@ -2934,12 +2957,12 @@ async function saveCurrentCameraFrame() {
 }
 
 function requestCameraCapture(options = {}) {
-  if (state.gifCaptureInProgress) {
+  if (state.gifCaptureInProgress || state.videoCaptureInProgress) {
     debugEvent("capture:ignored", {
       source: options.source ?? "button",
-      reason: "gif-capture",
+      reason: state.videoCaptureInProgress ? "video-capture" : "gif-capture",
     });
-    setStatus("Recording GIF. Wait for it to finish.");
+    setStatus(state.videoCaptureInProgress ? "Recording video. Release shutter to stop." : "Recording GIF. Wait for it to finish.");
     return false;
   }
 
@@ -3288,6 +3311,10 @@ async function captureAndSaveNativeGifStack(filterFilename, selectedFilter) {
     saved: Boolean(result.saved),
     boomerang: Boolean(result.boomerang),
     durationSeconds,
+    fps: result.metrics?.fps ?? GIF_CAPTURE_FPS,
+    width: item.width,
+    height: item.height,
+    maxSide: GIF_CAPTURE_MAX_SIDE,
     frameCount: result.frameCount ?? result.metrics?.frameCount ?? null,
     outputFrameCount: result.outputFrameCount ?? result.metrics?.outputFrameCount ?? null,
     targetFrameCount: result.metrics?.targetFrameCount ?? null,
@@ -3317,7 +3344,7 @@ async function captureAndSaveNativeGifStack(filterFilename, selectedFilter) {
 }
 
 async function requestGifCapture() {
-  if (state.gifCaptureInProgress || state.cameraCaptureInProgress) {
+  if (state.gifCaptureInProgress || state.videoCaptureInProgress || state.cameraCaptureInProgress) {
     setStatus("Camera is busy. Wait for the current capture to finish.");
     return false;
   }
@@ -3366,6 +3393,146 @@ async function requestGifCapture() {
   }
 }
 
+function isGalleryVideoItem(item) {
+  return item?.mediaType === "video" || /\.(mov|mp4|m4v)(?:$|\?)/i.test(String(item?.filename ?? item?.fileUrl ?? ""));
+}
+
+async function startNativeVideoRecording() {
+  if (state.videoCaptureInProgress || state.gifCaptureInProgress || state.cameraCaptureInProgress) {
+    setStatus("Camera is busy. Wait for the current capture to finish.");
+    return false;
+  }
+  if (!state.cameraActive || state.cameraGalleryDeferred) {
+    return false;
+  }
+
+  const nativeBridge = getNativeBridge();
+  if (!state.nativeCameraActive || !nativeBridge?.startVideoRecording || !nativeBridge?.stopVideoRecording) {
+    setStatus("Video mode needs the native iPhone camera.");
+    return false;
+  }
+
+  state.videoCaptureInProgress = true;
+  state.videoNativeRecordingActive = false;
+  state.videoCaptureStopPending = false;
+  updateMobileCameraState();
+  vibrateCapture();
+  const startedAt = performance.now();
+  const shotFilterFilename = await resolveShotFilterFilename().catch(() => lookSelect.value);
+  const selected = state.filterMap.get(shotFilterFilename);
+  const filename = `analoguecam-${selected?.filename ?? "camera"}-${Date.now()}.mov`;
+  if (state.videoCaptureStopPending) {
+    state.videoCaptureInProgress = false;
+    state.videoCaptureStopPending = false;
+    updateMobileCameraState();
+    return false;
+  }
+  setStatus("Recording video...");
+  const startPromise = nativeBridge.startVideoRecording({
+    filename,
+    cameraName: selected?.name ?? "camera",
+  });
+  state.videoCaptureStartPromise = startPromise;
+
+  try {
+    const result = await startPromise;
+    state.debug.lastVideoCapture = {
+      at: new Date().toISOString(),
+      camera: selected?.name ?? shotFilterFilename,
+      started: Boolean(result?.recording),
+      orientation: result?.orientation ?? null,
+      orientationSource: result?.orientationSource ?? null,
+    };
+    persistDebugHistory();
+    debugEvent("native-video-recording:start", {
+      camera: selected?.name ?? shotFilterFilename,
+      orientation: result?.orientation ?? null,
+      orientationSource: result?.orientationSource ?? null,
+    });
+    state.videoNativeRecordingActive = Boolean(result?.recording);
+    return state.videoNativeRecordingActive;
+  } catch (error) {
+    console.error(error);
+    state.videoCaptureInProgress = false;
+    state.videoNativeRecordingActive = false;
+    state.videoCaptureStopPending = false;
+    setStatus("Failed to start video recording.");
+    debugEvent("native-video-recording:start-error", { message: error?.message ?? String(error) });
+    return false;
+  } finally {
+    if (state.videoCaptureStartPromise === startPromise) {
+      state.videoCaptureStartPromise = null;
+    }
+    updateMobileCameraState();
+  }
+}
+
+async function stopNativeVideoRecording(reason = "release") {
+  if (state.videoCaptureStartPromise) {
+    state.videoCaptureStopPending = true;
+    await state.videoCaptureStartPromise.catch(() => null);
+  }
+  if (!state.videoCaptureInProgress) {
+    return false;
+  }
+  if (!state.videoNativeRecordingActive) {
+    state.videoCaptureStopPending = true;
+    return false;
+  }
+
+  const nativeBridge = getNativeBridge();
+  if (!nativeBridge?.stopVideoRecording) {
+    state.videoCaptureInProgress = false;
+    state.videoCaptureStopPending = false;
+    updateMobileCameraState();
+    return false;
+  }
+
+  state.videoCaptureStopPending = false;
+  setStatus("Saving video...");
+  try {
+    const result = await nativeBridge.stopVideoRecording({ reason });
+    state.videoNativeRecordingActive = false;
+    if (result?.item) {
+      const item = {
+        ...result.item,
+        mediaType: "video",
+      };
+      insertGalleryItemAtFront(item);
+      requestGalleryRender("native-video-insert");
+    }
+    state.debug.lastVideoCapture = {
+      ...(state.debug.lastVideoCapture ?? {}),
+      at: new Date().toISOString(),
+      saved: Boolean(result?.saved),
+      durationMs: result?.durationMs ?? result?.metrics?.durationMs ?? null,
+      width: result?.width ?? result?.item?.width ?? null,
+      height: result?.height ?? result?.item?.height ?? null,
+      orientation: result?.orientation ?? state.debug.lastVideoCapture?.orientation ?? null,
+      metrics: result?.metrics ?? null,
+    };
+    persistDebugHistory();
+    debugEvent("native-video-recording:stop", {
+      reason,
+      saved: Boolean(result?.saved),
+      durationMs: result?.durationMs ?? result?.metrics?.durationMs ?? null,
+      metrics: result?.metrics ?? null,
+    });
+    setStatus(result?.saved ? "Saved video to Photos and local gallery." : "Saved video to local gallery.");
+    return Boolean(result?.item);
+  } catch (error) {
+    console.error(error);
+    debugEvent("native-video-recording:stop-error", { reason, message: error?.message ?? String(error) });
+    setStatus("Failed to save video.");
+    return false;
+  } finally {
+    state.videoCaptureInProgress = false;
+    state.videoNativeRecordingActive = false;
+    state.videoCaptureStopPending = false;
+    updateMobileCameraState();
+  }
+}
+
 async function lockNativeFocus(distance = state.focusDistance) {
   const nativeBridge = getNativeBridge();
   if (!state.nativeCameraActive || !nativeBridge?.setFocusLock) {
@@ -3405,6 +3572,13 @@ async function lockNativeFocus(distance = state.focusDistance) {
 }
 
 function handleShutterLongPressAction() {
+  if (state.shutterLongPressAction === "video") {
+    startNativeVideoRecording().catch((error) => {
+      console.error(error);
+      setStatus("Failed to start video recording.");
+    });
+    return;
+  }
   if (state.shutterLongPressAction === "focus") {
     lockNativeFocus(state.focusDistance).catch((error) => {
       console.error(error);
@@ -4614,6 +4788,9 @@ async function loadNativeGalleryItemsPage(offset = 0, limit = GALLERY_RENDER_BAT
 function normalizeNativeGalleryItem(nativeItem) {
   const width = Number(nativeItem?.width) || null;
   const height = Number(nativeItem?.height) || null;
+  const filenameOrUrl = String(nativeItem?.filename ?? nativeItem?.fileUrl ?? "");
+  const mediaType = nativeItem?.mediaType
+    ?? (/\.(mov|mp4|m4v)(?:$|\?)/i.test(filenameOrUrl) ? "video" : (/\.gif(?:$|\?)/i.test(filenameOrUrl) ? "gif" : "photo"));
   return {
     ...nativeItem,
     id: nativeItem?.id ?? `${nativeItem?.fileUrl ?? "native"}-${nativeItem?.createdAt ?? Date.now()}`,
@@ -4630,6 +4807,7 @@ function normalizeNativeGalleryItem(nativeItem) {
     fileBacked: nativeItem?.fileBacked ?? true,
     thumbnailBacked: nativeItem?.thumbnailBacked ?? Boolean(nativeItem?.thumbnailFileUrl && nativeItem.thumbnailFileUrl !== nativeItem.fileUrl),
     processing: Boolean(nativeItem?.processing),
+    mediaType,
     source: nativeItem?.source ?? "native",
   };
 }
@@ -4646,7 +4824,7 @@ function normalizeGalleryCameraName(cameraName, filename = "") {
       return filter.name;
     }
   }
-  const match = String(filename).match(/analoguecam-(.+)-\d+(?:-raw)?\.jpe?g$/i);
+  const match = String(filename).match(/analoguecam-(.+)-\d+(?:-raw)?\.(?:jpe?g|gif|mov|mp4|m4v)$/i);
   if (!match) {
     return "Camera";
   }
@@ -5478,14 +5656,22 @@ function shouldVirtualizeGallery(totalItems = getGalleryVirtualTotal()) {
 }
 
 function getGalleryGridColumnCount() {
-  const template = window.getComputedStyle(galleryGrid).gridTemplateColumns;
+  if (state.galleryDisplayLimit !== "infinite") {
+    return state.galleryTwoColumn ? 3 : 2;
+  }
+  const styles = window.getComputedStyle(galleryGrid);
+  const cssColumnCount = Number.parseInt(styles.columnCount, 10);
+  if (Number.isFinite(cssColumnCount) && cssColumnCount > 0) {
+    return cssColumnCount;
+  }
+  const template = styles.gridTemplateColumns;
   const columns = template && template !== "none" ? template.split(" ").filter(Boolean).length : 1;
   return Math.max(1, columns || 1);
 }
 
 function getGalleryGridGapPx() {
   const styles = window.getComputedStyle(galleryGrid);
-  return Number.parseFloat(styles.rowGap || styles.gap || "0") || 0;
+  return Number.parseFloat(styles.rowGap || styles.columnGap || styles.gap || "0") || 0;
 }
 
 function getGalleryVirtualRowHeight(columns = getGalleryGridColumnCount(), items = getGalleryVisibleItems()) {
@@ -5724,12 +5910,39 @@ function getGalleryItemUrl(item) {
   return "";
 }
 
-function showGalleryViewerItem(item) {
+function handleGalleryViewerImageError(item, token) {
+  if (token !== state.selectedGalleryLoadToken || !item) {
+    return;
+  }
+  debugEvent("gallery-viewer:image-error", {
+    filename: item.filename ?? null,
+    fileUrl: item.fileUrl ?? null,
+    mediaType: item.mediaType ?? null,
+  });
+  closeGalleryItem();
+  setStatus("Selected gallery image is unavailable.");
+}
+
+function showGalleryViewerItem(item, options = {}) {
   if (state.selectedGalleryObjectUrl) {
     URL.revokeObjectURL(state.selectedGalleryObjectUrl);
     state.selectedGalleryObjectUrl = "";
   }
+  galleryViewerImage.onload = null;
+  galleryViewerImage.onerror = null;
   galleryViewerImage.removeAttribute("src");
+  galleryViewerImage.classList.remove("is-processing", "is-processing-bnw");
+  if (galleryViewerVideo) {
+    galleryViewerVideo.onloadeddata = null;
+    galleryViewerVideo.onerror = null;
+    galleryViewerVideo.pause();
+    galleryViewerVideo.removeAttribute("src");
+    galleryViewerVideo.load();
+    galleryViewerVideo.hidden = true;
+  }
+  galleryViewerImage.hidden = false;
+  const loadToken = ++state.selectedGalleryLoadToken;
+  galleryViewerImage.dataset.loadToken = String(loadToken);
   const url = getGalleryItemUrl(item);
   if (!url) {
     return false;
@@ -5737,6 +5950,34 @@ function showGalleryViewerItem(item) {
   if (item.blob) {
     state.selectedGalleryObjectUrl = url;
   }
+  if (isGalleryVideoItem(item) && galleryViewerVideo) {
+    galleryViewerImage.hidden = true;
+    galleryViewerVideo.hidden = false;
+    galleryViewerVideo.dataset.loadToken = String(loadToken);
+    galleryViewerVideo.onloadeddata = () => {
+      if (loadToken !== state.selectedGalleryLoadToken) {
+        return;
+      }
+      galleryViewerVideo.onloadeddata = null;
+      if (options.showOnLoad) {
+        galleryViewer.hidden = false;
+      }
+    };
+    galleryViewerVideo.onerror = () => handleGalleryViewerImageError(item, loadToken);
+    galleryViewerVideo.src = url;
+    galleryViewerVideo.load();
+    return true;
+  }
+  galleryViewerImage.onload = () => {
+    if (loadToken !== state.selectedGalleryLoadToken) {
+      return;
+    }
+    galleryViewerImage.onload = null;
+    if (options.showOnLoad) {
+      galleryViewer.hidden = false;
+    }
+  };
+  galleryViewerImage.onerror = () => handleGalleryViewerImageError(item, loadToken);
   galleryViewerImage.src = url;
   return true;
 }
@@ -5800,6 +6041,11 @@ function syncGalleryPresetSelect(item) {
     return;
   }
   galleryPresetSelect.innerHTML = "";
+  if (isGalleryVideoItem(item)) {
+    galleryPresetSelect.disabled = true;
+    galleryPresetSelect.title = "Video preset editing is not available.";
+    return;
+  }
   const currentFilename = getFilterFilenameFromGalleryItem(item);
   const favoriteCount = state.favoriteCameraFilenames.size;
 
@@ -5834,21 +6080,40 @@ function syncGalleryGifBoomerangControl(item) {
 async function openGalleryItem(item) {
   state.selectedGalleryItem = item;
   galleryViewerImage.removeAttribute("src");
+  if (galleryViewerVideo) {
+    galleryViewerVideo.pause();
+    galleryViewerVideo.removeAttribute("src");
+    galleryViewerVideo.load();
+    galleryViewerVideo.hidden = true;
+  }
   clearGalleryPresetDraft();
   clearGalleryProcessingPreview();
   const cameraName = resolveGalleryCameraName(item);
   galleryViewerCamera.textContent = cameraName ? `Shot with ${cameraName}` : "Camera unavailable";
   syncGalleryPresetSelect(item);
   syncGalleryGifBoomerangControl(item);
-  galleryViewer.hidden = false;
-  if (!showGalleryViewerItem(item)) {
+  if (!showGalleryViewerItem(item, { showOnLoad: true })) {
+    state.selectedGalleryItem = null;
     setStatus("Selected gallery image is unavailable.");
+    return;
   }
 }
 
 function closeGalleryItem() {
   state.selectedGalleryItem = null;
+  state.selectedGalleryLoadToken += 1;
+  galleryViewerImage.onload = null;
+  galleryViewerImage.onerror = null;
   galleryViewerImage.removeAttribute("src");
+  galleryViewerImage.hidden = false;
+  if (galleryViewerVideo) {
+    galleryViewerVideo.onloadeddata = null;
+    galleryViewerVideo.onerror = null;
+    galleryViewerVideo.pause();
+    galleryViewerVideo.removeAttribute("src");
+    galleryViewerVideo.load();
+    galleryViewerVideo.hidden = true;
+  }
   clearGalleryPresetDraft();
   clearGalleryProcessingPreview();
   if (state.selectedGalleryObjectUrl) {
@@ -6221,6 +6486,11 @@ async function applyGalleryPresetToSelectedItem(filename) {
   const item = state.selectedGalleryItem;
   const filter = state.filterMap.get(filename);
   if (!item || !filter) {
+    return;
+  }
+  if (isGalleryVideoItem(item)) {
+    setStatus("Video preset editing is not available.");
+    syncGalleryPresetSelect(item);
     return;
   }
 
@@ -7965,16 +8235,17 @@ function openGalleryFromCamera(options = {}) {
     reason,
     captureInProgress: state.cameraCaptureInProgress,
     gifCaptureInProgress: state.gifCaptureInProgress,
+    videoCaptureInProgress: state.videoCaptureInProgress,
     galleryLoaded: state.galleryLoaded,
     rendered: state.galleryRenderedCount,
   });
 
-  if (state.gifCaptureInProgress && !options.force) {
+  if ((state.gifCaptureInProgress || state.videoCaptureInProgress) && !options.force) {
     debugEvent("camera-gallery-transition:blocked", {
       reason,
-      blockedBy: "gif-capture",
+      blockedBy: state.videoCaptureInProgress ? "video-capture" : "gif-capture",
     });
-    setStatus("Recording GIF. Wait for it to finish.");
+    setStatus(state.videoCaptureInProgress ? "Recording video. Release shutter to stop." : "Recording GIF. Wait for it to finish.");
     return false;
   }
 
@@ -8524,7 +8795,7 @@ function endCameraSwipe(pointerId, captureTarget) {
   const axis = state.cameraSwipe.axis;
   const horizontalDirection = state.cameraSwipe.horizontalDirection;
   const horizontalThreshold = Math.min(90, window.innerWidth * 0.22);
-  const gesturesAllowed = !state.gifCaptureInProgress;
+  const gesturesAllowed = !state.gifCaptureInProgress && !state.videoCaptureInProgress;
   const shouldOpenCameraList = axis === "horizontal"
     && gesturesAllowed
     && horizontalDirection === "right"
@@ -8939,11 +9210,13 @@ function buildDebugReport() {
       focalLabelEnabled: state.focalLabelEnabled,
       captureInProgress: state.cameraCaptureInProgress,
       gifCaptureInProgress: state.gifCaptureInProgress,
+      videoCaptureInProgress: state.videoCaptureInProgress,
       shutterLongPressAction: state.shutterLongPressAction,
       gifDuration: state.gifDuration,
       gifBoomerang: state.gifBoomerang,
       focusDistance: state.focusDistance,
       lastGifCapture: state.debug.lastGifCapture,
+      lastVideoCapture: state.debug.lastVideoCapture,
       lastGalleryGifBoomerang: state.debug.lastGalleryGifBoomerang,
       lastFocusLock: state.debug.lastFocusLock,
       videoWidth: cameraPreview.videoWidth,
@@ -9420,6 +9693,9 @@ function endShutterLongPress(event) {
   event?.preventDefault?.();
   state.shutterPointerHandled = true;
   if (wasLongPress) {
+    if (state.shutterLongPressAction === "video" || state.videoCaptureInProgress) {
+      stopNativeVideoRecording("release").catch((error) => console.error(error));
+    }
     return;
   }
   if (hadPendingTap) {
@@ -9433,6 +9709,9 @@ function cancelShutterLongPress(event) {
   }
   releaseShutterPointerCapture(event);
   clearShutterLongPressTimer();
+  if (state.shutterLongPressTriggered && (state.shutterLongPressAction === "video" || state.videoCaptureInProgress)) {
+    stopNativeVideoRecording("cancel").catch((error) => console.error(error));
+  }
   state.shutterPointerHandled = true;
 }
 
@@ -9572,6 +9851,8 @@ shutterLongPressActionSelect?.addEventListener("change", () => {
   syncShutterLongPressSettings();
   setStatus(state.shutterLongPressAction === "gif"
     ? "Long press shutter set to GIF mode."
+    : state.shutterLongPressAction === "video"
+    ? "Long press shutter set to video mode."
     : "Long press shutter set to out of focus mode.");
 });
 gifDurationSelect?.addEventListener("change", () => {
@@ -9726,6 +10007,12 @@ document.addEventListener("visibilitychange", () => {
     return;
   }
   prepareCameraModeForLifecycle("visibility-hidden");
+  if (state.videoCaptureInProgress) {
+    stopNativeVideoRecording("visibility-hidden").finally(() => {
+      stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
+    });
+    return;
+  }
   stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
 });
 window.addEventListener("pagehide", () => {
@@ -9735,6 +10022,13 @@ window.addEventListener("pagehide", () => {
     queued: state.cameraSaveQueue.length,
   });
   prepareCameraModeForLifecycle("pagehide");
+  if (state.videoCaptureInProgress) {
+    stopNativeVideoRecording("pagehide").finally(() => {
+      stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
+    });
+    persistDebugHistory();
+    return;
+  }
   stopCamera({ force: true, keepCameraMode: true, skipGalleryLoad: true });
   persistDebugHistory();
 });

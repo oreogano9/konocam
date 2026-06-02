@@ -7,9 +7,9 @@ const nativeSource = readFileSync(new URL("../ios/App/App/AppDelegate.swift", im
 
 const checks = [
   {
-    name: "settings expose long press action, GIF timing, boomerang, and focus distance",
+    name: "settings expose long press action, video mode, GIF timing, boomerang, and focus distance",
     source: htmlSource,
-    pattern: /id="shutterLongPressActionSelect"[\s\S]*value="gif"[\s\S]*value="focus"[\s\S]*id="gifDurationSelect"[\s\S]*value="0\.5"[\s\S]*value="10"[\s\S]*id="gifBoomerangToggle"[\s\S]*id="focusDistanceSelect"[\s\S]*value="closest"[\s\S]*value="far"/,
+    pattern: /id="shutterLongPressActionSelect"[\s\S]*value="gif"[\s\S]*value="video"[\s\S]*value="focus"[\s\S]*id="gifDurationSelect"[\s\S]*value="0\.5"[\s\S]*value="10"[\s\S]*id="gifBoomerangToggle"[\s\S]*id="focusDistanceSelect"[\s\S]*value="closest"[\s\S]*value="far"/,
   },
   {
     name: "gallery viewer exposes GIF boomerang toggle",
@@ -43,13 +43,25 @@ const checks = [
     ],
   },
   {
-    name: "web treats GIF recording as a capture lock",
+    name: "web treats GIF and video recording as capture locks",
     source: appSource,
     patterns: [
-      /function updateCameraCaptureLock\(\)[\s\S]*const locked = state\.cameraCaptureInProgress \|\| state\.gifCaptureInProgress/,
+      /function updateCameraCaptureLock\(\)[\s\S]*const locked = state\.cameraCaptureInProgress \|\| state\.gifCaptureInProgress \|\| state\.videoCaptureInProgress/,
       /function stopCamera\(options = \{\}\)[\s\S]*if \(state\.gifCaptureInProgress && !options\.force\)[\s\S]*Recording GIF\. Wait for it to finish/,
-      /function openGalleryFromCamera\(options = \{\}\)[\s\S]*if \(state\.gifCaptureInProgress && !options\.force\)[\s\S]*blockedBy: "gif-capture"/,
-      /const gesturesAllowed = !state\.gifCaptureInProgress;[\s\S]*const shouldOpenCameraList =[\s\S]*&& gesturesAllowed[\s\S]*const shouldOpenGallery =[\s\S]*&& gesturesAllowed/,
+      /function stopCamera\(options = \{\}\)[\s\S]*if \(state\.videoCaptureInProgress && !options\.force\)[\s\S]*Stopping video recording before closing camera/,
+      /function openGalleryFromCamera\(options = \{\}\)[\s\S]*state\.gifCaptureInProgress \|\| state\.videoCaptureInProgress[\s\S]*blockedBy: state\.videoCaptureInProgress \? "video-capture" : "gif-capture"/,
+      /const gesturesAllowed = !state\.gifCaptureInProgress && !state\.videoCaptureInProgress;[\s\S]*const shouldOpenCameraList =[\s\S]*&& gesturesAllowed[\s\S]*const shouldOpenGallery =[\s\S]*&& gesturesAllowed/,
+    ],
+  },
+  {
+    name: "web dispatches video mode through native start and stop recording",
+    source: appSource,
+    patterns: [
+      /function handleShutterLongPressAction\(\)[\s\S]*state\.shutterLongPressAction === "video"[\s\S]*startNativeVideoRecording\(\)/,
+      /async function startNativeVideoRecording\(\)[\s\S]*nativeBridge\.startVideoRecording\([\s\S]*filename,[\s\S]*cameraName/,
+      /async function stopNativeVideoRecording\(reason = "release"\)[\s\S]*nativeBridge\.stopVideoRecording\(\{ reason \}\)[\s\S]*insertGalleryItemAtFront\(item\)/,
+      /function endShutterLongPress\(event\)[\s\S]*stopNativeVideoRecording\("release"\)/,
+      /function cancelShutterLongPress\(event\)[\s\S]*stopNativeVideoRecording\("cancel"\)/,
     ],
   },
   {
@@ -67,7 +79,7 @@ const checks = [
       /function syncGalleryGifBoomerangControl\(item\)[\s\S]*isGalleryGifItem\(item\)[\s\S]*nativeBridge\.setGalleryGifBoomerang[\s\S]*renderGalleryWhenTransitionSafe\("gallery-gif-boomerang"\)/,
       /state\.debug\.lastGalleryGifBoomerang = \{[\s\S]*outputFrameCount[\s\S]*normalGifBytes[\s\S]*loopMode/,
       /debugEvent\("gallery-gif-boomerang"[\s\S]*outputFrameCount[\s\S]*loopMode/,
-      /function showGalleryViewerItem\(item\)[\s\S]*galleryViewerImage\.removeAttribute\("src"\);[\s\S]*galleryViewerImage\.src = url;/,
+      /function showGalleryViewerItem\(item, options = \{\}\)[\s\S]*galleryViewerImage\.removeAttribute\("src"\);[\s\S]*galleryViewerImage\.src = url;/,
       /const nextItem = \{[\s\S]*cacheBust: Date\.now\(\),[\s\S]*showGalleryViewerItem\(nextItem\)/,
     ],
   },
@@ -139,12 +151,24 @@ const checks = [
     ],
   },
   {
-    name: "native gallery lists GIFs and can re-encode normal or boomerang",
+    name: "native gallery lists GIFs/videos and can re-encode normal or boomerang",
     source: nativeSource,
     patterns: [
-      /\["jpg", "jpeg", "gif"\]\.contains/,
+      /\["jpg", "jpeg", "gif", "mov", "mp4", "m4v"\]\.contains/,
       /@objc func setGalleryGifBoomerang[\s\S]*gifFrameImages\(from: originalData\)[\s\S]*makeGifData\(frames: decoded\.frames, frameDelay: decoded\.delay, boomerang: true\)/,
       /@objc func setGalleryGifBoomerang[\s\S]*"gifOutputFrameCount": outputFrameCount[\s\S]*"normalGifBytes": originalData\.count[\s\S]*"loopMode": boomerang \? "boomerang" : "normal"/,
+    ],
+  },
+  {
+    name: "native bridge records videos to local gallery and Photos album",
+    source: nativeSource,
+    patterns: [
+      /CAPPluginMethod\(name: "startVideoRecording"[\s\S]*CAPPluginMethod\(name: "stopVideoRecording"/,
+      /private let movieOutput = AVCaptureMovieFileOutput\(\)/,
+      /@objc func startVideoRecording[\s\S]*movieOutput\.startRecording\(to: outputURL, recordingDelegate: self\)/,
+      /@objc func stopVideoRecording[\s\S]*movieOutput\.stopRecording\(\)/,
+      /AVCaptureFileOutputRecordingDelegate[\s\S]*didFinishRecordingTo outputFileURL[\s\S]*writeNativeGalleryItem[\s\S]*"mediaType": "video"[\s\S]*saveVideoFile\(outputFileURL/,
+      /private func makeNativeGalleryVideoThumbnailData\(from url: URL\)/,
     ],
   },
 ];

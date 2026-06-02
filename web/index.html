@@ -87,6 +87,7 @@
           <div class="gallery-viewer__stage">
             <button class="gallery-delete-button" id="galleryDeleteButton" type="button" aria-label="Close photo">×</button>
             <img id="galleryViewerImage" alt="Selected local shot" />
+            <video id="galleryViewerVideo" controls playsinline preload="metadata" hidden></video>
           </div>
           <p class="gallery-viewer__camera" id="galleryViewerCamera"></p>
           <label class="gallery-preset-control" for="galleryPresetSelect">
@@ -167,6 +168,7 @@
             Long press shutter
             <select id="shutterLongPressActionSelect">
               <option value="gif">GIF mode</option>
+              <option value="video">Video mode</option>
               <option value="focus">Out of focus mode</option>
             </select>
           </label>
