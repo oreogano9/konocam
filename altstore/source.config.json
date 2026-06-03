@@ -13,7 +13,7 @@
     "localizedDescription": "KONO CAM - Don't think, take photos",
     "category": "photo-video",
     "tintColor": "#C28538",
-    "releaseNotes": "Improves gallery previews with an opaque viewer, adaptive no-gap image grid, horizontal GIF metadata repair, and smoother 15fps GIF capture.",
+    "releaseNotes": "Fixes gallery preview overlays by moving the viewer out of the gallery scroller, keeps horizontal GIFs landscape, improves GIF smoothness, and tightens the adaptive gallery grid.",
     "minOSVersion": "15.0"
   },
   "files": {

@@ -832,6 +832,7 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Gallery grid layout now uses row-major CSS grid placement instead of newspaper-style CSS columns, so items load horizontally across rows.
 - Gallery viewer reveal now handles cached images/GIFs and video metadata loads so opening a gallery item does not stay on the transparent placeholder layer.
 - Gallery viewer now uses an opaque black shell and immediate media reveal, with actual loaded image/GIF/video dimensions fed back into the viewer aspect state.
+- Gallery viewer markup now lives outside the transformed gallery scroller, so opening a photo/GIF uses a true viewport-fixed overlay instead of a scroller-sized overlay.
 - Gallery cards now use dense adaptive grid rows based on each item aspect ratio to reduce masonry gaps while keeping landscape items visibly horizontal.
 - GIF capture now targets 15fps instead of 12fps, with native frame collection and GIF frame delay floors lowered to allow smoother playback.
 - Native GIF gallery metadata now writes output width/height/orientation explicitly, and native gallery listing repairs missing dimensions for existing image/GIF records.

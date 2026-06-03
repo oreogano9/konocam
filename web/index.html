@@ -83,27 +83,28 @@
         </div>
         <p class="mobile-gallery__empty" id="galleryEmpty">No local shots yet.</p>
         <div class="mobile-gallery__grid" id="galleryGrid"></div>
-        <div class="gallery-viewer" id="galleryViewer" hidden>
-          <div class="gallery-viewer__stage">
-            <button class="gallery-delete-button" id="galleryDeleteButton" type="button" aria-label="Close photo">×</button>
-            <img id="galleryViewerImage" alt="Selected local shot" />
-            <video id="galleryViewerVideo" controls playsinline preload="metadata" hidden></video>
-          </div>
-          <p class="gallery-viewer__camera" id="galleryViewerCamera"></p>
-          <label class="gallery-preset-control" for="galleryPresetSelect">
-            <span>Preset</span>
-            <select id="galleryPresetSelect"></select>
-          </label>
-          <label class="gallery-preset-control gallery-gif-control" id="galleryGifBoomerangControl" for="galleryGifBoomerangToggle" hidden>
-            <span>Boomerang</span>
-            <input id="galleryGifBoomerangToggle" type="checkbox" />
-          </label>
-          <div class="gallery-viewer__actions">
-            <button id="gallerySaveButton" type="button">Save</button>
-            <button id="galleryCloseButton" type="button">Delete</button>
-          </div>
-        </div>
       </section>
+
+      <div class="gallery-viewer" id="galleryViewer" hidden>
+        <div class="gallery-viewer__stage">
+          <button class="gallery-delete-button" id="galleryDeleteButton" type="button" aria-label="Close photo">×</button>
+          <img id="galleryViewerImage" alt="Selected local shot" />
+          <video id="galleryViewerVideo" controls playsinline preload="metadata" hidden></video>
+        </div>
+        <p class="gallery-viewer__camera" id="galleryViewerCamera"></p>
+        <label class="gallery-preset-control" for="galleryPresetSelect">
+          <span>Preset</span>
+          <select id="galleryPresetSelect"></select>
+        </label>
+        <label class="gallery-preset-control gallery-gif-control" id="galleryGifBoomerangControl" for="galleryGifBoomerangToggle" hidden>
+          <span>Boomerang</span>
+          <input id="galleryGifBoomerangToggle" type="checkbox" />
+        </label>
+        <div class="gallery-viewer__actions">
+          <button id="gallerySaveButton" type="button">Save</button>
+          <button id="galleryCloseButton" type="button">Delete</button>
+        </div>
+      </div>
 
       <aside class="toolbelt" aria-label="Editing controls">
         <button class="settings-gallery-button" id="settingsGalleryButton" type="button">Gallery</button>

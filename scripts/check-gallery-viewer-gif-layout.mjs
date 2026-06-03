@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 const appSource = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
+const indexSource = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../web/styles.css", import.meta.url), "utf8");
 const nativeSource = readFileSync(new URL("../ios/App/App/AppDelegate.swift", import.meta.url), "utf8");
 
@@ -64,6 +65,11 @@ const checks = [
     name: "gallery viewer uses an opaque black background instead of a see-through overlay",
     source: stylesSource,
     pattern: /\.gallery-viewer \{[\s\S]*background: #050505;[\s\S]*position: fixed;/,
+  },
+  {
+    name: "gallery viewer lives outside the transformed gallery scroller",
+    source: indexSource,
+    pattern: /<div class="mobile-gallery__grid" id="galleryGrid"><\/div>\s*<\/section>\s*<div class="gallery-viewer" id="galleryViewer" hidden>/,
   },
   {
     name: "gallery grid uses dense adaptive masonry rows",
