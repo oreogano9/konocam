@@ -831,6 +831,10 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Long-press video mode now samples native camera frames, runs them through the current camera LUT/effects/native overlay stack, encodes the processed frames as a `.mov`, writes a local native gallery item, and saves the video to Photos.
 - Gallery grid layout now uses row-major CSS grid placement instead of newspaper-style CSS columns, so items load horizontally across rows.
 - Gallery viewer reveal now handles cached images/GIFs and video metadata loads so opening a gallery item does not stay on the transparent placeholder layer.
+- Gallery viewer now uses an opaque black shell and immediate media reveal, with actual loaded image/GIF/video dimensions fed back into the viewer aspect state.
+- Gallery cards now use dense adaptive grid rows based on each item aspect ratio to reduce masonry gaps while keeping landscape items visibly horizontal.
+- GIF capture now targets 15fps instead of 12fps, with native frame collection and GIF frame delay floors lowered to allow smoother playback.
+- Native GIF gallery metadata now writes output width/height/orientation explicitly, and native gallery listing repairs missing dimensions for existing image/GIF records.
 - Random Cam camera selection and random preset capture behavior.
 - Right-to-left camera-mode swipe opens a rotated favorites drawer with square favorite-camera cards and each camera’s latest matching shot thumbnail.
 - Favorite drawer cards show the current selected favorite camera with a white rounded outline.
@@ -893,6 +897,8 @@ Current blocker: macOS denies Codex access to the iCloud Obsidian folder with `O
 - Heavy overlay cameras can still be expensive at full size.
 - Long-press video now depends on the live video data output used for preview frame sampling; if no fresh frames are collected, video mode rejects without writing a broken gallery item.
 - Filtered video can be CPU/queue-heavy because every sampled frame runs the still-photo stack and overlay compositor before video encoding.
+- Dense adaptive gallery layout uses approximate row spans; it should remove large holes, but it is still not a full native UICollectionView masonry layout.
+- Higher GIF FPS increases per-capture processing work, especially for Spektra or heavy overlay cameras.
 - Spektra Grain should be much faster when `spektraBackend` reports `metal`; debug `spektraMs` should still be watched because fallback can still use Swift CPU.
 - During camera swipe, JS sends native preview offset updates during drag, but the Android-targeted automatic settle/overlay overscan experiment was reverted.
 - Any future app change should update this note, and preferably the canonical Obsidian note once accessible.

@@ -650,7 +650,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             importedEffects: call.getObject("importedEffects") ?? [:],
             overlaySelections: call.getObject("overlaySelections") ?? [:],
             durationSeconds: max(0.5, min(10.0, call.getDouble("durationSeconds", 2.0))),
-            fps: max(2.0, min(12.0, call.getDouble("fps", 12.0))),
+            fps: max(2.0, min(15.0, call.getDouble("fps", 15.0))),
             boomerang: call.getBool("boomerang", false),
             captureOrientation: captureOrientation.orientation,
             captureOrientationSource: captureOrientation.source
@@ -1694,7 +1694,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        let delay = max(0.08, 1.0 / request.fps)
+        let delay = max(0.05, 1.0 / request.fps)
         cameraQueue.asyncAfter(deadline: .now() + delay) {
             self.collectGifFrames(request: request, frames: nextFrames, targetCount: targetCount, frameIndex: frameIndex + 1, lastFrameAt: nextLastFrameAt, deadline: deadline, focusResetMode: focusResetMode)
         }
@@ -2051,7 +2051,7 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 coreImageMs = self.elapsedMs(since: coreImageStart) - overlayMs - spektraMs
 
-                let delay = max(0.08, 1.0 / request.fps)
+                let delay = max(0.05, 1.0 / request.fps)
                 let normalGifData = try self.makeGifData(frames: renderedFrames, frameDelay: delay, boomerang: false)
                 let outputGifData = request.boomerang
                     ? try self.makeGifData(frames: renderedFrames, frameDelay: delay, boomerang: true)
@@ -2070,7 +2070,11 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                         "gifBoomerang": request.boomerang,
                         "gifDurationSeconds": request.durationSeconds,
                         "gifFrameCount": renderedFrames.count,
-                        "gifOutputFrameCount": outputFrameCount
+                        "gifOutputFrameCount": outputFrameCount,
+                        "width": outputSize.width,
+                        "height": outputSize.height,
+                        "orientation": self.orientationName(request.captureOrientation),
+                        "orientationSource": request.captureOrientationSource
                     ]
                 )
                 let galleryWriteMs = self.elapsedMs(since: galleryWriteStart)
@@ -3606,11 +3610,19 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                    !fileManager.fileExists(atPath: originalURL.path) {
                     item["originalFileUrl"] = fileUrl
                 }
+                if !hasPositiveGalleryDimensions(item),
+                   let data = try? Data(contentsOf: url),
+                   let dimensions = imagePixelSize(from: data) {
+                    item["width"] = dimensions.width
+                    item["height"] = dimensions.height
+                }
                 item["galleryOffset"] = galleryOffset
                 items.append(normalizeNativeGalleryItem(item))
             } else {
                 let isLegacyVideo = isVideoFileURL(candidate.url)
-                let dimensions = isLegacyVideo ? videoPixelSize(from: candidate.url) : nil
+                let dimensions = isLegacyVideo
+                    ? videoPixelSize(from: candidate.url)
+                    : ((try? Data(contentsOf: candidate.url)).flatMap { imagePixelSize(from: $0) })
                 items.append([
                     "id": candidate.id,
                     "filename": candidate.url.lastPathComponent,
@@ -3631,6 +3643,12 @@ class KonoNativeBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         return (items: items, total: total, hasMore: end < total, nextOffset: end)
+    }
+
+    private func hasPositiveGalleryDimensions(_ item: JSObject) -> Bool {
+        let width = item["width"] as? Int ?? (item["width"] as? NSNumber)?.intValue ?? 0
+        let height = item["height"] as? Int ?? (item["height"] as? NSNumber)?.intValue ?? 0
+        return width > 0 && height > 0
     }
 
     private func nativeGalleryCandidates() throws -> [NativeGalleryCandidate] {

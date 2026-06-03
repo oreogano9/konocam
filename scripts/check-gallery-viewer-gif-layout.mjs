@@ -6,9 +6,9 @@ const nativeSource = readFileSync(new URL("../ios/App/App/AppDelegate.swift", im
 
 const checks = [
   {
-    name: "web GIF capture requests smoother 12fps playback",
+    name: "web GIF capture requests smoother 15fps playback",
     source: appSource,
-    pattern: /const GIF_CAPTURE_FPS = 12;/,
+    pattern: /const GIF_CAPTURE_FPS = 15;/,
   },
   {
     name: "web GIF capture uses a higher quality 960px max side",
@@ -16,9 +16,9 @@ const checks = [
     pattern: /const GIF_CAPTURE_MAX_SIDE = 960;/,
   },
   {
-    name: "native GIF capture defaults to 12fps and clamps up to 12fps",
+    name: "native GIF capture defaults to 15fps and clamps up to 15fps",
     source: nativeSource,
-    pattern: /fps: max\(2\.0, min\(12\.0, call\.getDouble\("fps", 12\.0\)\)\)/,
+    pattern: /fps: max\(2\.0, min\(15\.0, call\.getDouble\("fps", 15\.0\)\)\)/,
   },
   {
     name: "native GIF source frames use high quality JPEG normalization",
@@ -36,9 +36,19 @@ const checks = [
     pattern: /"orientation": self\.orientationName\(request\.captureOrientation\)[\s\S]*"width": outputSize\.width,[\s\S]*"height": outputSize\.height,/,
   },
   {
+    name: "native GIF gallery metadata preserves output dimensions and orientation",
+    source: nativeSource,
+    pattern: /"mediaType": "gif"[\s\S]*"gifOutputFrameCount": outputFrameCount,[\s\S]*"width": outputSize\.width,[\s\S]*"height": outputSize\.height,[\s\S]*"orientation": self\.orientationName\(request\.captureOrientation\),[\s\S]*"orientationSource": request\.captureOrientationSource/,
+  },
+  {
+    name: "native gallery repairs missing image and GIF dimensions while listing",
+    source: nativeSource,
+    pattern: /if !hasPositiveGalleryDimensions\(item\),[\s\S]*let data = try\? Data\(contentsOf: url\),[\s\S]*let dimensions = imagePixelSize\(from: data\)[\s\S]*item\["width"\] = dimensions\.width[\s\S]*private func hasPositiveGalleryDimensions\(_ item: JSObject\) -> Bool/,
+  },
+  {
     name: "gallery viewer reveals cached images/GIFs and videos without getting stuck",
     source: appSource,
-    pattern: /function revealGalleryViewerForToken\(token, options = \{\}\)[\s\S]*galleryViewer\.hidden = false;[\s\S]*galleryViewerVideo\.onloadedmetadata = \(\) => \{[\s\S]*revealGalleryViewerForToken\(loadToken, options\);[\s\S]*window\.setTimeout\(\(\) => revealGalleryViewerForToken\(loadToken, options\), 500\);[\s\S]*galleryViewerImage\.complete && galleryViewerImage\.naturalWidth > 0[\s\S]*revealGalleryViewerForToken\(loadToken, options\)/,
+    pattern: /function revealGalleryViewerForToken\(token, options = \{\}\)[\s\S]*galleryViewer\.hidden = false;[\s\S]*function updateGalleryViewerImageDimensions\(item\)[\s\S]*galleryViewerImage\.naturalWidth[\s\S]*applyGalleryViewerMediaAspect\(item\)[\s\S]*revealGalleryViewerForToken\(loadToken, options\);[\s\S]*galleryViewerVideo\.onloadedmetadata = \(\) => \{[\s\S]*applyGalleryViewerMediaAspect\(item\);[\s\S]*window\.setTimeout\(\(\) => revealGalleryViewerForToken\(loadToken, options\), 500\);[\s\S]*updateGalleryViewerImageDimensions\(item\);/,
   },
   {
     name: "gallery viewer recovers from image and GIF load failures",
@@ -51,9 +61,14 @@ const checks = [
     pattern: /function showGalleryViewerItem\(item, options = \{\}\)[\s\S]*URL\.revokeObjectURL\(state\.selectedGalleryObjectUrl\);[\s\S]*galleryViewerImage\.onload = null;[\s\S]*galleryViewerImage\.onerror = null;[\s\S]*galleryViewerImage\.removeAttribute\("src"\);[\s\S]*galleryViewerImage\.dataset\.loadToken = String\(loadToken\);[\s\S]*galleryViewerImage\.src = url;/,
   },
   {
-    name: "gallery grid uses CSS grid for horizontal row-major loading",
+    name: "gallery viewer uses an opaque black background instead of a see-through overlay",
     source: stylesSource,
-    pattern: /\.mobile-gallery__grid \{[\s\S]*display: grid;[\s\S]*gap: 0\.5rem;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+    pattern: /\.gallery-viewer \{[\s\S]*background: #050505;[\s\S]*position: fixed;/,
+  },
+  {
+    name: "gallery grid uses dense adaptive masonry rows",
+    source: stylesSource,
+    pattern: /\.mobile-gallery__grid \{[\s\S]*display: grid;[\s\S]*gap: 0\.5rem;[\s\S]*grid-auto-flow: dense;[\s\S]*grid-auto-rows: 6px;[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
   },
   {
     name: "gallery three-column setting maps to CSS grid columns",
@@ -61,19 +76,29 @@ const checks = [
     pattern: /body\.gallery-two-column \.mobile-gallery__grid \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*\}/,
   },
   {
-    name: "gallery cards are clean grid items",
+    name: "gallery cards span adaptive masonry rows",
     source: stylesSource,
-    pattern: /\.mobile-gallery__item \{[\s\S]*contain: content;[\s\S]*margin: 0;/,
+    pattern: /\.mobile-gallery__item \{[\s\S]*contain: content;[\s\S]*grid-row: span var\(--gallery-item-row-span, 40\);[\s\S]*margin: 0;/,
   },
   {
-    name: "virtual gallery spacers span all grid columns",
+    name: "gallery card buttons fill adaptive masonry cells",
     source: stylesSource,
-    pattern: /\.mobile-gallery__spacer \{[\s\S]*display: block;[\s\S]*grid-column: 1 \/ -1;/,
+    pattern: /\.mobile-gallery__item button \{[\s\S]*height: 100%;[\s\S]*width: 100%;/,
+  },
+  {
+    name: "virtual gallery spacers span all grid columns and enough rows",
+    source: stylesSource,
+    pattern: /\.mobile-gallery__spacer \{[\s\S]*display: block;[\s\S]*grid-column: 1 \/ -1;[\s\S]*grid-row: span var\(--gallery-spacer-row-span, 1\);/,
   },
   {
     name: "gallery column measurement reads CSS grid columns",
     source: appSource,
     pattern: /function getGalleryGridColumnCount\(\)[\s\S]*const styles = window\.getComputedStyle\(galleryGrid\);[\s\S]*const template = styles\.gridTemplateColumns;[\s\S]*return Math\.max\(1, columns \|\| 1\);/,
+  },
+  {
+    name: "gallery card row span is computed from real aspect ratio",
+    source: appSource,
+    pattern: /function applyGalleryCardAspectRatio\(card, item\)[\s\S]*--gallery-item-row-span[\s\S]*function getGalleryItemRowSpan\(item, aspect = getGalleryItemAspectRatio\(item\)\)[\s\S]*GALLERY_GRID_ROW_HEIGHT/,
   },
   {
     name: "virtual gallery row math reads CSS grid row gap",
